@@ -7,6 +7,8 @@
 
 RagaliQ brings software testing discipline to LLM and RAG systems. Write quality tests for your AI responses as naturally as you write unit tests.
 
+> **New to RagaliQ?** Check out [GETTING_STARTED.md](GETTING_STARTED.md) for a 5-minute quickstart.
+
 ---
 
 ## Why RagaliQ?

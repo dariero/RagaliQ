@@ -1,143 +1,148 @@
-# Getting Started with Claude Code
+# Getting Started with RagaliQ
 
-## Setup
+This guide walks you through your first RagaliQ evaluation in under 5 minutes.
 
-1. **Copy the project to your local machine:**
-   ```bash
-   # Create directory and copy files (or clone from GitHub once you set it up)
-   mkdir ragaliq
-   cd ragaliq
-   # Copy the files from this session
-   ```
+## Prerequisites
 
-2. **Create virtual environment:**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-   ```
+- Python 3.14+
+- Anthropic API key
 
-3. **Install in development mode:**
-   ```bash
-   pip install -e ".[dev]"
-   ```
-
-4. **Verify setup:**
-   ```bash
-   make test
-   ```
-
-## Working with Claude Code
-
-### Initial Setup
-
-When you first open the project in Claude Code:
+## Installation
 
 ```bash
-cd /path/to/ragaliq
-claude
+pip install ragaliq
 ```
 
-Claude Code will automatically read `CLAUDE.md` for project context.
-
-### Recommended Prompts for Each Phase
-
-#### Phase 1, Week 1 (completed):
-- [x] Project structure
-- [x] Core models (RAGTestCase, RAGTestResult, EvaluationResult)
-- [x] Base Evaluator class
-- [x] Initial tests
-
-#### Phase 1, Week 2 - Claude Judge Integration:
-
-```
-Let's implement the Claude judge. Start with:
-1. Create src/ragaliq/judges/base.py with abstract LLMJudge class
-2. Create src/ragaliq/judges/claude.py implementing ClaudeJudge
-3. Add prompt templates in src/ragaliq/judges/prompts/
-
-The judge should have methods:
-- extract_claims(response: str) -> list[str]
-- verify_claim(claim: str, context: list[str]) -> bool
-- score_relevance(query: str, response: str) -> float
-
-Use async methods and tenacity for retry logic.
+Set your API key:
+```bash
+export ANTHROPIC_API_KEY=your-key-here
 ```
 
-#### Phase 2, Week 3 - Core Evaluators:
+## Your First Test
 
-```
-Now implement the core evaluators. Start with FaithfulnessEvaluator:
-1. Create src/ragaliq/evaluators/faithfulness.py
-2. It should extract claims from response, then verify each against context
-3. Score = verified_claims / total_claims
-4. Add unit tests with mocked judge
+### Step 1: Create a Test Case
 
-Follow the same pattern for RelevanceEvaluator and HallucinationEvaluator.
-```
+```python
+# my_first_test.py
+from ragaliq import RagaliQ, RAGTestCase
 
-### Tips for Effective Claude Code Sessions
-
-1. **Be specific about what you want:**
-   - Bad: "Implement the evaluators"
-   - Good: "Implement FaithfulnessEvaluator in src/ragaliq/evaluators/faithfulness.py following the pattern in docs/PROJECT_PLAN.md"
-
-2. **Reference existing files:**
-   - "Follow the same pattern as test_case.py"
-   - "Use the EvaluationResult model from core/evaluator.py"
-
-3. **Ask for tests together with code:**
-   - "Implement X and add unit tests in tests/unit/test_X.py"
-
-4. **Iterate in small chunks:**
-   - Don't ask for the entire project at once
-   - One module at a time with tests
-
-5. **Run tests frequently:**
-   ```bash
-   make test-fast  # Quick test run
-   make lint       # Check code style
-   ```
-
-## Next Steps Checklist
-
-### Week 2: Claude Judge
-- [ ] `src/ragaliq/judges/base.py` - Abstract LLMJudge
-- [ ] `src/ragaliq/judges/claude.py` - ClaudeJudge implementation
-- [ ] `src/ragaliq/judges/prompts/extract_claims.yaml`
-- [ ] `src/ragaliq/judges/prompts/verify_claim.yaml`
-- [ ] `tests/unit/test_judges.py`
-
-### Week 3: Core Evaluators
-- [ ] `src/ragaliq/evaluators/faithfulness.py`
-- [ ] `src/ragaliq/evaluators/relevance.py`
-- [ ] `src/ragaliq/evaluators/hallucination.py`
-- [ ] `tests/unit/test_evaluators.py`
-
-### Week 4: RAG Evaluators
-- [ ] `src/ragaliq/evaluators/context_precision.py`
-- [ ] `src/ragaliq/evaluators/context_recall.py`
-- [ ] Evaluator registry
-
-## Environment Variables
-
-Create `.env` file (not committed):
-```
-ANTHROPIC_API_KEY=your-key-here
-OPENAI_API_KEY=your-key-here  # optional
+# Define what you want to test
+test_case = RAGTestCase(
+    id="test-1",
+    name="Capital Question",
+    query="What is the capital of France?",
+    context=["Paris is the capital city of France. It is known for the Eiffel Tower."],
+    response="The capital of France is Paris."
+)
 ```
 
-## Common Commands
+### Step 2: Run Evaluation
+
+```python
+import asyncio
+
+async def main():
+    # Initialize RagaliQ
+    tester = RagaliQ(
+        evaluators=["faithfulness", "relevance"],
+        threshold=0.7
+    )
+
+    # Evaluate
+    result = await tester.evaluate_async(test_case)
+
+    # Check results
+    print(f"Status: {result.status}")
+    for eval_result in result.evaluations:
+        print(f"  {eval_result.evaluator}: {eval_result.score:.2f}")
+
+asyncio.run(main())
+```
+
+### Step 3: Run It
 
 ```bash
-# Development
-make install-dev    # Install with dev dependencies
-make test           # Run all tests
-make test-fast      # Run tests without coverage
-make lint           # Check code style
-make format         # Auto-format code
-make typecheck      # Run mypy
-
-# After project is complete
-make build          # Build package
-make publish-test   # Publish to TestPyPI
+python my_first_test.py
 ```
+
+Expected output:
+```
+Status: passed
+  faithfulness: 1.00
+  relevance: 0.95
+```
+
+## Using the CLI
+
+Create a test dataset file:
+
+```json
+// tests.json
+[
+  {
+    "id": "1",
+    "name": "Capital Question",
+    "query": "What is the capital of France?",
+    "context": ["Paris is the capital of France."],
+    "response": "The capital of France is Paris."
+  }
+]
+```
+
+Run evaluation:
+
+```bash
+ragaliq run tests.json
+```
+
+## Using with Pytest
+
+```python
+# test_my_rag.py
+import pytest
+from ragaliq import RAGTestCase
+from ragaliq.integrations.pytest_plugin import assert_rag_quality
+
+@pytest.mark.rag_test
+def test_factual_response(rag_tester):
+    test_case = RAGTestCase(
+        id="1",
+        name="Test",
+        query="What is Python?",
+        context=["Python is a programming language created in 1991."],
+        response="Python is a programming language."
+    )
+    assert_rag_quality(rag_tester, test_case)
+```
+
+Run tests:
+```bash
+pytest -m rag_test
+```
+
+## Understanding Scores
+
+| Score | Meaning |
+|-------|---------|
+| 0.9 - 1.0 | Excellent - response fully meets criteria |
+| 0.7 - 0.9 | Good - minor issues, passes threshold |
+| 0.4 - 0.7 | Needs improvement - significant gaps |
+| 0.0 - 0.4 | Poor - major issues detected |
+
+Default pass threshold is **0.7**.
+
+## Available Evaluators
+
+| Evaluator | What It Checks |
+|-----------|----------------|
+| `faithfulness` | Is response grounded in context only? |
+| `relevance` | Does response answer the query? |
+| `hallucination` | Any made-up facts not in context? |
+| `context_precision` | Are retrieved docs relevant? |
+| `context_recall` | Do docs cover needed information? |
+
+## Next Steps
+
+- [Full README](README.md) - Complete feature documentation
+- [CLI Reference](README.md#cli-usage) - All command options
+- [Pytest Integration](README.md#pytest-integration) - Testing patterns

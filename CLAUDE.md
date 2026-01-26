@@ -1,6 +1,6 @@
 # RagaliQ - Project Context
 
-## What is this project?
+## What is RagaliQ?
 
 RagaliQ (RAG + Quality) is a Python library + CLI tool for automated testing of RAG (Retrieval-Augmented Generation) pipelines. It enables QA and AI engineers to write quality tests for LLM responses using pytest-like syntax.
 
@@ -28,11 +28,11 @@ src/ragaliq/
 
 ## Key Design Decisions
 
-1. **Evaluator Pattern**: Each metric (faithfulness, relevance, etc.) is a separate Evaluator class with `evaluate()` method
-2. **LLM-as-Judge**: We use Claude API to assess response quality, not hardcoded rules
+1. **Evaluator Pattern**: Each metric is a separate Evaluator class with `evaluate()` method
+2. **LLM-as-Judge**: Claude API assesses response quality, not hardcoded rules
 3. **Async-first**: All LLM calls are async for performance
-4. **Pydantic everywhere**: Strict typing with Pydantic models for all data structures
-5. **Pytest-native**: Library should feel natural to pytest users
+4. **Pydantic everywhere**: Strict typing with Pydantic models
+5. **Pytest-native**: Library feels natural to pytest users
 
 ## Code Style
 
@@ -41,25 +41,26 @@ src/ragaliq/
 - Docstrings in Google style
 - Tests in `tests/` mirroring `src/` structure
 
-## Current Phase
+## Current Status
 
-Phase 1: Foundation - building core models and Claude judge integration.
+**GitHub Board**: https://github.com/users/dariero/projects/2/views/1
 
-## Important Files
-
-- `docs/PROJECT_PLAN.md` - Full implementation plan with weekly milestones
-- `docs/ARCHITECTURE.md` - Detailed component specifications
+Phase 1 in progress - building judge integration and core evaluators.
 
 ## Commands
 
 ```bash
-# Development
 make install        # Install in dev mode
 make test          # Run tests
 make lint          # Run ruff
-make format        # Format code
-
-# CLI (after install)
-ragaliq run tests.json
-ragaliq generate ./docs/ -n 50
+make typecheck     # Run mypy
 ```
+
+## Automation
+
+Use `.claude/commands/` for reusable automation:
+- `/new-evaluator` - Scaffold evaluator
+- `/new-judge` - Add LLM provider
+- `/add-cli-command` - Extend CLI
+
+See `.claude/README.md` for full command catalog.
