@@ -191,7 +191,7 @@ thresholds:
 
 ```bash
 # Clone the repository
-git clone https://github.com/darliro/ragaliq.git
+git clone https://github.com/dariero/RagaliQ.git
 cd ragaliq
 
 # Create virtual environment
