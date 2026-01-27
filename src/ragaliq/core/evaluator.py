@@ -26,9 +26,7 @@ class EvaluationResult(BaseModel):
     score: float = Field(..., ge=0.0, le=1.0, description="Score from 0 to 1")
     passed: bool = Field(..., description="Whether threshold was met")
     reasoning: str = Field(default="", description="Explanation of the score")
-    raw_response: dict[str, Any] = Field(
-        default_factory=dict, description="Raw judge response"
-    )
+    raw_response: dict[str, Any] = Field(default_factory=dict, description="Raw judge response")
 
     model_config = {"frozen": False, "extra": "forbid"}
 
@@ -62,8 +60,8 @@ class Evaluator(ABC):
     @abstractmethod
     async def evaluate(
         self,
-        test_case: "RAGTestCase",
-        judge: "LLMJudge",
+        test_case: RAGTestCase,
+        judge: LLMJudge,
     ) -> EvaluationResult:
         """
         Evaluate a test case using the LLM judge.

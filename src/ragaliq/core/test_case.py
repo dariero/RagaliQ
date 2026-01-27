@@ -6,8 +6,8 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
-class TestStatus(str, Enum):
-    """Status of a test execution."""
+class EvalStatus(str, Enum):
+    """Status of an evaluation execution."""
 
     PASSED = "passed"
     FAILED = "failed"
@@ -58,20 +58,16 @@ class RAGTestResult(BaseModel):
     """
 
     test_case: RAGTestCase = Field(..., description="The evaluated test case")
-    status: TestStatus = Field(..., description="Overall test status")
-    scores: dict[str, float] = Field(
-        default_factory=dict, description="Metric scores (0-1)"
-    )
-    details: dict[str, Any] = Field(
-        default_factory=dict, description="Detailed evaluation info"
-    )
+    status: EvalStatus = Field(..., description="Overall test status")
+    scores: dict[str, float] = Field(default_factory=dict, description="Metric scores (0-1)")
+    details: dict[str, Any] = Field(default_factory=dict, description="Detailed evaluation info")
     execution_time_ms: int = Field(default=0, description="Evaluation time in ms")
     judge_tokens_used: int = Field(default=0, description="Tokens used by judge")
 
     @property
     def passed(self) -> bool:
         """Check if the test passed."""
-        return self.status == TestStatus.PASSED
+        return self.status == EvalStatus.PASSED
 
     def get_score(self, metric: str) -> float | None:
         """Get score for a specific metric."""

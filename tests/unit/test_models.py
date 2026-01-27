@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from ragaliq.core.test_case import RAGTestCase, RAGTestResult, TestStatus
 from ragaliq.core.evaluator import EvaluationResult
+from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
 
 
 class TestRAGTestCase:
@@ -79,31 +79,31 @@ class TestRAGTestResult:
         """Test creating a passed result."""
         result = RAGTestResult(
             test_case=sample_test_case,
-            status=TestStatus.PASSED,
+            status=EvalStatus.PASSED,
             scores={"faithfulness": 0.95, "relevance": 0.88},
             execution_time_ms=150,
         )
 
         assert result.passed is True
-        assert result.status == TestStatus.PASSED
+        assert result.status == EvalStatus.PASSED
         assert result.scores["faithfulness"] == 0.95
 
     def test_create_failed_result(self, sample_test_case):
         """Test creating a failed result."""
         result = RAGTestResult(
             test_case=sample_test_case,
-            status=TestStatus.FAILED,
+            status=EvalStatus.FAILED,
             scores={"faithfulness": 0.45, "relevance": 0.30},
         )
 
         assert result.passed is False
-        assert result.status == TestStatus.FAILED
+        assert result.status == EvalStatus.FAILED
 
     def test_get_score(self, sample_test_case):
         """Test get_score helper method."""
         result = RAGTestResult(
             test_case=sample_test_case,
-            status=TestStatus.PASSED,
+            status=EvalStatus.PASSED,
             scores={"faithfulness": 0.9, "relevance": 0.8},
         )
 
@@ -115,7 +115,7 @@ class TestRAGTestResult:
         """Test storing detailed evaluation info."""
         result = RAGTestResult(
             test_case=sample_test_case,
-            status=TestStatus.PASSED,
+            status=EvalStatus.PASSED,
             scores={"faithfulness": 0.9},
             details={
                 "faithfulness": {
@@ -176,17 +176,17 @@ class TestEvaluationResult:
         assert result.raw_response["model"] == "claude-opus-4-5-20251101"
 
 
-class TestTestStatus:
-    """Tests for TestStatus enum."""
+class TestEvalStatus:
+    """Tests for EvalStatus enum."""
 
     def test_status_values(self):
         """Test all status values exist."""
-        assert TestStatus.PASSED.value == "passed"
-        assert TestStatus.FAILED.value == "failed"
-        assert TestStatus.SKIPPED.value == "skipped"
-        assert TestStatus.ERROR.value == "error"
+        assert EvalStatus.PASSED.value == "passed"
+        assert EvalStatus.FAILED.value == "failed"
+        assert EvalStatus.SKIPPED.value == "skipped"
+        assert EvalStatus.ERROR.value == "error"
 
     def test_status_comparison(self):
         """Test status comparison."""
-        assert TestStatus.PASSED == TestStatus.PASSED
-        assert TestStatus.PASSED != TestStatus.FAILED
+        assert EvalStatus.PASSED == EvalStatus.PASSED
+        assert EvalStatus.PASSED != EvalStatus.FAILED

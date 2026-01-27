@@ -2,8 +2,8 @@
 
 from typing import Literal
 
-from ragaliq.core.evaluator import Evaluator, EvaluationResult
-from ragaliq.core.test_case import RAGTestCase, RAGTestResult, TestStatus
+from ragaliq.core.evaluator import EvaluationResult, Evaluator
+from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
 
 
 class RagaliQ:
@@ -40,7 +40,7 @@ class RagaliQ:
         self._judge = None
         self._evaluators: list[Evaluator] = []
 
-    def _init_judge(self):
+    def _init_judge(self) -> None:
         """Lazily initialize the LLM judge."""
         if self._judge is not None:
             return
@@ -55,7 +55,7 @@ class RagaliQ:
         #     self._judge = OpenAIJudge()
         raise NotImplementedError("Judge initialization not yet implemented")
 
-    def _init_evaluators(self):
+    def _init_evaluators(self) -> None:
         """Initialize evaluators based on configuration."""
         if self._evaluators:
             return
@@ -104,7 +104,7 @@ class RagaliQ:
 
         return RAGTestResult(
             test_case=test_case,
-            status=TestStatus.PASSED if all_passed else TestStatus.FAILED,
+            status=EvalStatus.PASSED if all_passed else EvalStatus.FAILED,
             scores=scores,
             details=details,
             execution_time_ms=execution_time,
@@ -125,9 +125,7 @@ class RagaliQ:
 
         return asyncio.run(self.evaluate_async(test_case))
 
-    async def evaluate_batch_async(
-        self, test_cases: list[RAGTestCase]
-    ) -> list[RAGTestResult]:
+    async def evaluate_batch_async(self, test_cases: list[RAGTestCase]) -> list[RAGTestResult]:
         """
         Evaluate multiple test cases asynchronously.
 

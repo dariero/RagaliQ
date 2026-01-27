@@ -1,13 +1,13 @@
 """Core components for RagaliQ."""
 
-from ragaliq.core.test_case import RAGTestCase, RAGTestResult, TestStatus
-from ragaliq.core.evaluator import Evaluator, EvaluationResult
+from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.runner import RagaliQ
+from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
 
 __all__ = [
     "RAGTestCase",
     "RAGTestResult",
-    "TestStatus",
+    "EvalStatus",
     "Evaluator",
     "EvaluationResult",
     "RagaliQ",

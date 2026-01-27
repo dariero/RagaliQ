@@ -1,44 +1,66 @@
-.PHONY: install install-dev test lint format typecheck clean all
+.PHONY: install install-dev test lint format typecheck clean all venv
+
+# Virtual environment
+VENV := .venv
+PYTHON := $(VENV)/bin/python
+PIP := $(VENV)/bin/pip
+PYTEST := $(VENV)/bin/pytest
+RUFF := $(VENV)/bin/ruff
+MYPY := $(VENV)/bin/mypy
+PRE_COMMIT := $(VENV)/bin/pre-commit
 
 # Default target
 all: install-dev lint typecheck test
 
+# Create virtual environment
+venv:
+	python3 -m venv $(VENV)
+	$(PIP) install --upgrade pip
+
 # Install package in production mode
-install:
-	pip install -e .
+install: venv
+	$(PIP) install .
 
 # Install package with dev dependencies
-install-dev:
-	pip install -e ".[dev]"
+install-dev: venv
+	$(PIP) install ".[dev]"
 
 # Run tests
 test:
-	pytest tests/ -v --cov=ragaliq --cov-report=term-missing
+	$(PYTEST) tests/ -v --cov=ragaliq --cov-report=term-missing
 
 # Run tests without coverage (faster)
 test-fast:
-	pytest tests/ -v
+	$(PYTEST) tests/ -v
 
 # Run only unit tests
 test-unit:
-	pytest tests/unit/ -v
+	$(PYTEST) tests/unit/ -v
 
 # Run only integration tests
 test-integration:
-	pytest tests/integration/ -v
+	$(PYTEST) tests/integration/ -v
 
 # Lint code
 lint:
-	ruff check src/ tests/
+	$(RUFF) check src/ tests/
 
 # Format code
 format:
-	ruff format src/ tests/
-	ruff check --fix src/ tests/
+	$(RUFF) format src/ tests/
+	$(RUFF) check --fix src/ tests/
 
 # Type checking
 typecheck:
-	mypy src/
+	$(MYPY) src/
+
+# Setup pre-commit hooks
+pre-commit-install:
+	$(PRE_COMMIT) install
+
+# Run pre-commit on all files
+pre-commit-run:
+	$(PRE_COMMIT) run --all-files
 
 # Clean build artifacts
 clean:
@@ -54,9 +76,13 @@ clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
+# Clean everything including venv
+clean-all: clean
+	rm -rf $(VENV)
+
 # Build package
 build: clean
-	python -m build
+	$(PYTHON) -m build
 
 # Publish to PyPI (test)
 publish-test: build
@@ -68,16 +94,17 @@ publish: build
 
 # Run example
 example:
-	python examples/basic_usage.py
+	$(PYTHON) examples/basic_usage.py
 
 # Generate HTML coverage report
 coverage-html:
-	pytest tests/ --cov=ragaliq --cov-report=html
+	$(PYTEST) tests/ --cov=ragaliq --cov-report=html
 	open htmlcov/index.html
 
 # Help
 help:
 	@echo "Available targets:"
+	@echo "  venv         - Create virtual environment"
 	@echo "  install      - Install package"
 	@echo "  install-dev  - Install package with dev dependencies"
 	@echo "  test         - Run all tests with coverage"
@@ -86,5 +113,8 @@ help:
 	@echo "  lint         - Check code style"
 	@echo "  format       - Format code"
 	@echo "  typecheck    - Run mypy"
+	@echo "  pre-commit-install - Setup pre-commit hooks"
+	@echo "  pre-commit-run     - Run pre-commit on all files"
 	@echo "  clean        - Remove build artifacts"
+	@echo "  clean-all    - Remove build artifacts and venv"
 	@echo "  build        - Build package"
