@@ -175,7 +175,7 @@ Create a `ragaliq.yaml` in your project root:
 
 ```yaml
 judge: claude
-model: claude-sonnet-4-20250514
+model: claude-opus-4-5-20251101
 evaluators:
   - faithfulness
   - relevance

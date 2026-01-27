@@ -59,7 +59,7 @@ Requirements:
 - Implements all abstract methods using Claude API calls
 - Uses tenacity for retry logic: @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10), retry=retry_if_exception_type(anthropic.APIError))
 - Tracks token usage: add usage_stats property returning dict with prompt_tokens, completion_tokens, total_tokens
-- Default model: claude-sonnet-4-20250514
+- Default model: claude-opus-4-5-20251101
 - Parse Claude responses as JSON, handle malformed responses gracefully
 
 Add integration test in tests/integration/test_claude_judge.py that:
