@@ -1,9 +1,10 @@
 """Main test runner for RagaliQ."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
+from ragaliq.judges.base import LLMJudge
 
 
 class RagaliQ:
@@ -37,7 +38,7 @@ class RagaliQ:
         self.default_threshold = default_threshold
 
         # Will be initialized lazily
-        self._judge = None
+        self._judge: LLMJudge | None = None
         self._evaluators: list[Evaluator] = []
 
     def _init_judge(self) -> None:
@@ -84,8 +85,10 @@ class RagaliQ:
         self._init_judge()
         self._init_evaluators()
 
+        assert self._judge is not None, "Judge must be initialized"
+
         scores: dict[str, float] = {}
-        details: dict[str, dict] = {}
+        details: dict[str, dict[str, Any]] = {}
         total_tokens = 0
         all_passed = True
 
