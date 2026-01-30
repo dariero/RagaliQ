@@ -243,7 +243,7 @@ Contributions are welcome! Please follow these guidelines:
 ## Roadmap
 
 - [x] Core models (RAGTestCase, RAGTestResult, Evaluator)
-- [ ] Claude judge integration
+- [x] Claude judge integration (LLMJudge base + ClaudeJudge implementation)
 - [ ] Core evaluators (faithfulness, relevance, hallucination)
 - [ ] RAG-specific evaluators (context precision, context recall)
 - [ ] CLI with Typer
