@@ -1,95 +1,104 @@
-# RagaliQ Development with Claude Code
+# RagaliQ Development Workflow
 
-This guide explains how to use Claude Code effectively for RagaliQ development.
+## Core Principle
 
-## Quick Start
+Every change links to a GitHub issue and follows:
+
+```
+Issue → Branch → Implement → Validate → PR → Review → Merge → Cleanup
+```
+
+## Daily Flow
+
+### 1. Pick a Task
 
 ```bash
-cd /path/to/ragaliq
-claude
+gh issue list --assignee @me --state open
 ```
 
-Claude Code automatically reads `CLAUDE.md` for project context.
+### 2. Start Work
 
-## Available Commands
-
-Use slash commands for common operations:
-
-| Command | Purpose |
-|---------|---------|
-| `/new-evaluator` | Create new LLM evaluator |
-| `/new-judge` | Add LLM provider support |
-| `/add-cli-command` | Extend CLI |
-| `/setup-cicd` | Configure GitHub Actions |
-
-See [README.md](README.md) for full command catalog.
-
-## Task Workflow
-
-**GitHub Board:** https://github.com/users/dariero/projects/2/views/1
-
-1. Check current task in "In Progress" column
-2. Use appropriate `/command` or describe the task
-3. Run `make test && make typecheck` after implementation
-4. Mark task complete, move to next
-
-## Effective Prompts
-
-**Be specific:**
 ```
-Implement FaithfulnessEvaluator in src/ragaliq/evaluators/faithfulness.py.
-Follow the pattern from the Evaluator base class.
-Include unit tests with a mocked judge.
+/start-work 42
 ```
+- Creates `feat/42-description` branch
+- Updates board to "In Progress"
+- Shows issue context
 
-**Reference existing code:**
-```
-Follow the same pattern as test_case.py
-Use the EvaluationResult model from core/evaluator.py
-```
+### 3. Implement
 
-**Ask for tests together:**
-```
-Implement X and add unit tests in tests/unit/test_X.py
-```
+Use feature commands if scaffolding:
+- `/new-evaluator` - New evaluator
+- `/new-judge` - New judge backend
 
-## Development Commands
+Otherwise, just code normally.
+
+### 4. Commit
+
+```
+/commit
+```
+- Extracts issue from branch
+- Formats: `[FEAT #42] Description`
+- Adds co-author
+
+### 5. Validate
+
+```
+/check
+```
+- Runs lint, typecheck, test
+- Must pass before PR
+
+### 6. Submit
+
+```
+/pr
+```
+- Runs /check first
+- Creates PR with template
+- Links issue
+
+### 7. Handle Feedback
+
+```
+/fix
+```
+- Fetches review comments
+- Guides fixes
+- Pushes update
+
+### 8. Cleanup
+
+```
+/complete-issue 42
+```
+- Switches to main
+- Deletes local branch
+- Prunes remotes
+
+## Conventions
+
+| Item | Format |
+|------|--------|
+| Branch | `<prefix>/<issue>-<description>` |
+| Commit | `[TYPE #issue] Description` |
+| Prefixes | `feat/`, `fix/`, `refactor/`, `arch/`, `docs/` |
+
+## Quality Gates
+
+All must pass before PR:
 
 ```bash
-# Verify changes
-make test           # Run all tests
-make test-fast      # Quick test without coverage
-make lint           # Check code style
-make typecheck      # Run mypy
-
-# Build
-make build          # Build package
-make clean          # Remove artifacts
+hatch run lint        # Code style
+hatch run typecheck   # Type checking
+hatch run test        # Tests (80% coverage)
 ```
 
-## Environment Setup
+## Board
 
-```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
+https://github.com/users/dariero/projects/2/views/1
 
-# Install dev dependencies
-pip install -e ".[dev]"
+Columns: 📋 Backlog → 🔄 In Progress → 🤖 AI Review → ✅ Approved → 🚀 Deployed → ✨ Done
 
-# Set API key
-export ANTHROPIC_API_KEY=your-key-here
-```
-
-## Project Structure
-
-```
-src/ragaliq/
-├── core/           # TestCase, Evaluator base, Runner
-├── evaluators/     # Faithfulness, Relevance, etc.
-├── judges/         # LLM judge implementations
-├── datasets/       # Data loading and generation
-├── reports/        # Console, HTML, JSON reporters
-├── integrations/   # Pytest plugin, CI helpers
-└── cli/            # Typer CLI commands
-```
+Most transitions are automated. `/start-work` handles "In Progress".
