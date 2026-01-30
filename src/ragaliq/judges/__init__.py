@@ -8,8 +8,10 @@ from ragaliq.judges.base import (
     JudgeResult,
     LLMJudge,
 )
+from ragaliq.judges.claude import ClaudeJudge
 
 __all__ = [
+    "ClaudeJudge",
     "JudgeAPIError",
     "JudgeConfig",
     "JudgeError",
