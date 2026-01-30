@@ -11,46 +11,51 @@ Initialize work on a GitHub issue. Creates branch, updates project board, prepar
 ### 1. Retrieve Issue Metadata
 
 ```bash
-gh issue view $ARGUMENTS --json title,body,labels,number,state
+gh issue view $ARGUMENTS --json title,body,number,state
 ```
 
 Parse the issue to extract:
 - Issue type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[ARCH]`, `[DOCS]`
-- Labels for area and priority
 - Acceptance criteria from body
 
-### 1.5. Determine Task Metadata
+### 1.5. Determine Task Metadata from Project V2 Fields
 
-**Priority Mapping** (from labels to project field):
+**Priority Assignment:**
 
-| Label Pattern | Priority | Option ID |
-|---------------|----------|-----------|
-| `priority-critical`, `bug` | Critical | `79628723` |
-| `priority-high`, `[FIX]` prefix | High | `0a877460` |
-| `priority-medium` | Medium | `da944a9c` |
-| `priority-low`, `docs` | Low | `56c1c445` |
-| *No matching label* | Medium (default) | `da944a9c` |
+Check existing Priority field in Project V2. If not set, determine from issue type:
 
-**Size Detection** (from labels):
+| Issue Type | Priority | Option ID |
+|------------|----------|-----------|
+| `[FIX]` prefix | High | `0a877460` |
+| Any other type | Medium (default) | `da944a9c` |
 
-| Label | Size | Option ID |
-|-------|------|-----------|
-| `size-XS` | XS | `6c6483d2` |
-| `size-S` | S | `f784b110` |
-| `size-M` | M | `7515a9f1` |
-| `size-L` | L | `817d0097` |
-| `size-XL` | XL | `db339eb2` |
+Priority Option IDs:
+- Critical: `79628723`
+- High: `0a877460`
+- Medium: `da944a9c`
+- Low: `56c1c445`
 
-**If no size label exists**, prompt for T-shirt size:
+**Size Assignment:**
+
+Check existing Size field in Project V2. If not set, prompt user:
+
 ```
-Size not found in issue labels. Please estimate task size:
+Size not found in Project V2. Please estimate task size:
+[XS] Extra Small (< 1 hour)
 [S] Small (1-2 hours)
 [M] Medium (3-5 hours)
 [L] Large (1-2 days)
 [XL] Extra Large (3+ days)
 
-Enter size (S/M/L/XL):
+Enter size (XS/S/M/L/XL):
 ```
+
+Size Option IDs:
+- XS: `6c6483d2`
+- S: `f784b110`
+- M: `7515a9f1`
+- L: `817d0097`
+- XL: `db339eb2`
 
 Store the determined values:
 - `PRIORITY_OPTION_ID`
@@ -213,9 +218,9 @@ gh api graphql -f query='
 **Field Update Logic:**
 - Always update Status to "In Progress"
 - Always set Assignee to @dariero
-- Update Priority if currently empty or if inferred value differs from existing
-- Update Size if currently empty (prompt if no label found)
-- Skip updates if field already has the correct value
+- Update Priority if currently empty (infer from issue type)
+- Update Size if currently empty (prompt user)
+- Skip updates if field already has a value
 
 ### 6. Summarize and Prepare
 
@@ -233,8 +238,8 @@ Issue #42: [FEAT] Add ToxicityEvaluator
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Metadata:
-  Priority: High (from label: priority-high)
-  Size: M (from label: size-M)
+  Priority: High (determined from [FIX] prefix)
+  Size: M (from user prompt)
   Estimate: 3-5 hours
 
 Description:
@@ -303,7 +308,7 @@ Choose an option to proceed.
 When Priority or Size fields are already populated:
 - Display current values
 - Skip GraphQL update for those fields
-- Only update if explicitly needed (e.g., label change detected)
+- Keep existing values (manual changes in Project V2 are preserved)
 
 ## Success Criteria
 
@@ -313,6 +318,6 @@ When Priority or Size fields are already populated:
 - [ ] Issue assigned to @dariero
 - [ ] Project board updated:
   - [ ] Status set to "In Progress"
-  - [ ] Priority determined and set (from labels or default)
-  - [ ] Size determined and set (from labels or prompt)
+  - [ ] Priority determined and set (from issue type or default) in Project V2
+  - [ ] Size determined and set (from user prompt) in Project V2
 - [ ] Context displayed with metadata confirmation
