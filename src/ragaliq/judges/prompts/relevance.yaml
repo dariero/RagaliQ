@@ -1,0 +1,71 @@
+# Relevance Evaluation Prompt Template
+# Evaluates whether a response is relevant to the user's query
+
+name: relevance
+version: "1.0"
+description: >
+  Evaluates if the response directly addresses the user's query.
+  A relevant response stays on topic and provides useful information.
+
+system_prompt: |
+  You are an expert evaluator assessing whether a response is relevant to the user's query.
+
+  Relevance means:
+  - The response directly addresses what the user asked
+  - The information provided is useful for answering the query
+  - The response stays on topic and doesn't include irrelevant information
+
+  Score criteria:
+  - 1.0: Response perfectly addresses the query
+  - 0.7-0.9: Response mostly addresses query with minor gaps
+  - 0.4-0.6: Response partially addresses query or includes irrelevant info
+  - 0.1-0.3: Response barely addresses the query
+  - 0.0: Response is completely irrelevant to the query
+
+  Respond ONLY with valid JSON in this exact format:
+  {"score": <float 0.0-1.0>, "reasoning": "<brief explanation>"}
+
+user_template: |
+  Evaluate the relevance of this response to the query.
+
+  QUERY:
+  {query}
+
+  RESPONSE TO EVALUATE:
+  {response}
+
+  Return JSON with score (0.0-1.0) and reasoning.
+
+output_format:
+  type: json
+  schema:
+    score:
+      type: float
+      min: 0.0
+      max: 1.0
+      description: Relevance score
+    reasoning:
+      type: string
+      description: Brief explanation of the score
+
+examples:
+  - input:
+      query: "What is the capital of France?"
+      response: "The capital of France is Paris. It is known for the Eiffel Tower."
+    output:
+      score: 1.0
+      reasoning: "Response directly answers the question about France's capital."
+
+  - input:
+      query: "How do I install Python?"
+      response: "Python is a great programming language used for web development, data science, and automation. Many developers prefer it."
+    output:
+      score: 0.3
+      reasoning: "Response discusses Python but doesn't address the installation question at all."
+
+  - input:
+      query: "What are the health benefits of exercise?"
+      response: "The best pizza in New York can be found at various locations throughout Manhattan."
+    output:
+      score: 0.0
+      reasoning: "Response about pizza is completely unrelated to the health/exercise query."

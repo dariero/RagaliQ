@@ -53,6 +53,7 @@ dev = [
     "ruff>=0.14",
     "mypy>=1.19",
     "pre-commit>=4.0",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
@@ -78,6 +79,7 @@ dependencies = [
     "ruff>=0.14",
     "mypy>=1.19",
     "pre-commit>=4.0",
+    "types-PyYAML>=6.0",
     "build",
 ]
 

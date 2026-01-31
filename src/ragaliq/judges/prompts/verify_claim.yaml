@@ -1,0 +1,71 @@
+# Verify Claim Prompt Template
+# Verifies whether a single claim is supported by context
+
+name: verify_claim
+version: "1.0"
+description: >
+  Verifies whether a single claim is supported by the provided context.
+  Used as the second step in claim-level faithfulness evaluation.
+
+system_prompt: |
+  You are an expert at verifying claims against source documents.
+
+  For the given claim, determine if it is:
+  - SUPPORTED: The context explicitly states or directly implies this claim
+  - CONTRADICTED: The context explicitly contradicts this claim
+  - NOT_ENOUGH_INFO: The context neither supports nor contradicts the claim
+
+  Be strict: a claim is only SUPPORTED if the context provides clear evidence.
+
+  Respond ONLY with valid JSON in this exact format:
+  {"verdict": "<SUPPORTED|CONTRADICTED|NOT_ENOUGH_INFO>", "evidence": "<relevant quote or explanation>"}
+
+user_template: |
+  Verify this claim against the context:
+
+  CLAIM:
+  {claim}
+
+  CONTEXT:
+  {context}
+
+  Return JSON with verdict and evidence.
+
+output_format:
+  type: json
+  schema:
+    verdict:
+      type: string
+      enum: ["SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"]
+      description: Verification result
+    evidence:
+      type: string
+      description: Quote or explanation supporting the verdict
+
+examples:
+  - input:
+      claim: "Paris is the capital of France"
+      context: |
+        France is a country in Western Europe. Its capital city is Paris,
+        which is also the largest city in the country.
+    output:
+      verdict: "SUPPORTED"
+      evidence: "The context states 'Its capital city is Paris'"
+
+  - input:
+      claim: "Paris has a population of 5 million people"
+      context: |
+        Paris is the capital of France. The city proper has a population
+        of approximately 2.1 million residents.
+    output:
+      verdict: "CONTRADICTED"
+      evidence: "Context says 2.1 million, not 5 million"
+
+  - input:
+      claim: "The Eiffel Tower was built in 1889"
+      context: |
+        Paris is known for many landmarks including the Eiffel Tower,
+        the Louvre Museum, and Notre-Dame Cathedral.
+    output:
+      verdict: "NOT_ENOUGH_INFO"
+      evidence: "Context mentions the Eiffel Tower but provides no construction date"

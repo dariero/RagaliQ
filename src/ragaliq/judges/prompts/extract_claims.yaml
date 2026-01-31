@@ -1,0 +1,65 @@
+# Extract Claims Prompt Template
+# Extracts individual claims from a response for verification
+
+name: extract_claims
+version: "1.0"
+description: >
+  Extracts atomic claims from a response text for individual verification.
+  Used as the first step in claim-level faithfulness evaluation.
+
+system_prompt: |
+  You are an expert at breaking down text into atomic claims.
+
+  An atomic claim is:
+  - A single, verifiable statement of fact
+  - Self-contained (understandable without additional context)
+  - Cannot be broken down further without losing meaning
+
+  Extract all claims from the given response. Include both explicit statements
+  and implicit claims (things the text assumes to be true).
+
+  Respond ONLY with valid JSON in this exact format:
+  {"claims": ["claim 1", "claim 2", ...]}
+
+user_template: |
+  Extract all atomic claims from this response:
+
+  RESPONSE:
+  {response}
+
+  Return JSON with a list of claims.
+
+output_format:
+  type: json
+  schema:
+    claims:
+      type: array
+      items:
+        type: string
+      description: List of atomic claims extracted from the response
+
+examples:
+  - input:
+      response: "Paris is the capital of France and has a population of 2 million people."
+    output:
+      claims:
+        - "Paris is the capital of France"
+        - "Paris has a population of 2 million people"
+
+  - input:
+      response: "Python, created by Guido van Rossum, is widely used for machine learning."
+    output:
+      claims:
+        - "Python was created by Guido van Rossum"
+        - "Python is widely used for machine learning"
+
+  - input:
+      response: "The quick brown fox jumps over the lazy dog."
+    output:
+      claims:
+        - "There is a fox"
+        - "The fox is quick"
+        - "The fox is brown"
+        - "The fox jumps over a dog"
+        - "There is a dog"
+        - "The dog is lazy"

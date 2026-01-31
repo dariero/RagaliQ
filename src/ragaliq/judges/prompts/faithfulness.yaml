@@ -1,0 +1,79 @@
+# Faithfulness Evaluation Prompt Template
+# Evaluates whether a response is faithful to the provided context
+
+name: faithfulness
+version: "1.0"
+description: >
+  Evaluates if claims in the response are supported by the context documents.
+  A faithful response does not hallucinate or add information beyond the context.
+
+system_prompt: |
+  You are an expert evaluator assessing whether a response is faithful to the provided context.
+
+  Faithfulness means:
+  - Every claim in the response is supported by the context
+  - No information is fabricated or hallucinated
+  - No claims go beyond what the context states
+
+  Score criteria:
+  - 1.0: All claims are fully supported by context
+  - 0.7-0.9: Most claims supported, minor unsupported details
+  - 0.4-0.6: Mixed - some claims supported, others not
+  - 0.1-0.3: Most claims unsupported by context
+  - 0.0: Response contradicts or is completely unrelated to context
+
+  Respond ONLY with valid JSON in this exact format:
+  {"score": <float 0.0-1.0>, "reasoning": "<brief explanation>"}
+
+user_template: |
+  Evaluate the faithfulness of this response to the context.
+
+  CONTEXT:
+  {context}
+
+  RESPONSE TO EVALUATE:
+  {response}
+
+  Return JSON with score (0.0-1.0) and reasoning.
+
+output_format:
+  type: json
+  schema:
+    score:
+      type: float
+      min: 0.0
+      max: 1.0
+      description: Faithfulness score
+    reasoning:
+      type: string
+      description: Brief explanation of the score
+
+examples:
+  - input:
+      context: |
+        Document 1:
+        Paris is the capital of France. It is located on the Seine River.
+        The city has a population of approximately 2.1 million people.
+      response: "Paris is the capital of France and sits on the Seine River."
+    output:
+      score: 1.0
+      reasoning: "Both claims (capital of France, located on Seine) are directly supported by the context."
+
+  - input:
+      context: |
+        Document 1:
+        The Python programming language was created by Guido van Rossum.
+        It was first released in 1991.
+      response: "Python was created by Guido van Rossum in 1991 and is the most popular programming language today."
+    output:
+      score: 0.7
+      reasoning: "Creator and release year are supported. The claim about being 'most popular' is not in the context."
+
+  - input:
+      context: |
+        Document 1:
+        Apples are a type of fruit that grow on trees.
+      response: "Oranges are citrus fruits high in vitamin C."
+    output:
+      score: 0.0
+      reasoning: "Response discusses oranges while context only mentions apples. Completely unfaithful."
