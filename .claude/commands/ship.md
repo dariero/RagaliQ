@@ -74,6 +74,9 @@ Stop here. Do not create PR.
 ```bash
 git push -u origin $BRANCH
 
+# Auto-generate PR metadata (labels, assignees, milestone)
+PR_META=$(python .github/pr_metadata.py --gh-flags)
+
 gh pr create \
   --title "[$(echo $BRANCH | cut -d'/' -f1 | tr '[:lower:]' '[:upper:]') #$ISSUE_NUMBER] $(gh issue view $ISSUE_NUMBER --json title -q .title)" \
   --body "$(cat <<EOF
@@ -89,7 +92,8 @@ $(git log main..$BRANCH --oneline | sed 's/^/- /')
 
 🤖 Shipped with Claude Code
 EOF
-)"
+)" \
+  $PR_META
 ```
 
 ### 5. Self-Review (Claude)
