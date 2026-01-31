@@ -1,59 +1,52 @@
 # RagaliQ Claude Commands
 
-9 focused commands for task-driven development of RagaliQ.
+5 commands. That's it.
 
-## Commands
-
-### Workflow (6)
-
-| Command | Phase | Purpose |
-|---------|-------|---------|
-| `/start-work <issue>` | Init | Branch, board update, show context |
-| `/commit` | Impl | `[TYPE #issue]` format commit |
-| `/check` | Valid | lint + typecheck + test |
-| `/pr` | Submit | PR with template |
-| `/fix` | Iter | Address review feedback |
-| `/complete-issue <issue>` | Done | Post-merge cleanup |
-
-### Feature (3)
+## Workflow (2)
 
 | Command | Purpose |
 |---------|---------|
-| `/new-evaluator` | Scaffold evaluator (async, 0-1 score, registry) |
-| `/new-judge` | Scaffold judge (async, retry, token tracking) |
-| `/optimize-prompts` | A/B test judge prompts |
+| `/start-work <issue>` | Begin work (Todo → Doing) |
+| `/ship` | Check, PR, merge, cleanup (Doing → Done) |
 
-## Typical Session
+## Scaffolds (3)
 
-```bash
-/start-work 42       # → feat/42-description branch
-# implement
-/commit              # → [FEAT #42] message
-/check               # → lint, typecheck, test
-/pr                  # → PR with template
-/complete-issue 42   # → cleanup
+| Command | Purpose |
+|---------|---------|
+| `/new-evaluator` | Scaffold evaluator |
+| `/new-judge` | Scaffold judge |
+| `/optimize-prompts` | A/B test prompts |
+
+## The Solo Dev Workflow
+
+```
+/start-work 42    ← Pick a task
+   ...code...     ← Do the work
+/ship             ← Ship it
 ```
 
-## When NOT to Use Commands
+That's the whole process. Two commands.
 
-Most tasks don't need a command. Just describe what you need:
-- "Add a CLI command for exporting results"
-- "Set up GitHub Actions for testing"
-- "Refactor this to async"
-- "Write documentation for the evaluators"
+## What /ship Does
 
-Commands exist for **repetitive decisions** (branch naming, commit format) and **RagaliQ-specific patterns** (evaluator/judge scaffolding), not for general coding tasks.
+1. Commits uncommitted changes
+2. Runs lint, typecheck, tests
+3. Creates PR with proper format
+4. Quick self-review (Claude checks for issues)
+5. Merges to main
+6. Moves board card to Done
+7. Cleans up local branch
 
-## Quality Standards
+All automatic. All in one command.
 
+## Quality Gates
+
+Still available manually:
 ```bash
 hatch run lint       # ruff
 hatch run format     # ruff (auto-fix)
 hatch run typecheck  # mypy
-hatch run test       # pytest (80% coverage)
+hatch run test       # pytest
 ```
 
-## See Also
-
-- [commands.md](commands.md) - Full command reference
-- [WORKFLOW.md](WORKFLOW.md) - Development workflow guide
+These run automatically during `/ship`.
