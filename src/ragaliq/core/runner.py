@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
-from ragaliq.judges.base import LLMJudge
+from ragaliq.judges.base import JudgeConfig, LLMJudge
 
 
 class RagaliQ:
@@ -17,28 +17,50 @@ class RagaliQ:
         >>> tester = RagaliQ(judge="claude")
         >>> result = tester.evaluate(test_case)
         >>> print(result.scores)
+
+        # With custom configuration
+        >>> from ragaliq.judges import JudgeConfig
+        >>> config = JudgeConfig(model="claude-sonnet-4-20250514", temperature=0.0)
+        >>> tester = RagaliQ(judge_config=config, api_key="sk-...")
+
+        # With pre-configured judge
+        >>> from ragaliq.judges import ClaudeJudge
+        >>> judge = ClaudeJudge(api_key="sk-...")
+        >>> tester = RagaliQ(judge=judge)
     """
 
     def __init__(
         self,
-        judge: Literal["claude", "openai"] = "claude",
+        judge: Literal["claude", "openai"] | LLMJudge = "claude",
         evaluators: list[str] | None = None,
         default_threshold: float = 0.7,
+        judge_config: JudgeConfig | None = None,
+        api_key: str | None = None,
     ) -> None:
         """
         Initialize RagaliQ.
 
         Args:
-            judge: Which LLM to use as judge ("claude" or "openai").
+            judge: Which LLM to use as judge ("claude" or "openai"), or
+                a pre-configured LLMJudge instance.
             evaluators: List of evaluator names to use. Defaults to all.
             default_threshold: Default passing threshold for evaluators.
+            judge_config: Optional configuration for the judge (model, temperature, etc.).
+            api_key: Optional API key for the judge. Falls back to environment variable.
         """
-        self.judge_type = judge
         self.evaluator_names = evaluators or ["faithfulness", "relevance"]
         self.default_threshold = default_threshold
+        self._judge_config = judge_config
+        self._api_key = api_key
 
-        # Will be initialized lazily
-        self._judge: LLMJudge | None = None
+        # Handle pre-configured judge instance vs judge type string
+        if isinstance(judge, LLMJudge):
+            self._judge: LLMJudge | None = judge
+            self.judge_type: Literal["claude", "openai"] | None = None
+        else:
+            self._judge = None
+            self.judge_type = judge
+
         self._evaluators: list[Evaluator] = []
 
     def _init_judge(self) -> None:
@@ -46,15 +68,18 @@ class RagaliQ:
         if self._judge is not None:
             return
 
-        # TODO: Implement judge initialization
-        # from ragtestkit.judges.claude import ClaudeJudge
-        # from ragtestkit.judges.openai import OpenAIJudge
-        #
-        # if self.judge_type == "claude":
-        #     self._judge = ClaudeJudge()
-        # else:
-        #     self._judge = OpenAIJudge()
-        raise NotImplementedError("Judge initialization not yet implemented")
+        from ragaliq.judges.claude import ClaudeJudge
+
+        if self.judge_type == "claude":
+            self._judge = ClaudeJudge(
+                config=self._judge_config,
+                api_key=self._api_key,
+            )
+        elif self.judge_type == "openai":
+            # OpenAI judge not yet implemented
+            raise NotImplementedError("OpenAI judge not yet implemented")
+        else:
+            raise ValueError(f"Unknown judge type: {self.judge_type}")
 
     def _init_evaluators(self) -> None:
         """Initialize evaluators based on configuration."""
