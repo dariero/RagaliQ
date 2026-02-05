@@ -50,17 +50,16 @@ Phase 1 in progress - building judge integration and core evaluators.
 ## Commands
 
 ```bash
-make install        # Install in dev mode
-make test          # Run tests
-make lint          # Run ruff
-make typecheck     # Run mypy
+hatch run lint       # ruff check
+hatch run format     # ruff format (auto-fix)
+hatch run typecheck  # mypy
+hatch run test       # pytest
 ```
 
 ## Automation
 
-Use `.claude/commands/` for reusable automation:
-- `/new-evaluator` - Scaffold evaluator
-- `/new-judge` - Add LLM provider
-- `/add-cli-command` - Extend CLI
+Two slash commands for the dev workflow:
+- `/start-work <issue>` - Begin work (branch + board update)
+- `/ship` - Ship to main (commit + check + PR + merge + cleanup)
 
-See `.claude/README.md` for full command catalog.
+Implementation patterns (evaluator, judge, prompt optimization) are documented in `.claude/WORKFLOW.md`.

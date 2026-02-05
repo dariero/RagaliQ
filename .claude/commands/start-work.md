@@ -1,6 +1,6 @@
 # start-work
 
-Begin work on a GitHub issue. Creates branch, moves card to "Doing".
+Begin work on a GitHub issue. Creates branch, updates board, assigns you.
 
 ## Arguments
 
@@ -14,109 +14,32 @@ Begin work on a GitHub issue. Creates branch, moves card to "Doing".
 gh issue view $ARGUMENTS --json title,body,number,state
 ```
 
-Parse issue type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[DOCS]`
+Parse type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[DOCS]`
 
-### 2. Sync Main
-
-```bash
-git checkout main
-git pull origin main
-```
-
-### 3. Create Branch
+### 2. Sync and Branch
 
 ```bash
+git checkout main && git pull origin main
 git checkout -b <prefix>/$ARGUMENTS-<short-description>
 ```
 
-| Title Prefix | Branch Prefix |
-|--------------|---------------|
-| `[FEAT]` | `feat/` |
-| `[FIX]` | `fix/` |
-| `[REFACTOR]` | `refactor/` |
-| `[DOCS]` | `docs/` |
-| (none) | `feat/` |
+Branch prefix is derived from title prefix (see WORKFLOW.md § Project Constants).
 
-### 4. Update Board → Doing
+If uncommitted changes exist, stop and ask: stash or discard?
+If branch already exists, switch to it.
 
-```bash
-# Get item ID
-ITEM_ID=$(gh api graphql -f query='
-  query($owner: String!, $number: Int!) {
-    user(login: $owner) {
-      projectV2(number: $number) {
-        items(first: 100) {
-          nodes {
-            id
-            content { ... on Issue { number } }
-          }
-        }
-      }
-    }
-  }
-' -f owner="dariero" -F number=2 | jq -r ".data.user.projectV2.items.nodes[] | select(.content.number == $ARGUMENTS) | .id")
+### 3. Update Board to Doing
 
-# Move to Doing
-gh api graphql -f query='
-  mutation($project: ID!, $item: ID!, $field: ID!, $value: String!) {
-    updateProjectV2ItemFieldValue(
-      input: {
-        projectId: $project
-        itemId: $item
-        fieldId: $field
-        value: { singleSelectOptionId: $value }
-      }
-    ) { projectV2Item { id } }
-  }
-' -f project="PVT_kwHODR8J4s4BNe_Y" \
-  -f item="$ITEM_ID" \
-  -f field="PVTSSF_lAHODR8J4s4BNe_Yzg8dwP8" \
-  -f value="47fc9ee4"  # Doing♟️
-```
+Use GraphQL to move the project item to "Doing" status (see WORKFLOW.md § Project Constants for IDs).
 
-### 5. Assign Self
+### 4. Assign Self
 
 ```bash
 gh issue edit $ARGUMENTS --add-assignee dariero
 ```
 
-### 6. Show Context
+### 5. Show Context
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔄 Started #$ARGUMENTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Display: branch name, board status, issue title, and first 500 chars of issue body.
 
-Branch: feat/$ARGUMENTS-description
-Status: Doing
-
-[Issue title here]
-
-[Issue body here - first 500 chars]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-When done: /ship
-```
-
-## Error Handling
-
-**Uncommitted changes:**
-```
-You have uncommitted changes.
-  1. Stash: git stash
-  2. Discard: git checkout .
-```
-
-**Branch exists:**
-```
-Branch feat/$ARGUMENTS-* already exists.
-Switching to it: git checkout feat/$ARGUMENTS-*
-```
-
-## Success Criteria
-
-- [ ] On feature branch
-- [ ] Main is up to date
-- [ ] Board shows "Doing"
-- [ ] Issue assigned
+End with: `When done: /ship`
