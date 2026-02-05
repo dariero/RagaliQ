@@ -18,35 +18,7 @@ RagaliQ follows three principles:
 
 These are the only two commands. Everything else is inline guidance below.
 
-## Project Constants
-
-```
-OWNER:         dariero
-PROJECT_ID:    PVT_kwHODR8J4s4BNe_Y
-PROJECT_NUM:   2
-STATUS_FIELD:  PVTSSF_lAHODR8J4s4BNe_Yzg8dwP8
-
-Board statuses:
-  Todo:   98236657
-  Doing:  47fc9ee4
-  Done:   caff0873
-```
-
-**Board URL:** https://github.com/users/dariero/projects/2/views/1
-
-**Branch naming:** `<prefix>/<issue>-<description>`
-
-| Title Prefix | Branch Prefix |
-|--------------|---------------|
-| `[FEAT]` | `feat/` |
-| `[FIX]` | `fix/` |
-| `[REFACTOR]` | `refactor/` |
-| `[DOCS]` | `docs/` |
-| (none) | `feat/` |
-
-**Commit format:** `[TYPE #issue] Description`
-
-**Quality gates:** `hatch run lint && hatch run typecheck && hatch run test`
+Project constants (IDs, branch naming, commit format) are in `.claude/CONSTANTS.md`.
 
 ---
 

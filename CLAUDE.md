@@ -1,8 +1,29 @@
-# RagaliQ - Project Context
+# RagaliQ - Project Instructions
 
-## What is RagaliQ?
+<constraints>
+- ALWAYS run `hatch run lint && hatch run typecheck && hatch run test` before committing
+- NEVER commit files matching: .env*, *.pem, *credentials*, *secret*, .DS_Store
+- NEVER push directly to main; all work ships through `/ship`
+- NEVER add or remove dependencies without explicit user approval
+- NEVER change existing architectural patterns without explicit approval
+- Type hints MUST be present on all public functions
+- Docstrings MUST use Google style
+- Use `ruff` for linting and formatting -- no manual style overrides
+</constraints>
 
-RagaliQ (RAG + Quality) is a Python library + CLI tool for automated testing of RAG (Retrieval-Augmented Generation) pipelines. It enables QA and AI engineers to write quality tests for LLM responses using pytest-like syntax.
+## Design Decisions (MUST follow in all new code)
+
+1. **Evaluator Pattern**: Each metric MUST be a separate Evaluator class with `evaluate()` method. DO NOT refactor to alternative patterns without explicit approval.
+2. **LLM-as-Judge**: Claude API assesses response quality, not hardcoded rules.
+3. **Async-first**: All LLM calls MUST be async.
+4. **Pydantic everywhere**: Strict typing with Pydantic models for all data structures.
+5. **Pytest-native**: Library MUST feel natural to pytest users.
+
+## Project Context
+
+RagaliQ (RAG + Quality) is a Python library + CLI for automated testing of RAG pipelines. Enables QA and AI engineers to write quality tests for LLM responses using pytest-like syntax.
+
+**GitHub Board**: https://github.com/users/dariero/projects/2/views/1 — Phase 1: judge integration and core evaluators.
 
 ## Tech Stack
 
@@ -26,26 +47,12 @@ src/ragaliq/
 └── cli/            # Typer CLI commands
 ```
 
-## Key Design Decisions
-
-1. **Evaluator Pattern**: Each metric is a separate Evaluator class with `evaluate()` method
-2. **LLM-as-Judge**: Claude API assesses response quality, not hardcoded rules
-3. **Async-first**: All LLM calls are async for performance
-4. **Pydantic everywhere**: Strict typing with Pydantic models
-5. **Pytest-native**: Library feels natural to pytest users
-
 ## Code Style
 
 - Use `ruff` for linting and formatting
 - Type hints required for all public functions
 - Docstrings in Google style
 - Tests in `tests/` mirroring `src/` structure
-
-## Current Status
-
-**GitHub Board**: https://github.com/users/dariero/projects/2/views/1
-
-Phase 1 in progress - building judge integration and core evaluators.
 
 ## Commands
 
@@ -63,3 +70,4 @@ Two slash commands for the dev workflow:
 - `/ship` - Ship to main (commit + check + PR + merge + cleanup)
 
 Implementation patterns (evaluator, judge, prompt optimization) are documented in `.claude/WORKFLOW.md`.
+Project constants (IDs, branch naming, commit format) are in `.claude/CONSTANTS.md`.

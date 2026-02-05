@@ -2,6 +2,19 @@
 
 Ship current work: commit, check, PR, review, merge, cleanup -- all in one command.
 
+<critical>
+## MANDATORY Pre-Merge Checklist
+
+Before ANY merge, verify ALL of the following via `gh pr diff`:
+- No secrets, credentials, API keys, or .env content
+- No debug code (print statements, console.log, breakpoints)
+- No TODO/FIXME/HACK comments introduced
+- Tests exist for new functionality
+- All quality gates passed (lint, typecheck, test)
+
+If ANY item fails: STOP. Report the issue. DO NOT merge.
+</critical>
+
 ## Arguments
 
 `$ARGUMENTS` - Optional. Interpreted as:
@@ -24,19 +37,36 @@ Extract branch and issue number. Abort if on main.
 
 ```bash
 BRANCH=$(git branch --show-current)
-ISSUE_NUMBER=$(echo $BRANCH | grep -oE '[0-9]+' | head -1)
+ISSUE_NUMBER=$(echo "$BRANCH" | sed 's|.*/||' | grep -oE '^[0-9]+')
+```
+
+Validate that ISSUE_NUMBER is non-empty:
+
+```bash
+if [ -z "$ISSUE_NUMBER" ]; then
+  echo "ERROR: Could not extract issue number from branch '$BRANCH'. Expected format: <prefix>/<number>-<description>"
+  # STOP. Do not proceed.
+fi
 ```
 
 ### 2. Commit (if needed)
 
 If `git status --porcelain` shows changes:
 
-```bash
-git add -A
-git commit -m "[TYPE #$ISSUE_NUMBER] message
+1. Review changed files:
+   ```bash
+   git diff --name-only
+   git diff --cached --name-only
+   ```
 
-Co-Authored-By: Claude <noreply@anthropic.com>"
-```
+2. Stage files explicitly. NEVER use `git add -A`. Exclude: `.env*`, `*.pem`, `*credentials*`, `*secret*`, `.DS_Store`, `__pycache__/`, build artifacts.
+
+3. Commit:
+   ```bash
+   git commit -m "[TYPE #$ISSUE_NUMBER] message
+
+   Co-Authored-By: Claude <noreply@anthropic.com>"
+   ```
 
 ### 3. Quality Gates
 
@@ -44,7 +74,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 hatch run lint && hatch run typecheck && hatch run test
 ```
 
-If any fail: report which failed, suggest `hatch run format` for auto-fixable lint. **Stop here.**
+If lint fails: run `hatch run format` to auto-fix, then re-run gates. If typecheck or test fails: report which failed and **STOP**.
 
 ### 4. Push and Create PR
 
@@ -59,12 +89,9 @@ Include: change list from `git log main..$BRANCH --oneline`, checks passed confi
 
 ### 5. Self-Review
 
-Run `gh pr diff` and check:
-- No secrets or credentials
-- No debug code left behind
-- Tests cover new functionality
+Run `gh pr diff` and execute the MANDATORY Pre-Merge Checklist at the top of this document.
 
-If issues found: report them and **stop**. Do not merge.
+If issues found: report them and **STOP**. DO NOT merge.
 
 ### 6. Merge and Cleanup
 
@@ -72,7 +99,7 @@ If issues found: report them and **stop**. Do not merge.
 gh pr merge --squash --delete-branch
 ```
 
-Update board to "Done" via GraphQL (see WORKFLOW.md § Project Constants for IDs).
+Update board to "Done" via GraphQL (see `.claude/CONSTANTS.md` for IDs).
 
 ```bash
 git checkout main && git pull origin main
@@ -81,7 +108,7 @@ git branch -d $BRANCH && git fetch --prune
 
 ### 7. Report
 
-Show: PR number, branch deleted, board status Done. Suggest next task via `gh issue list`.
+Show: PR number, branch deleted, board status Done. List open issues: `gh issue list --state open`.
 
 ## Draft Mode
 
@@ -92,4 +119,4 @@ If `$ARGUMENTS` is "draft": create PR but skip steps 6-7. Useful for discussion 
 - **On main:** "Cannot ship from main. Use /start-work first."
 - **No changes:** "Nothing to ship. Working tree is clean."
 - **PR exists:** Show options: push updates, merge existing, or close and recreate.
-- **Merge conflicts:** Suggest `git rebase origin/main`, then `/ship` again.
+- **Merge conflicts:** Rebase onto origin/main: `git rebase origin/main`, then `/ship` again.
