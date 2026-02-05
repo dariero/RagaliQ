@@ -236,11 +236,13 @@ class TestPromptTemplateFormatContext:
 
     def test_format_context_multiple_docs(self, template: PromptTemplate) -> None:
         """format_context should number and separate multiple documents."""
-        result = template.format_context([
-            "First document.",
-            "Second document.",
-            "Third document.",
-        ])
+        result = template.format_context(
+            [
+                "First document.",
+                "Second document.",
+                "Third document.",
+            ]
+        )
         assert "Document 1:" in result
         assert "Document 2:" in result
         assert "Document 3:" in result

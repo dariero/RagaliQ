@@ -320,9 +320,7 @@ class TestClaudeJudgeErrorHandling:
     ) -> None:
         """Test handling of response missing score field."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(type="text", text='{"reasoning": "No score provided"}')
-        ]
+        mock_response.content = [MagicMock(type="text", text='{"reasoning": "No score provided"}')]
         mock_response.usage.input_tokens = 100
         mock_response.usage.output_tokens = 50
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
@@ -545,9 +543,7 @@ class TestClaudeJudgeExtractClaims:
     ) -> None:
         """Test handling of invalid claims type in response."""
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(type="text", text='{"claims": "not a list"}')
-        ]
+        mock_response.content = [MagicMock(type="text", text='{"claims": "not a list"}')]
         mock_response.usage.input_tokens = 50
         mock_response.usage.output_tokens = 30
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)

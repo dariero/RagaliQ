@@ -187,17 +187,13 @@ class TestLLMJudge:
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
-            async def evaluate_relevance(
-                self, _query: str, _response: str
-            ) -> JudgeResult:
+            async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def extract_claims(self, _response: str) -> ClaimsResult:
                 return ClaimsResult(claims=[])
 
-            async def verify_claim(
-                self, _claim: str, _context: list[str]
-            ) -> ClaimVerdict:
+            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
@@ -213,17 +209,13 @@ class TestLLMJudge:
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
-            async def evaluate_relevance(
-                self, _query: str, _response: str
-            ) -> JudgeResult:
+            async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def extract_claims(self, _response: str) -> ClaimsResult:
                 return ClaimsResult(claims=[])
 
-            async def verify_claim(
-                self, _claim: str, _context: list[str]
-            ) -> ClaimVerdict:
+            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
         config = JudgeConfig(model="gpt-4", temperature=0.3)
@@ -240,17 +232,13 @@ class TestLLMJudge:
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
-            async def evaluate_relevance(
-                self, _query: str, _response: str
-            ) -> JudgeResult:
+            async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def extract_claims(self, _response: str) -> ClaimsResult:
                 return ClaimsResult(claims=[])
 
-            async def verify_claim(
-                self, _claim: str, _context: list[str]
-            ) -> ClaimVerdict:
+            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
@@ -262,7 +250,9 @@ class TestLLMJudge:
 
         class MockJudge(LLMJudge):
             async def evaluate_faithfulness(
-                self, response: str, context: list[str]  # noqa: ARG002
+                self,
+                response: str,
+                context: list[str],  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(
                     score=0.9,
@@ -271,16 +261,16 @@ class TestLLMJudge:
                 )
 
             async def evaluate_relevance(
-                self, query: str, response: str  # noqa: ARG002
+                self,
+                query: str,
+                response: str,  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def extract_claims(self, _response: str) -> ClaimsResult:
                 return ClaimsResult(claims=[])
 
-            async def verify_claim(
-                self, _claim: str, _context: list[str]
-            ) -> ClaimVerdict:
+            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
@@ -297,12 +287,16 @@ class TestLLMJudge:
 
         class MockJudge(LLMJudge):
             async def evaluate_faithfulness(
-                self, response: str, context: list[str]  # noqa: ARG002
+                self,
+                response: str,
+                context: list[str],  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def evaluate_relevance(
-                self, query: str, response: str  # noqa: ARG002
+                self,
+                query: str,
+                response: str,  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(
                     score=0.95,
@@ -313,9 +307,7 @@ class TestLLMJudge:
             async def extract_claims(self, _response: str) -> ClaimsResult:
                 return ClaimsResult(claims=[])
 
-            async def verify_claim(
-                self, _claim: str, _context: list[str]
-            ) -> ClaimVerdict:
+            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
@@ -332,17 +324,13 @@ class TestLLMJudge:
         with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
-                async def evaluate_relevance(
-                    self, _query: str, _response: str
-                ) -> JudgeResult:
+                async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
                 async def extract_claims(self, _response: str) -> ClaimsResult:
                     return ClaimsResult(claims=[])
 
-                async def verify_claim(
-                    self, _claim: str, _context: list[str]
-                ) -> ClaimVerdict:
+                async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                     return ClaimVerdict(verdict="SUPPORTED")
 
             IncompleteJudge()
@@ -361,9 +349,7 @@ class TestLLMJudge:
                 async def extract_claims(self, _response: str) -> ClaimsResult:
                     return ClaimsResult(claims=[])
 
-                async def verify_claim(
-                    self, _claim: str, _context: list[str]
-                ) -> ClaimVerdict:
+                async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                     return ClaimVerdict(verdict="SUPPORTED")
 
             IncompleteJudge()
@@ -379,14 +365,10 @@ class TestLLMJudge:
                 ) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
-                async def evaluate_relevance(
-                    self, _query: str, _response: str
-                ) -> JudgeResult:
+                async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
-                async def verify_claim(
-                    self, _claim: str, _context: list[str]
-                ) -> ClaimVerdict:
+                async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                     return ClaimVerdict(verdict="SUPPORTED")
 
             IncompleteJudge()
@@ -402,9 +384,7 @@ class TestLLMJudge:
                 ) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
-                async def evaluate_relevance(
-                    self, _query: str, _response: str
-                ) -> JudgeResult:
+                async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
                 async def extract_claims(self, _response: str) -> ClaimsResult:

@@ -74,12 +74,8 @@ class PromptTemplate(BaseModel):
     description: str = Field(default="", description="Template description")
     system_prompt: str = Field(..., description="System prompt for the LLM")
     user_template: str = Field(..., description="User message template with placeholders")
-    output_format: OutputFormat | None = Field(
-        default=None, description="Expected output format"
-    )
-    examples: list[PromptExample] = Field(
-        default_factory=list, description="Few-shot examples"
-    )
+    output_format: OutputFormat | None = Field(default=None, description="Expected output format")
+    examples: list[PromptExample] = Field(default_factory=list, description="Few-shot examples")
 
     model_config = {"extra": "allow"}
 
@@ -108,9 +104,7 @@ class PromptTemplate(BaseModel):
         Returns:
             Formatted context string with document separators.
         """
-        return "\n\n---\n\n".join(
-            f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context)
-        )
+        return "\n\n---\n\n".join(f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context))
 
     def get_examples_text(self, max_examples: int | None = None) -> str:
         """
@@ -205,6 +199,4 @@ def list_prompts() -> list[str]:
         ['extract_claims', 'faithfulness', 'relevance', 'verify_claim']
     """
     prompts_dir = _get_prompts_dir()
-    return sorted(
-        f.stem for f in prompts_dir.glob("*.yaml") if f.is_file()
-    )
+    return sorted(f.stem for f in prompts_dir.glob("*.yaml") if f.is_file())

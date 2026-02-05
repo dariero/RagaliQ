@@ -121,9 +121,7 @@ class ClaudeJudge(LLMJudge):
             # Extract text content from response
             content = response.content[0]
             if content.type != "text":
-                raise JudgeResponseError(
-                    f"Expected text response, got {content.type}"
-                )
+                raise JudgeResponseError(f"Expected text response, got {content.type}")
 
             # Calculate total tokens used
             tokens_used = response.usage.input_tokens + response.usage.output_tokens
@@ -297,14 +295,10 @@ Return JSON with score (0.0-1.0) and reasoning."""
                 tokens_used=0,
             )
 
-        system_prompt, user_prompt = self._build_faithfulness_prompt(
-            response, context
-        )
+        system_prompt, user_prompt = self._build_faithfulness_prompt(response, context)
 
         try:
-            raw_response, tokens_used = await self._call_claude(
-                system_prompt, user_prompt
-            )
+            raw_response, tokens_used = await self._call_claude(system_prompt, user_prompt)
         except APIConnectionError as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
@@ -312,9 +306,7 @@ Return JSON with score (0.0-1.0) and reasoning."""
 
         # Validate required fields
         if "score" not in parsed:
-            raise JudgeResponseError(
-                f"Response missing 'score' field: {parsed}"
-            )
+            raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
 
         score = float(parsed["score"])
         # Clamp score to valid range (defensive)
@@ -351,9 +343,7 @@ Return JSON with score (0.0-1.0) and reasoning."""
         system_prompt, user_prompt = self._build_relevance_prompt(query, response)
 
         try:
-            raw_response, tokens_used = await self._call_claude(
-                system_prompt, user_prompt
-            )
+            raw_response, tokens_used = await self._call_claude(system_prompt, user_prompt)
         except APIConnectionError as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
@@ -361,9 +351,7 @@ Return JSON with score (0.0-1.0) and reasoning."""
 
         # Validate required fields
         if "score" not in parsed:
-            raise JudgeResponseError(
-                f"Response missing 'score' field: {parsed}"
-            )
+            raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
 
         score = float(parsed["score"])
         # Clamp score to valid range (defensive)
@@ -400,9 +388,7 @@ Return JSON with score (0.0-1.0) and reasoning."""
         user_prompt = template.format_user_prompt(response=response)
 
         try:
-            raw_response, tokens_used = await self._call_claude(
-                template.system_prompt, user_prompt
-            )
+            raw_response, tokens_used = await self._call_claude(template.system_prompt, user_prompt)
         except APIConnectionError as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
@@ -457,9 +443,7 @@ Return JSON with score (0.0-1.0) and reasoning."""
         )
 
         try:
-            raw_response, _ = await self._call_claude(
-                template.system_prompt, user_prompt
-            )
+            raw_response, _ = await self._call_claude(template.system_prompt, user_prompt)
         except APIConnectionError as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 

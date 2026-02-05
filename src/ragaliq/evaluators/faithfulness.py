@@ -106,11 +106,13 @@ class FaithfulnessEvaluator(Evaluator):
         for claim in claims:
             verdict = await judge.verify_claim(claim, test_case.context)
 
-            claim_details.append({
-                "claim": claim,
-                "verdict": verdict.verdict,
-                "evidence": verdict.evidence,
-            })
+            claim_details.append(
+                {
+                    "claim": claim,
+                    "verdict": verdict.verdict,
+                    "evidence": verdict.evidence,
+                }
+            )
 
             if verdict.verdict == "SUPPORTED":
                 supported_count += 1

@@ -229,9 +229,7 @@ class TestFaithfulnessEvaluatorVerdictHandling:
         faithful_test_case: RAGTestCase,
     ) -> None:
         """CONTRADICTED claims should count as unsupported (0)."""
-        mock_judge.extract_claims.return_value = ClaimsResult(
-            claims=["Paris is in Germany"]
-        )
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Paris is in Germany"])
         mock_judge.verify_claim.return_value = ClaimVerdict(
             verdict="CONTRADICTED",
             evidence="Context says France, not Germany",
@@ -302,9 +300,7 @@ class TestFaithfulnessEvaluatorMetadata:
         faithful_test_case: RAGTestCase,
     ) -> None:
         """raw_response should contain claim-level details for debugging."""
-        mock_judge.extract_claims.return_value = ClaimsResult(
-            claims=["Paris is the capital"]
-        )
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Paris is the capital"])
         mock_judge.verify_claim.return_value = ClaimVerdict(
             verdict="SUPPORTED",
             evidence="Context confirms this",
@@ -387,9 +383,7 @@ class TestFaithfulnessEvaluatorResultStructure:
         faithful_test_case: RAGTestCase,
     ) -> None:
         """Result reasoning should explain how score was calculated."""
-        mock_judge.extract_claims.return_value = ClaimsResult(
-            claims=["Claim 1", "Claim 2"]
-        )
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Claim 1", "Claim 2"])
         mock_judge.verify_claim.side_effect = [
             ClaimVerdict(verdict="SUPPORTED", evidence=""),
             ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence=""),
@@ -418,12 +412,8 @@ class TestFaithfulnessEvaluatorEdgeCases:
         faithful_test_case: RAGTestCase,
     ) -> None:
         """Single supported claim should give score 1.0."""
-        mock_judge.extract_claims.return_value = ClaimsResult(
-            claims=["Only claim"]
-        )
-        mock_judge.verify_claim.return_value = ClaimVerdict(
-            verdict="SUPPORTED", evidence=""
-        )
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Only claim"])
+        mock_judge.verify_claim.return_value = ClaimVerdict(verdict="SUPPORTED", evidence="")
 
         evaluator = FaithfulnessEvaluator()
         result = await evaluator.evaluate(faithful_test_case, mock_judge)
@@ -437,12 +427,8 @@ class TestFaithfulnessEvaluatorEdgeCases:
         faithful_test_case: RAGTestCase,
     ) -> None:
         """Single unsupported claim should give score 0.0."""
-        mock_judge.extract_claims.return_value = ClaimsResult(
-            claims=["Only claim"]
-        )
-        mock_judge.verify_claim.return_value = ClaimVerdict(
-            verdict="NOT_ENOUGH_INFO", evidence=""
-        )
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Only claim"])
+        mock_judge.verify_claim.return_value = ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="")
 
         evaluator = FaithfulnessEvaluator()
         result = await evaluator.evaluate(faithful_test_case, mock_judge)
@@ -461,9 +447,7 @@ class TestFaithfulnessEvaluatorEdgeCases:
         mock_judge.extract_claims.return_value = ClaimsResult(claims=claims)
         mock_judge.verify_claim.side_effect = [
             ClaimVerdict(verdict="SUPPORTED", evidence="") for _ in range(5)
-        ] + [
-            ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="") for _ in range(2)
-        ]
+        ] + [ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="") for _ in range(2)]
 
         evaluator = FaithfulnessEvaluator()
         result = await evaluator.evaluate(faithful_test_case, mock_judge)
@@ -484,9 +468,7 @@ class TestFaithfulnessEvaluatorEdgeCases:
 
         def create_verdicts() -> list[ClaimVerdict]:
             """Create fresh verdicts list for each evaluation."""
-            return [
-                ClaimVerdict(verdict="SUPPORTED", evidence="") for _ in range(7)
-            ] + [
+            return [ClaimVerdict(verdict="SUPPORTED", evidence="") for _ in range(7)] + [
                 ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="") for _ in range(3)
             ]
 
