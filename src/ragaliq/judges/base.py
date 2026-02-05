@@ -6,6 +6,7 @@ All judge providers (Claude, OpenAI, etc.) must implement this interface.
 """
 
 from abc import ABC, abstractmethod
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -40,6 +41,46 @@ class JudgeResult(BaseModel):
     score: float = Field(..., ge=0.0, le=1.0, description="Score from 0 to 1")
     reasoning: str = Field(default="", description="Explanation of the score")
     tokens_used: int = Field(default=0, ge=0, description="Tokens used in judge call")
+
+    model_config = {"frozen": True, "extra": "forbid"}
+
+
+class ClaimVerdict(BaseModel):
+    """
+    Result of verifying a single claim against context.
+
+    The verdict follows a three-way classification:
+    - SUPPORTED: Context explicitly states or directly implies the claim
+    - CONTRADICTED: Context explicitly contradicts the claim
+    - NOT_ENOUGH_INFO: Context neither supports nor contradicts
+
+    Attributes:
+        verdict: Three-way classification of claim support.
+        evidence: Quote from context or explanation supporting the verdict.
+    """
+
+    verdict: Literal["SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"] = Field(
+        ..., description="Three-way verdict on claim support"
+    )
+    evidence: str = Field(default="", description="Supporting quote or explanation")
+
+    model_config = {"frozen": True, "extra": "forbid"}
+
+
+class ClaimsResult(BaseModel):
+    """
+    Result of extracting atomic claims from a response.
+
+    An atomic claim is a single, verifiable statement of fact that
+    is self-contained and cannot be broken down further.
+
+    Attributes:
+        claims: List of extracted atomic claim strings.
+        tokens_used: Tokens consumed by the extraction call.
+    """
+
+    claims: list[str] = Field(default_factory=list, description="Extracted claims")
+    tokens_used: int = Field(default=0, ge=0, description="Tokens used")
 
     model_config = {"frozen": True, "extra": "forbid"}
 
@@ -144,6 +185,53 @@ class LLMJudge(ABC):
 
         Returns:
             JudgeResult with relevance score and reasoning.
+
+        Raises:
+            JudgeAPIError: If the LLM API call fails.
+            JudgeResponseError: If the response cannot be parsed.
+        """
+        ...
+
+    @abstractmethod
+    async def extract_claims(self, response: str) -> ClaimsResult:
+        """
+        Extract atomic claims from a response for verification.
+
+        An atomic claim is a single, verifiable statement of fact that
+        is self-contained and understandable without additional context.
+
+        Args:
+            response: The RAG system's generated response.
+
+        Returns:
+            ClaimsResult containing list of extracted claim strings.
+
+        Raises:
+            JudgeAPIError: If the LLM API call fails.
+            JudgeResponseError: If the response cannot be parsed.
+        """
+        ...
+
+    @abstractmethod
+    async def verify_claim(
+        self,
+        claim: str,
+        context: list[str],
+    ) -> ClaimVerdict:
+        """
+        Verify if a single claim is supported by the context.
+
+        Uses three-way classification:
+        - SUPPORTED: Context explicitly supports the claim
+        - CONTRADICTED: Context explicitly contradicts the claim
+        - NOT_ENOUGH_INFO: Context neither supports nor contradicts
+
+        Args:
+            claim: The atomic claim to verify.
+            context: List of context documents to check against.
+
+        Returns:
+            ClaimVerdict with verdict and supporting evidence.
 
         Raises:
             JudgeAPIError: If the LLM API call fails.

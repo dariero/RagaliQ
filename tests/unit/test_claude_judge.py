@@ -9,6 +9,8 @@ import pytest
 from anthropic import APIConnectionError, APIStatusError
 
 from ragaliq.judges import (
+    ClaimsResult,
+    ClaimVerdict,
     ClaudeJudge,
     JudgeAPIError,
     JudgeConfig,
@@ -481,3 +483,242 @@ class TestClaudeJudgeApiCallParameters:
         assert call_kwargs["model"] == "claude-opus-4-20250514"
         assert call_kwargs["temperature"] == 0.5
         assert call_kwargs["max_tokens"] == 2048
+
+
+class TestClaudeJudgeExtractClaims:
+    """Tests for extract_claims method."""
+
+    @pytest.mark.asyncio
+    async def test_extract_claims_success(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test successful claim extraction."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"claims": ["Paris is the capital", "France is in Europe"]}',
+            )
+        ]
+        mock_response.usage.input_tokens = 50
+        mock_response.usage.output_tokens = 30
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.extract_claims("Paris is the capital of France.")
+
+        assert isinstance(result, ClaimsResult)
+        assert len(result.claims) == 2
+        assert "Paris is the capital" in result.claims
+        assert "France is in Europe" in result.claims
+        assert result.tokens_used == 80
+
+    @pytest.mark.asyncio
+    async def test_extract_claims_empty_response(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test claim extraction from empty response."""
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.extract_claims("")
+
+        assert result.claims == []
+        assert result.tokens_used == 0
+        # Should not call the API
+        mock_anthropic_client.messages.create.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_anthropic_client")
+    async def test_extract_claims_whitespace_only(self) -> None:
+        """Test claim extraction from whitespace-only response."""
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.extract_claims("   \n\t  ")
+
+        assert result.claims == []
+        assert result.tokens_used == 0
+
+    @pytest.mark.asyncio
+    async def test_extract_claims_invalid_claims_type(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test handling of invalid claims type in response."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(type="text", text='{"claims": "not a list"}')
+        ]
+        mock_response.usage.input_tokens = 50
+        mock_response.usage.output_tokens = 30
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeResponseError, match="Expected 'claims' to be a list"):
+            await judge.extract_claims("Some response")
+
+    @pytest.mark.asyncio
+    async def test_extract_claims_filters_empty_items(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that empty claims are filtered out."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"claims": ["Valid claim", "", null, "Another claim"]}',
+            )
+        ]
+        mock_response.usage.input_tokens = 50
+        mock_response.usage.output_tokens = 30
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.extract_claims("Response with claims")
+
+        assert len(result.claims) == 2
+        assert "Valid claim" in result.claims
+        assert "Another claim" in result.claims
+
+
+class TestClaudeJudgeVerifyClaim:
+    """Tests for verify_claim method."""
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_supported(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test verifying a supported claim."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"verdict": "SUPPORTED", "evidence": "Context confirms this"}',
+            )
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 40
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="Paris is the capital of France",
+            context=["France is a country. Its capital is Paris."],
+        )
+
+        assert isinstance(result, ClaimVerdict)
+        assert result.verdict == "SUPPORTED"
+        assert result.evidence == "Context confirms this"
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_contradicted(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test verifying a contradicted claim."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"verdict": "CONTRADICTED", "evidence": "Context says otherwise"}',
+            )
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 40
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="Paris is in Germany",
+            context=["Paris is the capital of France."],
+        )
+
+        assert result.verdict == "CONTRADICTED"
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_not_enough_info(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test verifying a claim with insufficient context."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"verdict": "NOT_ENOUGH_INFO", "evidence": "Not mentioned in context"}',
+            )
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 40
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="Paris has 2 million people",
+            context=["Paris is the capital of France."],
+        )
+
+        assert result.verdict == "NOT_ENOUGH_INFO"
+
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("mock_anthropic_client")
+    async def test_verify_claim_empty_context(self) -> None:
+        """Test verifying a claim with empty context."""
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="Some claim",
+            context=[],
+        )
+
+        assert result.verdict == "NOT_ENOUGH_INFO"
+        assert "No context provided" in result.evidence
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_invalid_verdict(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test handling of invalid verdict in response."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"verdict": "MAYBE", "evidence": "Not sure"}',
+            )
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 40
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeResponseError, match="Invalid verdict"):
+            await judge.verify_claim(
+                claim="Some claim",
+                context=["Some context"],
+            )
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_lowercase_verdict_normalized(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that lowercase verdicts are normalized to uppercase."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(
+                type="text",
+                text='{"verdict": "supported", "evidence": "Works with lowercase"}',
+            )
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 40
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="Some claim",
+            context=["Some context"],
+        )
+
+        assert result.verdict == "SUPPORTED"

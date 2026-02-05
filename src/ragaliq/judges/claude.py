@@ -20,12 +20,15 @@ from tenacity import (
 )
 
 from ragaliq.judges.base import (
+    ClaimsResult,
+    ClaimVerdict,
     JudgeAPIError,
     JudgeConfig,
     JudgeResponseError,
     JudgeResult,
     LLMJudge,
 )
+from ragaliq.judges.prompts.loader import get_prompt
 
 if TYPE_CHECKING:
     from anthropic.types import Message
@@ -370,4 +373,107 @@ Return JSON with score (0.0-1.0) and reasoning."""
             score=score,
             reasoning=parsed.get("reasoning", ""),
             tokens_used=tokens_used,
+        )
+
+    async def extract_claims(self, response: str) -> ClaimsResult:
+        """
+        Extract atomic claims from a response for verification.
+
+        Uses the extract_claims prompt template to break down the response
+        into individual, verifiable claims.
+
+        Args:
+            response: The RAG system's generated response.
+
+        Returns:
+            ClaimsResult containing list of extracted claim strings.
+
+        Raises:
+            JudgeAPIError: If Claude API call fails.
+            JudgeResponseError: If response parsing fails.
+        """
+        # Handle empty response edge case
+        if not response or not response.strip():
+            return ClaimsResult(claims=[], tokens_used=0)
+
+        template = get_prompt("extract_claims")
+        user_prompt = template.format_user_prompt(response=response)
+
+        try:
+            raw_response, tokens_used = await self._call_claude(
+                template.system_prompt, user_prompt
+            )
+        except APIConnectionError as e:
+            raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
+
+        parsed = self._parse_json_response(raw_response)
+
+        # Validate and extract claims list
+        claims = parsed.get("claims", [])
+        if not isinstance(claims, list):
+            raise JudgeResponseError(
+                f"Expected 'claims' to be a list, got {type(claims).__name__}: {parsed}"
+            )
+
+        # Filter out any non-string items (defensive)
+        claims = [str(c) for c in claims if c]
+
+        return ClaimsResult(claims=claims, tokens_used=tokens_used)
+
+    async def verify_claim(
+        self,
+        claim: str,
+        context: list[str],
+    ) -> ClaimVerdict:
+        """
+        Verify if a single claim is supported by the context.
+
+        Uses the verify_claim prompt template with three-way classification:
+        SUPPORTED, CONTRADICTED, or NOT_ENOUGH_INFO.
+
+        Args:
+            claim: The atomic claim to verify.
+            context: List of context documents to check against.
+
+        Returns:
+            ClaimVerdict with verdict and supporting evidence.
+
+        Raises:
+            JudgeAPIError: If Claude API call fails.
+            JudgeResponseError: If response parsing fails.
+        """
+        # Handle empty context edge case
+        if not context:
+            return ClaimVerdict(
+                verdict="NOT_ENOUGH_INFO",
+                evidence="No context provided for verification.",
+            )
+
+        template = get_prompt("verify_claim")
+        formatted_context = template.format_context(context)
+        user_prompt = template.format_user_prompt(
+            claim=claim,
+            context=formatted_context,
+        )
+
+        try:
+            raw_response, _ = await self._call_claude(
+                template.system_prompt, user_prompt
+            )
+        except APIConnectionError as e:
+            raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
+
+        parsed = self._parse_json_response(raw_response)
+
+        # Validate verdict field
+        verdict = parsed.get("verdict", "").upper()
+        valid_verdicts = {"SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"}
+        if verdict not in valid_verdicts:
+            raise JudgeResponseError(
+                f"Invalid verdict '{verdict}'. Expected one of {valid_verdicts}: {parsed}"
+            )
+
+        return ClaimVerdict(
+            verdict=verdict,  # type: ignore[arg-type]
+            evidence=parsed.get("evidence", ""),
         )

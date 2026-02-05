@@ -1,6 +1,8 @@
 """LLM Judges package for RagaliQ."""
 
 from ragaliq.judges.base import (
+    ClaimsResult,
+    ClaimVerdict,
     JudgeAPIError,
     JudgeConfig,
     JudgeError,
@@ -11,6 +13,8 @@ from ragaliq.judges.base import (
 from ragaliq.judges.claude import ClaudeJudge
 
 __all__ = [
+    "ClaimsResult",
+    "ClaimVerdict",
     "ClaudeJudge",
     "JudgeAPIError",
     "JudgeConfig",

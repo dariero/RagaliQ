@@ -4,6 +4,8 @@ import pytest
 from pydantic import ValidationError
 
 from ragaliq.judges import (
+    ClaimsResult,
+    ClaimVerdict,
     JudgeAPIError,
     JudgeConfig,
     JudgeError,
@@ -190,6 +192,14 @@ class TestLLMJudge:
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
+            async def extract_claims(self, _response: str) -> ClaimsResult:
+                return ClaimsResult(claims=[])
+
+            async def verify_claim(
+                self, _claim: str, _context: list[str]
+            ) -> ClaimVerdict:
+                return ClaimVerdict(verdict="SUPPORTED")
+
         judge = MockJudge()
         assert judge.config.model == "claude-sonnet-4-20250514"
         assert judge.config.temperature == 0.0
@@ -207,6 +217,14 @@ class TestLLMJudge:
                 self, _query: str, _response: str
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
+
+            async def extract_claims(self, _response: str) -> ClaimsResult:
+                return ClaimsResult(claims=[])
+
+            async def verify_claim(
+                self, _claim: str, _context: list[str]
+            ) -> ClaimVerdict:
+                return ClaimVerdict(verdict="SUPPORTED")
 
         config = JudgeConfig(model="gpt-4", temperature=0.3)
         judge = MockJudge(config=config)
@@ -226,6 +244,14 @@ class TestLLMJudge:
                 self, _query: str, _response: str
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
+
+            async def extract_claims(self, _response: str) -> ClaimsResult:
+                return ClaimsResult(claims=[])
+
+            async def verify_claim(
+                self, _claim: str, _context: list[str]
+            ) -> ClaimVerdict:
+                return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
         assert repr(judge) == "MockJudge(model='claude-sonnet-4-20250514')"
@@ -248,6 +274,14 @@ class TestLLMJudge:
                 self, query: str, response: str  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
+
+            async def extract_claims(self, _response: str) -> ClaimsResult:
+                return ClaimsResult(claims=[])
+
+            async def verify_claim(
+                self, _claim: str, _context: list[str]
+            ) -> ClaimVerdict:
+                return ClaimVerdict(verdict="SUPPORTED")
 
         judge = MockJudge()
         result = await judge.evaluate_faithfulness(
@@ -276,6 +310,14 @@ class TestLLMJudge:
                     tokens_used=80,
                 )
 
+            async def extract_claims(self, _response: str) -> ClaimsResult:
+                return ClaimsResult(claims=[])
+
+            async def verify_claim(
+                self, _claim: str, _context: list[str]
+            ) -> ClaimVerdict:
+                return ClaimVerdict(verdict="SUPPORTED")
+
         judge = MockJudge()
         result = await judge.evaluate_relevance(
             query="What is the capital of France?",
@@ -287,7 +329,7 @@ class TestLLMJudge:
     def test_missing_abstract_method_faithfulness(self) -> None:
         """Test that missing evaluate_faithfulness raises TypeError."""
 
-        with pytest.raises(TypeError, match="evaluate_faithfulness"):
+        with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
                 async def evaluate_relevance(
@@ -295,17 +337,77 @@ class TestLLMJudge:
                 ) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
+                async def extract_claims(self, _response: str) -> ClaimsResult:
+                    return ClaimsResult(claims=[])
+
+                async def verify_claim(
+                    self, _claim: str, _context: list[str]
+                ) -> ClaimVerdict:
+                    return ClaimVerdict(verdict="SUPPORTED")
+
             IncompleteJudge()
 
     def test_missing_abstract_method_relevance(self) -> None:
         """Test that missing evaluate_relevance raises TypeError."""
 
-        with pytest.raises(TypeError, match="evaluate_relevance"):
+        with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
                 async def evaluate_faithfulness(
                     self, _response: str, _context: list[str]
                 ) -> JudgeResult:
                     return JudgeResult(score=1.0)
+
+                async def extract_claims(self, _response: str) -> ClaimsResult:
+                    return ClaimsResult(claims=[])
+
+                async def verify_claim(
+                    self, _claim: str, _context: list[str]
+                ) -> ClaimVerdict:
+                    return ClaimVerdict(verdict="SUPPORTED")
+
+            IncompleteJudge()
+
+    def test_missing_abstract_method_extract_claims(self) -> None:
+        """Test that missing extract_claims raises TypeError."""
+
+        with pytest.raises(TypeError, match="abstract"):
+
+            class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
+                async def evaluate_faithfulness(
+                    self, _response: str, _context: list[str]
+                ) -> JudgeResult:
+                    return JudgeResult(score=1.0)
+
+                async def evaluate_relevance(
+                    self, _query: str, _response: str
+                ) -> JudgeResult:
+                    return JudgeResult(score=1.0)
+
+                async def verify_claim(
+                    self, _claim: str, _context: list[str]
+                ) -> ClaimVerdict:
+                    return ClaimVerdict(verdict="SUPPORTED")
+
+            IncompleteJudge()
+
+    def test_missing_abstract_method_verify_claim(self) -> None:
+        """Test that missing verify_claim raises TypeError."""
+
+        with pytest.raises(TypeError, match="abstract"):
+
+            class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
+                async def evaluate_faithfulness(
+                    self, _response: str, _context: list[str]
+                ) -> JudgeResult:
+                    return JudgeResult(score=1.0)
+
+                async def evaluate_relevance(
+                    self, _query: str, _response: str
+                ) -> JudgeResult:
+                    return JudgeResult(score=1.0)
+
+                async def extract_claims(self, _response: str) -> ClaimsResult:
+                    return ClaimsResult(claims=[])
 
             IncompleteJudge()
