@@ -172,7 +172,9 @@ def _load_template_file(name: str) -> dict[str, Any]:
         raise yaml.YAMLError(f"Failed to parse prompt template '{name}': {e}") from e
 
     if not isinstance(content, dict):
-        raise ValueError(f"Prompt template '{name}' must be a YAML mapping, got {type(content).__name__}")
+        raise ValueError(
+            f"Prompt template '{name}' must be a YAML mapping, got {type(content).__name__}"
+        )
 
     return content
 

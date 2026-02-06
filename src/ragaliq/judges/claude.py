@@ -194,9 +194,7 @@ class ClaudeJudge(LLMJudge):
         """
         template = get_prompt("faithfulness")
         formatted_context = template.format_context(context)
-        user_prompt = template.format_user_prompt(
-            context=formatted_context, response=response
-        )
+        user_prompt = template.format_user_prompt(context=formatted_context, response=response)
         return template.system_prompt, user_prompt
 
     def _build_relevance_prompt(
@@ -267,9 +265,7 @@ class ClaudeJudge(LLMJudge):
         try:
             score = float(parsed["score"])
         except (ValueError, TypeError) as e:
-            raise JudgeResponseError(
-                f"Invalid score value: {parsed['score']!r}"
-            ) from e
+            raise JudgeResponseError(f"Invalid score value: {parsed['score']!r}") from e
         # Clamp score to valid range (defensive)
         score = max(0.0, min(1.0, score))
 
@@ -317,9 +313,7 @@ class ClaudeJudge(LLMJudge):
         try:
             score = float(parsed["score"])
         except (ValueError, TypeError) as e:
-            raise JudgeResponseError(
-                f"Invalid score value: {parsed['score']!r}"
-            ) from e
+            raise JudgeResponseError(f"Invalid score value: {parsed['score']!r}") from e
         # Clamp score to valid range (defensive)
         score = max(0.0, min(1.0, score))
 

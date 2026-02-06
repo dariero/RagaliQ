@@ -16,8 +16,13 @@ import pytest
 from ragaliq.core.evaluator import EvaluationResult
 from ragaliq.core.test_case import RAGTestCase
 from ragaliq.evaluators.faithfulness import FaithfulnessEvaluator
-from ragaliq.judges.base import ClaimsResult, ClaimVerdict, JudgeAPIError, JudgeResponseError, LLMJudge
-
+from ragaliq.judges.base import (
+    ClaimsResult,
+    ClaimVerdict,
+    JudgeAPIError,
+    JudgeResponseError,
+    LLMJudge,
+)
 
 # =============================================================================
 # Fixtures
