@@ -9,7 +9,6 @@ Tests follow the acceptance criteria from Issue #6:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -17,11 +16,13 @@ import pytest
 from ragaliq.core.evaluator import EvaluationResult
 from ragaliq.core.test_case import RAGTestCase
 from ragaliq.evaluators.faithfulness import FaithfulnessEvaluator
-from ragaliq.judges.base import ClaimsResult, ClaimVerdict, LLMJudge
-
-if TYPE_CHECKING:
-    pass
-
+from ragaliq.judges.base import (
+    ClaimsResult,
+    ClaimVerdict,
+    JudgeAPIError,
+    JudgeResponseError,
+    LLMJudge,
+)
 
 # =============================================================================
 # Fixtures
@@ -487,3 +488,43 @@ class TestFaithfulnessEvaluatorEdgeCases:
 
         assert result_strict.score == 0.7
         assert result_strict.passed is False  # 0.7 < 0.8
+
+
+# =============================================================================
+# Error Propagation Tests
+# =============================================================================
+
+
+class TestFaithfulnessEvaluatorErrorPropagation:
+    """Tests that judge errors propagate correctly through the evaluator."""
+
+    @pytest.mark.asyncio
+    async def test_extract_claims_api_error_propagates(
+        self,
+        mock_judge: MagicMock,
+        faithful_test_case: RAGTestCase,
+    ) -> None:
+        """JudgeAPIError from extract_claims should propagate through evaluate()."""
+        mock_judge.extract_claims = AsyncMock(
+            side_effect=JudgeAPIError("Claude API error: Rate limit exceeded", status_code=429)
+        )
+
+        evaluator = FaithfulnessEvaluator()
+        with pytest.raises(JudgeAPIError, match="Rate limit exceeded"):
+            await evaluator.evaluate(faithful_test_case, mock_judge)
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_response_error_propagates(
+        self,
+        mock_judge: MagicMock,
+        faithful_test_case: RAGTestCase,
+    ) -> None:
+        """JudgeResponseError from verify_claim should propagate through evaluate()."""
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=["A claim"])
+        mock_judge.verify_claim = AsyncMock(
+            side_effect=JudgeResponseError("Failed to parse JSON response")
+        )
+
+        evaluator = FaithfulnessEvaluator()
+        with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
+            await evaluator.evaluate(faithful_test_case, mock_judge)

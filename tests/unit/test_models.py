@@ -149,9 +149,12 @@ class TestEvaluationResult:
     def test_score_bounds(self):
         """Test that score must be between 0 and 1."""
         # Valid scores
-        EvaluationResult(evaluator_name="test", score=0.0, passed=False)
-        EvaluationResult(evaluator_name="test", score=1.0, passed=True)
-        EvaluationResult(evaluator_name="test", score=0.5, passed=True)
+        result_min = EvaluationResult(evaluator_name="test", score=0.0, passed=False)
+        assert result_min.score == 0.0
+        result_max = EvaluationResult(evaluator_name="test", score=1.0, passed=True)
+        assert result_max.score == 1.0
+        result_mid = EvaluationResult(evaluator_name="test", score=0.5, passed=True)
+        assert result_mid.score == 0.5
 
         # Invalid scores
         with pytest.raises(ValidationError):

@@ -268,7 +268,7 @@ for claim in result.raw_response["claims"]:
 ## 11. Quality Gates
 
 ```bash
-make test       # 149 passed, 1 skipped
-make lint       # All checks passed
-make typecheck  # All checks passed
+hatch run test       # 149 passed, 1 skipped
+hatch run lint       # All checks passed
+hatch run typecheck  # All checks passed
 ```

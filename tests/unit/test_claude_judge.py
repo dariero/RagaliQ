@@ -295,6 +295,36 @@ class TestClaudeJudgeErrorHandling:
             )
 
     @pytest.mark.asyncio
+    async def test_connection_error_succeeds_on_retry(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that a transient connection error recovers on retry."""
+        success_response = MagicMock()
+        success_response.content = [
+            MagicMock(type="text", text='{"score": 0.85, "reasoning": "Recovered"}')
+        ]
+        success_response.usage.input_tokens = 100
+        success_response.usage.output_tokens = 50
+
+        mock_anthropic_client.messages.create = AsyncMock(
+            side_effect=[
+                APIConnectionError(request=MagicMock()),
+                success_response,
+            ]
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.evaluate_faithfulness(
+            response="Test",
+            context=["Context"],
+        )
+
+        assert isinstance(result, JudgeResult)
+        assert result.score == 0.85
+        assert mock_anthropic_client.messages.create.call_count == 2
+
+    @pytest.mark.asyncio
     async def test_invalid_json_response(
         self,
         mock_anthropic_client: MagicMock,

@@ -48,15 +48,19 @@ class Evaluator(ABC):
 ```python
 class LLMJudge(ABC):
     @abstractmethod
-    async def extract_claims(self, response: str) -> list[str]:
+    async def extract_claims(self, response: str) -> ClaimsResult:
         pass
-    
+
     @abstractmethod
-    async def verify_claim(self, claim: str, context: list[str]) -> bool:
+    async def verify_claim(self, claim: str, context: list[str]) -> ClaimVerdict:
         pass
-    
+
     @abstractmethod
-    async def score_relevance(self, query: str, response: str) -> float:
+    async def evaluate_relevance(self, query: str, response: str) -> JudgeResult:
+        pass
+
+    @abstractmethod
+    async def evaluate_faithfulness(self, response: str, context: list[str]) -> JudgeResult:
         pass
 ```
 
@@ -221,7 +225,7 @@ ragaliq/
 │       │   └── prompts/
 │       │       ├── extract_claims.yaml
 │       │       ├── verify_claim.yaml
-│       │       └── score_relevance.yaml
+│       │       └── relevance.yaml
 │       ├── datasets/
 │       │   ├── __init__.py
 │       │   ├── loader.py
@@ -272,6 +276,8 @@ ragaliq/
 ---
 
 ## Dependencies
+
+*Note: For current dependency versions, see `pyproject.toml` as the single source of truth.*
 
 ```toml
 [project]

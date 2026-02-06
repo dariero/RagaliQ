@@ -15,7 +15,7 @@ import pytest
 from ragaliq.core.evaluator import EvaluationResult
 from ragaliq.core.test_case import RAGTestCase
 from ragaliq.evaluators.relevance import RelevanceEvaluator
-from ragaliq.judges.base import JudgeResult, LLMJudge
+from ragaliq.judges.base import JudgeAPIError, JudgeResponseError, JudgeResult, LLMJudge
 
 # =============================================================================
 # Fixtures
@@ -391,3 +391,42 @@ class TestRelevanceEvaluatorJudgeInteraction:
         mock_judge.evaluate_faithfulness.assert_not_called()
         mock_judge.extract_claims.assert_not_called()
         mock_judge.verify_claim.assert_not_called()
+
+
+# =============================================================================
+# Error Propagation Tests
+# =============================================================================
+
+
+class TestRelevanceEvaluatorErrorPropagation:
+    """Tests that judge errors propagate correctly through the evaluator."""
+
+    @pytest.mark.asyncio
+    async def test_judge_api_error_propagates(
+        self,
+        mock_judge: MagicMock,
+        relevant_test_case: RAGTestCase,
+    ) -> None:
+        """JudgeAPIError from judge should propagate through evaluate()."""
+        mock_judge.evaluate_relevance = AsyncMock(
+            side_effect=JudgeAPIError("Claude API error: Rate limit exceeded", status_code=429)
+        )
+
+        evaluator = RelevanceEvaluator()
+        with pytest.raises(JudgeAPIError, match="Rate limit exceeded"):
+            await evaluator.evaluate(relevant_test_case, mock_judge)
+
+    @pytest.mark.asyncio
+    async def test_judge_response_error_propagates(
+        self,
+        mock_judge: MagicMock,
+        relevant_test_case: RAGTestCase,
+    ) -> None:
+        """JudgeResponseError from judge should propagate through evaluate()."""
+        mock_judge.evaluate_relevance = AsyncMock(
+            side_effect=JudgeResponseError("Failed to parse JSON response")
+        )
+
+        evaluator = RelevanceEvaluator()
+        with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
+            await evaluator.evaluate(relevant_test_case, mock_judge)
