@@ -119,6 +119,8 @@ class ClaudeJudge(LLMJudge):
             )
 
             # Extract text content from response
+            if not response.content:
+                raise JudgeResponseError("Empty response from Claude API")
             content = response.content[0]
             if content.type != "text":
                 raise JudgeResponseError(f"Expected text response, got {content.type}")
@@ -180,6 +182,9 @@ class ClaudeJudge(LLMJudge):
         """
         Build prompts for faithfulness evaluation.
 
+        Uses the 'faithfulness' YAML prompt template for consistency
+        with the prompt management system.
+
         Args:
             response: The RAG response to evaluate.
             context: Context documents used for generation.
@@ -187,39 +192,12 @@ class ClaudeJudge(LLMJudge):
         Returns:
             Tuple of (system_prompt, user_prompt).
         """
-        system_prompt = """You are an expert evaluator assessing whether a response is faithful to the provided context.
-
-Faithfulness means:
-- Every claim in the response is supported by the context
-- No information is fabricated or hallucinated
-- No claims go beyond what the context states
-
-Score criteria:
-- 1.0: All claims are fully supported by context
-- 0.7-0.9: Most claims supported, minor unsupported details
-- 0.4-0.6: Mixed - some claims supported, others not
-- 0.1-0.3: Most claims unsupported by context
-- 0.0: Response contradicts or is completely unrelated to context
-
-Respond ONLY with valid JSON in this exact format:
-{"score": <float 0.0-1.0>, "reasoning": "<brief explanation>"}"""
-
-        # Format context documents with clear separation
-        context_text = "\n\n---\n\n".join(
-            f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context)
+        template = get_prompt("faithfulness")
+        formatted_context = template.format_context(context)
+        user_prompt = template.format_user_prompt(
+            context=formatted_context, response=response
         )
-
-        user_prompt = f"""Evaluate the faithfulness of this response to the context.
-
-CONTEXT:
-{context_text}
-
-RESPONSE TO EVALUATE:
-{response}
-
-Return JSON with score (0.0-1.0) and reasoning."""
-
-        return system_prompt, user_prompt
+        return template.system_prompt, user_prompt
 
     def _build_relevance_prompt(
         self,
@@ -229,6 +207,9 @@ Return JSON with score (0.0-1.0) and reasoning."""
         """
         Build prompts for relevance evaluation.
 
+        Uses the 'relevance' YAML prompt template for consistency
+        with the prompt management system.
+
         Args:
             query: The user's original query.
             response: The RAG response to evaluate.
@@ -236,34 +217,9 @@ Return JSON with score (0.0-1.0) and reasoning."""
         Returns:
             Tuple of (system_prompt, user_prompt).
         """
-        system_prompt = """You are an expert evaluator assessing whether a response is relevant to the user's query.
-
-Relevance means:
-- The response directly addresses what the user asked
-- The information provided is useful for answering the query
-- The response stays on topic and doesn't include irrelevant information
-
-Score criteria:
-- 1.0: Response perfectly addresses the query
-- 0.7-0.9: Response mostly addresses query with minor gaps
-- 0.4-0.6: Response partially addresses query or includes irrelevant info
-- 0.1-0.3: Response barely addresses the query
-- 0.0: Response is completely irrelevant to the query
-
-Respond ONLY with valid JSON in this exact format:
-{"score": <float 0.0-1.0>, "reasoning": "<brief explanation>"}"""
-
-        user_prompt = f"""Evaluate the relevance of this response to the query.
-
-QUERY:
-{query}
-
-RESPONSE TO EVALUATE:
-{response}
-
-Return JSON with score (0.0-1.0) and reasoning."""
-
-        return system_prompt, user_prompt
+        template = get_prompt("relevance")
+        user_prompt = template.format_user_prompt(query=query, response=response)
+        return template.system_prompt, user_prompt
 
     async def evaluate_faithfulness(
         self,
@@ -308,7 +264,12 @@ Return JSON with score (0.0-1.0) and reasoning."""
         if "score" not in parsed:
             raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
 
-        score = float(parsed["score"])
+        try:
+            score = float(parsed["score"])
+        except (ValueError, TypeError) as e:
+            raise JudgeResponseError(
+                f"Invalid score value: {parsed['score']!r}"
+            ) from e
         # Clamp score to valid range (defensive)
         score = max(0.0, min(1.0, score))
 
@@ -353,7 +314,12 @@ Return JSON with score (0.0-1.0) and reasoning."""
         if "score" not in parsed:
             raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
 
-        score = float(parsed["score"])
+        try:
+            score = float(parsed["score"])
+        except (ValueError, TypeError) as e:
+            raise JudgeResponseError(
+                f"Invalid score value: {parsed['score']!r}"
+            ) from e
         # Clamp score to valid range (defensive)
         score = max(0.0, min(1.0, score))
 

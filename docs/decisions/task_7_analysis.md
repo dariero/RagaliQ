@@ -1,6 +1,6 @@
 # Task 7: RelevanceEvaluator - Design Decision Record
 
-**Issue**: [#7 - Task 6: RelevanceEvaluator](https://github.com/dariero/RagaliQ/issues/7)
+**Issue**: [#7 - Task 7: RelevanceEvaluator](https://github.com/dariero/RagaliQ/issues/7)
 **Date**: 2026-02-06
 **Status**: Implementing
 

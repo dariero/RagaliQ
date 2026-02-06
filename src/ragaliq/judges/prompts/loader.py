@@ -26,7 +26,7 @@ class OutputSchema(BaseModel):
     enum: list[str] | None = Field(default=None, description="Allowed values for enum types")
     items: dict[str, Any] | None = Field(default=None, description="Schema for array items")
 
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "forbid"}
 
 
 class OutputFormat(BaseModel):
@@ -39,7 +39,7 @@ class OutputFormat(BaseModel):
         description="Schema definition for output fields",
     )
 
-    model_config = {"extra": "allow", "populate_by_name": True}
+    model_config = {"extra": "forbid", "populate_by_name": True}
 
 
 class PromptExample(BaseModel):
@@ -48,7 +48,7 @@ class PromptExample(BaseModel):
     input: dict[str, Any] = Field(..., description="Example input variables")
     output: dict[str, Any] = Field(..., description="Expected output")
 
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "forbid"}
 
 
 class PromptTemplate(BaseModel):
@@ -77,11 +77,14 @@ class PromptTemplate(BaseModel):
     output_format: OutputFormat | None = Field(default=None, description="Expected output format")
     examples: list[PromptExample] = Field(default_factory=list, description="Few-shot examples")
 
-    model_config = {"extra": "allow"}
+    model_config = {"extra": "forbid"}
 
     def format_user_prompt(self, **kwargs: Any) -> str:
         """
         Format the user template with provided variables.
+
+        Values are sanitized to escape curly braces, preventing Python
+        format string injection (e.g., ``{__class__}`` in user content).
 
         Args:
             **kwargs: Variables to substitute in the template.
@@ -92,7 +95,12 @@ class PromptTemplate(BaseModel):
         Raises:
             KeyError: If a required template variable is missing.
         """
-        return self.user_template.format(**kwargs)
+        # Escape curly braces in values to prevent format string injection
+        sanitized = {
+            k: v.replace("{", "{{").replace("}", "}}") if isinstance(v, str) else v
+            for k, v in kwargs.items()
+        }
+        return self.user_template.format(**sanitized)
 
     def format_context(self, context: list[str]) -> str:
         """
@@ -157,9 +165,16 @@ def _load_template_file(name: str) -> dict[str, Any]:
     if not file_path.exists():
         raise FileNotFoundError(f"Prompt template not found: {name}")
 
-    with file_path.open() as f:
-        content: dict[str, Any] = yaml.safe_load(f)
-        return content
+    try:
+        with file_path.open() as f:
+            content = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(f"Failed to parse prompt template '{name}': {e}") from e
+
+    if not isinstance(content, dict):
+        raise ValueError(f"Prompt template '{name}' must be a YAML mapping, got {type(content).__name__}")
+
+    return content
 
 
 def get_prompt(name: str) -> PromptTemplate:

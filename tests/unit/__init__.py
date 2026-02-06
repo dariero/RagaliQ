@@ -1,1 +1,1 @@
-# Unit tests for RAGTestKit
+# Unit tests for RagaliQ

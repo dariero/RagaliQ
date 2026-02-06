@@ -1,10 +1,13 @@
 """Main test runner for RagaliQ."""
 
+import logging
 from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
 from ragaliq.judges.base import JudgeConfig, LLMJudge
+
+logger = logging.getLogger(__name__)
 
 
 class RagaliQ:
@@ -21,11 +24,11 @@ class RagaliQ:
         # With custom configuration
         >>> from ragaliq.judges import JudgeConfig
         >>> config = JudgeConfig(model="claude-sonnet-4-20250514", temperature=0.0)
-        >>> tester = RagaliQ(judge_config=config, api_key="sk-...")
+        >>> tester = RagaliQ(judge_config=config, api_key="sk-ant-...")
 
         # With pre-configured judge
         >>> from ragaliq.judges import ClaudeJudge
-        >>> judge = ClaudeJudge(api_key="sk-...")
+        >>> judge = ClaudeJudge(api_key="sk-ant-...")
         >>> tester = RagaliQ(judge=judge)
     """
 
@@ -63,6 +66,9 @@ class RagaliQ:
 
         self._evaluators: list[Evaluator] = []
 
+    def __repr__(self) -> str:
+        return f"RagaliQ(judge_type={self.judge_type!r}, evaluators={self.evaluator_names!r})"
+
     def _init_judge(self) -> None:
         """Lazily initialize the LLM judge."""
         if self._judge is not None:
@@ -87,10 +93,6 @@ class RagaliQ:
             return
 
         # TODO: Implement evaluator registry and initialization
-        # from ragtestkit.evaluators import get_evaluator
-        #
-        # for name in self.evaluator_names:
-        #     self._evaluators.append(get_evaluator(name, self.default_threshold))
         raise NotImplementedError("Evaluator initialization not yet implemented")
 
     async def evaluate_async(self, test_case: RAGTestCase) -> RAGTestResult:
@@ -110,7 +112,8 @@ class RagaliQ:
         self._init_judge()
         self._init_evaluators()
 
-        assert self._judge is not None, "Judge must be initialized"
+        if self._judge is None:
+            raise RuntimeError("Judge must be initialized before evaluation")
 
         scores: dict[str, float] = {}
         details: dict[str, dict[str, Any]] = {}
@@ -118,13 +121,18 @@ class RagaliQ:
         all_passed = True
 
         for evaluator in self._evaluators:
-            result: EvaluationResult = await evaluator.evaluate(test_case, self._judge)
+            try:
+                result: EvaluationResult = await evaluator.evaluate(test_case, self._judge)
+            except Exception:
+                logger.exception("Evaluator '%s' failed", evaluator.name)
+                raise
             scores[evaluator.name] = result.score
             details[evaluator.name] = {
                 "reasoning": result.reasoning,
                 "passed": result.passed,
                 "raw": result.raw_response,
             }
+            total_tokens += result.raw_response.get("tokens_used", 0)
             if not result.passed:
                 all_passed = False
 

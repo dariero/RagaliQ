@@ -51,7 +51,7 @@ coverage.xml
 *.pot
 
 # Environments
-.env
+.env*
 .venv
 env/
 venv/
@@ -85,3 +85,8 @@ Thumbs.db
 *.log
 /reports/
 .secrets/
+
+# Secrets and credentials (per CLAUDE.md constraints)
+*.pem
+*credentials*
+*secret*

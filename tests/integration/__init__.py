@@ -1,1 +1,1 @@
-# Integration tests for RAGTestKit
+# Integration tests for RagaliQ

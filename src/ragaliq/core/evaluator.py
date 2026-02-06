@@ -28,7 +28,7 @@ class EvaluationResult(BaseModel):
     reasoning: str = Field(default="", description="Explanation of the score")
     raw_response: dict[str, Any] = Field(default_factory=dict, description="Raw judge response")
 
-    model_config = {"frozen": False, "extra": "forbid"}
+    model_config = {"frozen": True, "extra": "forbid"}
 
 
 class Evaluator(ABC):
