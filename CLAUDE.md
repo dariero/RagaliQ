@@ -63,6 +63,20 @@ hatch run typecheck  # mypy
 hatch run test       # pytest
 ```
 
+## Architecture Decision Records (ADRs)
+
+Document significant architectural decisions in `.decisions/` directory following the ADR format. See `.decisions/README.md` for structure and guidelines.
+
+**When to write an ADR:**
+- Introducing new architectural patterns or components
+- Choosing between multiple valid implementation approaches
+- Modifying existing contracts or interfaces
+- Decisions with non-obvious trade-offs
+
+**ADR naming:** `.decisions/ADR-NNN-short-title.md` where NNN is the GitHub issue number if applicable.
+
+**Required sections:** Context, Proposed Solution, Principles Applied, Alternatives Considered.
+
 ## Automation
 
 Two slash commands for the dev workflow:
