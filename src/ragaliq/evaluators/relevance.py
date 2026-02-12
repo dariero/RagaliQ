@@ -88,4 +88,5 @@ class RelevanceEvaluator(Evaluator):
                 "reasoning": judge_result.reasoning,
                 "tokens_used": judge_result.tokens_used,
             },
+            tokens_used=judge_result.tokens_used,
         )

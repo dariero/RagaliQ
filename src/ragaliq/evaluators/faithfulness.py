@@ -84,6 +84,7 @@ class FaithfulnessEvaluator(Evaluator):
         # Step 1: Extract atomic claims from the response
         claims_result = await judge.extract_claims(test_case.response)
         claims = claims_result.claims
+        total_tokens = claims_result.tokens_used
 
         # Handle empty claims edge case: vacuously faithful
         if not claims:
@@ -97,6 +98,7 @@ class FaithfulnessEvaluator(Evaluator):
                     "total_claims": 0,
                     "supported_claims": 0,
                 },
+                tokens_used=total_tokens,
             )
 
         # Step 2: Verify each claim against the context
@@ -105,6 +107,7 @@ class FaithfulnessEvaluator(Evaluator):
 
         for claim in claims:
             verdict = await judge.verify_claim(claim, test_case.context)
+            total_tokens += verdict.tokens_used
 
             claim_details.append(
                 {
@@ -134,6 +137,7 @@ class FaithfulnessEvaluator(Evaluator):
                 "total_claims": total_claims,
                 "supported_claims": supported_count,
             },
+            tokens_used=total_tokens,
         )
 
     def _build_reasoning(self, supported: int, total: int) -> str:

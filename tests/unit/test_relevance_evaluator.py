@@ -121,6 +121,7 @@ class TestRelevanceEvaluatorAcceptanceCriteria:
         result = await evaluator.evaluate(relevant_test_case, mock_judge)
 
         assert result.score == 0.85
+        assert result.tokens_used == 120
 
     @pytest.mark.asyncio
     async def test_reasoning_included_in_result(

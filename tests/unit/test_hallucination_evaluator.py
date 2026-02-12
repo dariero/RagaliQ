@@ -34,7 +34,7 @@ def mock_judge() -> MagicMock:
     """Create a mock LLM judge with claim extraction and verification."""
     judge = MagicMock(spec=LLMJudge)
     # Default: no claims extracted
-    judge.extract_claims = AsyncMock(return_value=ClaimsResult(claims=[]))
+    judge.extract_claims = AsyncMock(return_value=ClaimsResult(claims=[], tokens_used=10))
     judge.verify_claim = AsyncMock()
     return judge
 
@@ -133,11 +133,12 @@ class TestHallucinationEvaluatorAcceptanceCriteria:
             claims=[
                 "France has a capital city",
                 "The capital of France is Paris",
-            ]
+            ],
+            tokens_used=45,
         )
         mock_judge.verify_claim.side_effect = [
-            ClaimVerdict(verdict="SUPPORTED", evidence="Context states this"),
-            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms Paris"),
+            ClaimVerdict(verdict="SUPPORTED", evidence="Context states this", tokens_used=22),
+            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms Paris", tokens_used=18),
         ]
 
         # Act
@@ -147,6 +148,7 @@ class TestHallucinationEvaluatorAcceptanceCriteria:
         # Assert
         assert result.score == 1.0
         assert result.passed is True
+        assert result.tokens_used == 85  # 45 + 22 + 18
 
     @pytest.mark.asyncio
     async def test_not_enough_info_flagged_as_hallucination(

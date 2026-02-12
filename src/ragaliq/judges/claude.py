@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from anthropic import APIConnectionError, APIStatusError, AsyncAnthropic
 from tenacity import (
     retry,
+    retry_if_exception,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
@@ -32,6 +33,11 @@ from ragaliq.judges.prompts.loader import get_prompt
 
 if TYPE_CHECKING:
     from anthropic.types import Message
+
+
+def _is_retryable_api_error(exc: BaseException) -> bool:
+    """Check if an exception is a retryable API status error (429 or 5xx)."""
+    return isinstance(exc, APIStatusError) and (exc.status_code == 429 or exc.status_code >= 500)
 
 
 class ClaudeJudge(LLMJudge):
@@ -83,7 +89,10 @@ class ClaudeJudge(LLMJudge):
         self._client = AsyncAnthropic(api_key=resolved_key)
 
     @retry(
-        retry=retry_if_exception_type(APIConnectionError),
+        retry=(
+            retry_if_exception_type(APIConnectionError)
+            | retry_if_exception(_is_retryable_api_error)
+        ),
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
@@ -131,7 +140,10 @@ class ClaudeJudge(LLMJudge):
             return content.text, tokens_used
 
         except APIStatusError as e:
-            # Map Anthropic status errors to our exception hierarchy
+            # Re-raise 429 and 5xx errors to let tenacity retry
+            if e.status_code == 429 or e.status_code >= 500:
+                raise
+            # Map other status errors to our exception hierarchy
             raise JudgeAPIError(
                 f"Claude API error: {e.message}",
                 status_code=e.status_code,
@@ -253,7 +265,7 @@ class ClaudeJudge(LLMJudge):
 
         try:
             raw_response, tokens_used = await self._call_claude(system_prompt, user_prompt)
-        except APIConnectionError as e:
+        except (APIConnectionError, APIStatusError) as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
         parsed = self._parse_json_response(raw_response)
@@ -301,7 +313,7 @@ class ClaudeJudge(LLMJudge):
 
         try:
             raw_response, tokens_used = await self._call_claude(system_prompt, user_prompt)
-        except APIConnectionError as e:
+        except (APIConnectionError, APIStatusError) as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
         parsed = self._parse_json_response(raw_response)
@@ -349,7 +361,7 @@ class ClaudeJudge(LLMJudge):
 
         try:
             raw_response, tokens_used = await self._call_claude(template.system_prompt, user_prompt)
-        except APIConnectionError as e:
+        except (APIConnectionError, APIStatusError) as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
         parsed = self._parse_json_response(raw_response)
@@ -403,8 +415,8 @@ class ClaudeJudge(LLMJudge):
         )
 
         try:
-            raw_response, _ = await self._call_claude(template.system_prompt, user_prompt)
-        except APIConnectionError as e:
+            raw_response, tokens_used = await self._call_claude(template.system_prompt, user_prompt)
+        except (APIConnectionError, APIStatusError) as e:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
         parsed = self._parse_json_response(raw_response)
@@ -420,4 +432,5 @@ class ClaudeJudge(LLMJudge):
         return ClaimVerdict(
             verdict=verdict,  # type: ignore[arg-type]
             evidence=parsed.get("evidence", ""),
+            tokens_used=tokens_used,
         )

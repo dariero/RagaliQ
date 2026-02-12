@@ -34,7 +34,7 @@ def mock_judge() -> MagicMock:
     """Create a mock LLM judge with claim extraction and verification."""
     judge = MagicMock(spec=LLMJudge)
     # Default: no claims extracted
-    judge.extract_claims = AsyncMock(return_value=ClaimsResult(claims=[]))
+    judge.extract_claims = AsyncMock(return_value=ClaimsResult(claims=[], tokens_used=10))
     judge.verify_claim = AsyncMock()
     return judge
 
@@ -125,11 +125,12 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
             claims=[
                 "France has a capital city",
                 "The capital of France is Paris",
-            ]
+            ],
+            tokens_used=50,
         )
         mock_judge.verify_claim.side_effect = [
-            ClaimVerdict(verdict="SUPPORTED", evidence="Context states this"),
-            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms Paris"),
+            ClaimVerdict(verdict="SUPPORTED", evidence="Context states this", tokens_used=30),
+            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms Paris", tokens_used=25),
         ]
 
         # Act
@@ -139,6 +140,7 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
         # Assert
         assert result.score == 1.0
         assert result.passed is True
+        assert result.tokens_used == 105  # 50 + 30 + 25
 
     @pytest.mark.asyncio
     async def test_half_supported_returns_0_5(
@@ -152,11 +154,14 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
             claims=[
                 "Paris is the capital of France",
                 "Paris was founded by Romans in 250 BC",
-            ]
+            ],
+            tokens_used=40,
         )
         mock_judge.verify_claim.side_effect = [
-            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms"),
-            ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="No founding date in context"),
+            ClaimVerdict(verdict="SUPPORTED", evidence="Context confirms", tokens_used=20),
+            ClaimVerdict(
+                verdict="NOT_ENOUGH_INFO", evidence="No founding date in context", tokens_used=15
+            ),
         ]
 
         # Act
@@ -166,6 +171,7 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
         # Assert
         assert result.score == 0.5
         assert result.passed is False  # 0.5 < 0.7 threshold
+        assert result.tokens_used == 75  # 40 + 20 + 15
 
     @pytest.mark.asyncio
     async def test_no_claims_returns_1_0(
@@ -175,7 +181,7 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
     ) -> None:
         """AC: No claims -> 1.0 (vacuously faithful)"""
         # Arrange: empty response extracts no claims
-        mock_judge.extract_claims.return_value = ClaimsResult(claims=[])
+        mock_judge.extract_claims.return_value = ClaimsResult(claims=[], tokens_used=15)
 
         # Act
         evaluator = FaithfulnessEvaluator()
@@ -184,6 +190,7 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
         # Assert
         assert result.score == 1.0
         assert result.passed is True
+        assert result.tokens_used == 15  # Only extraction tokens
         # verify_claim should never be called with no claims
         mock_judge.verify_claim.assert_not_called()
 

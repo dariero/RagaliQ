@@ -39,6 +39,7 @@ class RagaliQ:
         default_threshold: float = 0.7,
         judge_config: JudgeConfig | None = None,
         api_key: str | None = None,
+        max_concurrency: int = 5,
     ) -> None:
         """
         Initialize RagaliQ.
@@ -50,9 +51,11 @@ class RagaliQ:
             default_threshold: Default passing threshold for evaluators.
             judge_config: Optional configuration for the judge (model, temperature, etc.).
             api_key: Optional API key for the judge. Falls back to environment variable.
+            max_concurrency: Maximum number of concurrent evaluations in batch mode.
         """
         self.evaluator_names = evaluators or ["faithfulness", "relevance"]
         self.default_threshold = default_threshold
+        self.max_concurrency = max_concurrency
         self._judge_config = judge_config
         self._api_key = api_key
 
@@ -92,8 +95,14 @@ class RagaliQ:
         if self._evaluators:
             return
 
-        # TODO: Implement evaluator registry and initialization
-        raise NotImplementedError("Evaluator initialization not yet implemented")
+        from ragaliq.evaluators import EVALUATOR_REGISTRY
+
+        for name in self.evaluator_names:
+            if name not in EVALUATOR_REGISTRY:
+                available = ", ".join(sorted(EVALUATOR_REGISTRY.keys()))
+                raise ValueError(f"Unknown evaluator: {name!r}. Available evaluators: {available}")
+            evaluator_class = EVALUATOR_REGISTRY[name]
+            self._evaluators.append(evaluator_class(threshold=self.default_threshold))
 
     async def evaluate_async(self, test_case: RAGTestCase) -> RAGTestResult:
         """
@@ -132,7 +141,7 @@ class RagaliQ:
                 "passed": result.passed,
                 "raw": result.raw_response,
             }
-            total_tokens += result.raw_response.get("tokens_used", 0)
+            total_tokens += result.tokens_used
             if not result.passed:
                 all_passed = False
 
@@ -161,19 +170,29 @@ class RagaliQ:
 
         return asyncio.run(self.evaluate_async(test_case))
 
-    async def evaluate_batch_async(self, test_cases: list[RAGTestCase]) -> list[RAGTestResult]:
+    async def evaluate_batch_async(
+        self, test_cases: list[RAGTestCase], max_concurrency: int | None = None
+    ) -> list[RAGTestResult]:
         """
         Evaluate multiple test cases asynchronously.
 
         Args:
             test_cases: List of test cases to evaluate.
+            max_concurrency: Optional override for maximum concurrent evaluations.
 
         Returns:
             List of RAGTestResults in the same order.
         """
         import asyncio
 
-        tasks = [self.evaluate_async(tc) for tc in test_cases]
+        concurrency = max_concurrency if max_concurrency is not None else self.max_concurrency
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def bounded_evaluate(tc: RAGTestCase) -> RAGTestResult:
+            async with semaphore:
+                return await self.evaluate_async(tc)
+
+        tasks = [bounded_evaluate(tc) for tc in test_cases]
         return await asyncio.gather(*tasks)
 
     def evaluate_batch(self, test_cases: list[RAGTestCase]) -> list[RAGTestResult]:

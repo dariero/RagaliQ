@@ -89,6 +89,7 @@ class HallucinationEvaluator(Evaluator):
         # Step 1: Extract atomic claims from the response
         claims_result = await judge.extract_claims(test_case.response)
         claims = claims_result.claims
+        total_tokens = claims_result.tokens_used
 
         # Handle empty claims edge case: no claims means no hallucinations
         if not claims:
@@ -103,6 +104,7 @@ class HallucinationEvaluator(Evaluator):
                     "hallucinated_claims": [],
                     "hallucination_count": 0,
                 },
+                tokens_used=total_tokens,
             )
 
         # Step 2: Verify each claim and classify hallucinations
@@ -111,6 +113,7 @@ class HallucinationEvaluator(Evaluator):
 
         for claim in claims:
             verdict = await judge.verify_claim(claim, test_case.context)
+            total_tokens += verdict.tokens_used
 
             detail = {
                 "claim": claim,
@@ -142,6 +145,7 @@ class HallucinationEvaluator(Evaluator):
                 "hallucinated_claims": hallucinated,
                 "hallucination_count": hallucination_count,
             },
+            tokens_used=total_tokens,
         )
 
     def _build_reasoning(self, hallucinated: int, total: int) -> str:
