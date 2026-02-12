@@ -95,13 +95,10 @@ class RagaliQ:
         if self._evaluators:
             return
 
-        from ragaliq.evaluators import EVALUATOR_REGISTRY
+        from ragaliq.evaluators import get_evaluator
 
         for name in self.evaluator_names:
-            if name not in EVALUATOR_REGISTRY:
-                available = ", ".join(sorted(EVALUATOR_REGISTRY.keys()))
-                raise ValueError(f"Unknown evaluator: {name!r}. Available evaluators: {available}")
-            evaluator_class = EVALUATOR_REGISTRY[name]
+            evaluator_class = get_evaluator(name)
             self._evaluators.append(evaluator_class(threshold=self.default_threshold))
 
     async def evaluate_async(self, test_case: RAGTestCase) -> RAGTestResult:
