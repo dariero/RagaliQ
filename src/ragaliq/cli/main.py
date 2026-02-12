@@ -1,6 +1,5 @@
 """CLI entry point for RagaliQ."""
 
-
 import typer
 
 import ragaliq

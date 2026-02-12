@@ -16,12 +16,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
+from ragaliq.evaluators.registry import register_evaluator
 
 if TYPE_CHECKING:
     from ragaliq.core.test_case import RAGTestCase
     from ragaliq.judges.base import LLMJudge
 
 
+@register_evaluator("relevance")
 class RelevanceEvaluator(Evaluator):
     """
     Evaluator that measures response relevance to the query.
