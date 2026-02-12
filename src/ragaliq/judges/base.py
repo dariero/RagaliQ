@@ -57,12 +57,14 @@ class ClaimVerdict(BaseModel):
     Attributes:
         verdict: Three-way classification of claim support.
         evidence: Quote from context or explanation supporting the verdict.
+        tokens_used: Tokens consumed by the verification call.
     """
 
     verdict: Literal["SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"] = Field(
         ..., description="Three-way verdict on claim support"
     )
     evidence: str = Field(default="", description="Supporting quote or explanation")
+    tokens_used: int = Field(default=0, ge=0, description="Tokens used")
 
     model_config = {"frozen": True, "extra": "forbid"}
 

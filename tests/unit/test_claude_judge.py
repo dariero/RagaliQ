@@ -252,18 +252,18 @@ class TestClaudeJudgeErrorHandling:
     """Tests for error handling in ClaudeJudge."""
 
     @pytest.mark.asyncio
-    async def test_api_status_error(
+    async def test_api_status_error_non_retryable(
         self,
         mock_anthropic_client: MagicMock,
     ) -> None:
-        """Test handling of API status errors."""
+        """Test handling of non-retryable API status errors (4xx except 429)."""
         error_response = MagicMock()
-        error_response.status_code = 429
+        error_response.status_code = 400
         mock_anthropic_client.messages.create = AsyncMock(
             side_effect=APIStatusError(
-                message="Rate limit exceeded",
+                message="Bad request",
                 response=error_response,
-                body={"error": "rate_limited"},
+                body={"error": "invalid_request"},
             )
         )
 
@@ -274,8 +274,10 @@ class TestClaudeJudgeErrorHandling:
                 context=["Context"],
             )
 
-        assert exc_info.value.status_code == 429
-        assert "Rate limit" in str(exc_info.value)
+        assert exc_info.value.status_code == 400
+        assert "Bad request" in str(exc_info.value)
+        # Should not retry 400 errors
+        assert mock_anthropic_client.messages.create.call_count == 1
 
     @pytest.mark.asyncio
     async def test_connection_error_after_retries(
@@ -322,6 +324,95 @@ class TestClaudeJudgeErrorHandling:
 
         assert isinstance(result, JudgeResult)
         assert result.score == 0.85
+        assert mock_anthropic_client.messages.create.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_429_error_retried_and_exhausted(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that 429 errors are retried 3 times before raising."""
+        error_response = MagicMock()
+        error_response.status_code = 429
+        mock_anthropic_client.messages.create = AsyncMock(
+            side_effect=APIStatusError(
+                message="Rate limit exceeded",
+                response=error_response,
+                body={"error": "rate_limited"},
+            )
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeAPIError, match="Connection to Claude API failed"):
+            await judge.evaluate_faithfulness(
+                response="Test",
+                context=["Context"],
+            )
+
+        # Should attempt 3 times (initial + 2 retries)
+        assert mock_anthropic_client.messages.create.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_500_error_retried(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that 5xx errors are retried before raising."""
+        error_response = MagicMock()
+        error_response.status_code = 500
+        mock_anthropic_client.messages.create = AsyncMock(
+            side_effect=APIStatusError(
+                message="Internal server error",
+                response=error_response,
+                body={"error": "server_error"},
+            )
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeAPIError):
+            await judge.evaluate_faithfulness(
+                response="Test",
+                context=["Context"],
+            )
+
+        # Should retry 5xx errors
+        assert mock_anthropic_client.messages.create.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_transient_429_succeeds_on_retry(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that transient 429 errors recover on retry."""
+        error_response = MagicMock()
+        error_response.status_code = 429
+
+        success_response = MagicMock()
+        success_response.content = [
+            MagicMock(type="text", text='{"score": 0.9, "reasoning": "Success after retry"}')
+        ]
+        success_response.usage.input_tokens = 100
+        success_response.usage.output_tokens = 50
+
+        mock_anthropic_client.messages.create = AsyncMock(
+            side_effect=[
+                APIStatusError(
+                    message="Rate limit exceeded",
+                    response=error_response,
+                    body={"error": "rate_limited"},
+                ),
+                success_response,
+            ]
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.evaluate_faithfulness(
+            response="Test",
+            context=["Context"],
+        )
+
+        assert isinstance(result, JudgeResult)
+        assert result.score == 0.9
         assert mock_anthropic_client.messages.create.call_count == 2
 
     @pytest.mark.asyncio

@@ -20,6 +20,7 @@ class EvaluationResult(BaseModel):
         passed: Whether the score meets the threshold.
         reasoning: Human-readable explanation of the score.
         raw_response: Raw response from the LLM judge for debugging.
+        tokens_used: Total tokens consumed by this evaluation.
     """
 
     evaluator_name: str = Field(..., description="Name of the evaluator")
@@ -27,6 +28,7 @@ class EvaluationResult(BaseModel):
     passed: bool = Field(..., description="Whether threshold was met")
     reasoning: str = Field(default="", description="Explanation of the score")
     raw_response: dict[str, Any] = Field(default_factory=dict, description="Raw judge response")
+    tokens_used: int = Field(default=0, ge=0, description="Total tokens consumed")
 
     model_config = {"frozen": True, "extra": "forbid"}
 

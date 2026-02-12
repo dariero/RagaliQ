@@ -160,6 +160,7 @@ class TestJudgePassedToEvaluators:
                 reasoning="Test reasoning",
                 passed=True,
                 raw_response={},
+                tokens_used=100,
             )
         )
 
@@ -170,3 +171,102 @@ class TestJudgePassedToEvaluators:
 
         # Verify evaluator.evaluate was called with test_case and judge
         mock_evaluator.evaluate.assert_called_once_with(sample_test_case, mock_judge)
+
+
+class TestEvaluatorInitialization:
+    """Test that evaluators are initialized correctly from registry."""
+
+    def test_init_evaluators_with_default_names(self):
+        """Default evaluator names are resolved correctly."""
+        runner = RagaliQ()
+        assert runner._evaluators == []
+
+        runner._init_evaluators()
+
+        assert len(runner._evaluators) == 2
+        assert runner._evaluators[0].name == "faithfulness"
+        assert runner._evaluators[1].name == "relevance"
+
+    def test_init_evaluators_with_custom_names(self):
+        """Custom evaluator names are resolved correctly."""
+        runner = RagaliQ(evaluators=["hallucination", "faithfulness"])
+
+        runner._init_evaluators()
+
+        assert len(runner._evaluators) == 2
+        assert runner._evaluators[0].name == "hallucination"
+        assert runner._evaluators[1].name == "faithfulness"
+
+    def test_init_evaluators_unknown_raises(self):
+        """Unknown evaluator name raises ValueError with available options."""
+        runner = RagaliQ(evaluators=["nonexistent"])
+
+        with pytest.raises(ValueError, match="Unknown evaluator: 'nonexistent'"):
+            runner._init_evaluators()
+        with pytest.raises(ValueError, match="Available evaluators:"):
+            runner._init_evaluators()
+
+    def test_init_evaluators_applies_threshold(self):
+        """Default threshold is applied to all evaluators."""
+        runner = RagaliQ(default_threshold=0.9)
+
+        runner._init_evaluators()
+
+        for evaluator in runner._evaluators:
+            assert evaluator.threshold == 0.9
+
+    def test_init_evaluators_is_idempotent(self):
+        """Multiple _init_evaluators() calls don't recreate evaluators."""
+        runner = RagaliQ()
+
+        runner._init_evaluators()
+        first_evaluators = runner._evaluators
+
+        runner._init_evaluators()
+
+        assert runner._evaluators is first_evaluators
+
+    def test_init_evaluators_all_three_loadable(self):
+        """All three evaluators can be loaded simultaneously."""
+        runner = RagaliQ(evaluators=["faithfulness", "relevance", "hallucination"])
+
+        runner._init_evaluators()
+
+        assert len(runner._evaluators) == 3
+        assert runner._evaluators[0].name == "faithfulness"
+        assert runner._evaluators[1].name == "relevance"
+        assert runner._evaluators[2].name == "hallucination"
+
+
+class TestBoundedConcurrency:
+    """Test that batch evaluation respects concurrency limits."""
+
+    @pytest.mark.asyncio
+    async def test_default_concurrency_limit(self):
+        """Default max_concurrency is 5."""
+        runner = RagaliQ()
+        assert runner.max_concurrency == 5
+
+    @pytest.mark.asyncio
+    async def test_custom_concurrency_limit(self):
+        """Custom max_concurrency can be set via __init__."""
+        runner = RagaliQ(max_concurrency=10)
+        assert runner.max_concurrency == 10
+
+    @pytest.mark.asyncio
+    async def test_batch_concurrency_override(self, sample_test_case):
+        """Batch evaluation accepts concurrency override."""
+        mock_judge = MagicMock(spec=LLMJudge)
+        mock_evaluator = MagicMock()
+        mock_evaluator.name = "test"
+        mock_evaluator.evaluate = AsyncMock(
+            return_value=MagicMock(
+                score=0.9, reasoning="", passed=True, raw_response={}, tokens_used=50
+            )
+        )
+
+        runner = RagaliQ(judge=mock_judge, max_concurrency=5)
+        runner._evaluators = [mock_evaluator]
+
+        # Should not raise, just verify it accepts the parameter
+        await runner.evaluate_batch_async([sample_test_case], max_concurrency=2)
