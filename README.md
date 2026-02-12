@@ -261,9 +261,18 @@ Because quality matters when building AI systems that people rely on.
 
 ---
 
-## Documentation
+## Documentation & Resources
 
+**Getting Started:**
+- [Getting Started Guide](GETTING_STARTED.md) - Quick 5-minute setup and first test
+
+**Development:**
+- [Development Guidelines](CLAUDE.md) - Code style, design patterns, and project rules
 - [Project Plan](docs/PROJECT_PLAN.md) - Implementation roadmap and milestones
+- [Architecture Decision Records](.decisions/) - Design decisions and rationale
+
+**Operations & Automation:**
+- [GitHub Automation](.github/AUTOMATION.md) - PR metadata auto-filler and CI/CD integration
 
 ---
 
