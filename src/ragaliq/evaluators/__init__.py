@@ -3,6 +3,7 @@
 from ragaliq.core.evaluator import Evaluator
 
 # Import evaluator classes (triggers decorator registration at import time)
+from ragaliq.evaluators.context_precision import ContextPrecisionEvaluator
 from ragaliq.evaluators.faithfulness import FaithfulnessEvaluator
 from ragaliq.evaluators.hallucination import HallucinationEvaluator
 
@@ -17,6 +18,7 @@ from ragaliq.evaluators.registry import (
 from ragaliq.evaluators.relevance import RelevanceEvaluator
 
 __all__ = [
+    "ContextPrecisionEvaluator",
     "Evaluator",
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",
