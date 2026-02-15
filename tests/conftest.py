@@ -4,6 +4,9 @@ import pytest
 
 from ragaliq.core.test_case import RAGTestCase
 
+# Enable pytester fixture for testing pytest plugins
+pytest_plugins = ["pytester"]
+
 
 @pytest.fixture
 def sample_test_case() -> RAGTestCase:
