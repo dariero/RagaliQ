@@ -270,3 +270,84 @@ class TestBoundedConcurrency:
 
         # Should not raise, just verify it accepts the parameter
         await runner.evaluate_batch_async([sample_test_case], max_concurrency=2)
+
+
+class TestAsyncInitSafety:
+    """Test that concurrent async initialization is safe from race conditions."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_init_creates_single_judge(self, sample_test_case):
+        """Multiple concurrent evaluate_async calls create only one judge instance."""
+        import asyncio
+
+        # Track judge instantiation count
+        judge_creation_count = 0
+        created_judge = None
+
+        def mock_judge_factory(*_args, **_kwargs):
+            nonlocal judge_creation_count, created_judge
+            judge_creation_count += 1
+            if created_judge is None:
+                created_judge = MagicMock(spec=LLMJudge)
+            return created_judge
+
+        # Create mock evaluator
+        mock_evaluator = MagicMock()
+        mock_evaluator.name = "test"
+        mock_evaluator.evaluate = AsyncMock(
+            return_value=MagicMock(
+                score=0.9, reasoning="", passed=True, raw_response={}, tokens_used=50
+            )
+        )
+
+        def mock_get_evaluator(_name):
+            def factory(**_kwargs):
+                return mock_evaluator
+
+            return factory
+
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch("ragaliq.judges.claude.ClaudeJudge", side_effect=mock_judge_factory),
+            patch("ragaliq.evaluators.get_evaluator", side_effect=mock_get_evaluator),
+        ):
+            runner = RagaliQ(judge="claude")
+
+            # Launch 10 concurrent evaluations
+            tasks = [runner.evaluate_async(sample_test_case) for _ in range(10)]
+            await asyncio.gather(*tasks)
+
+            # Judge should be created exactly once despite 10 concurrent calls
+            assert judge_creation_count == 1
+
+    @pytest.mark.asyncio
+    async def test_concurrent_init_creates_single_evaluator_list(self, sample_test_case):
+        """Multiple concurrent evaluate_async calls create evaluators only once."""
+        import asyncio
+
+        # Track evaluator instantiation count
+        evaluator_creation_count = 0
+
+        def mock_evaluator_factory(*_args, **_kwargs):
+            nonlocal evaluator_creation_count
+            evaluator_creation_count += 1
+            mock_ev = MagicMock()
+            mock_ev.name = f"test_{evaluator_creation_count}"
+            mock_ev.evaluate = AsyncMock(
+                return_value=MagicMock(
+                    score=0.9, reasoning="", passed=True, raw_response={}, tokens_used=50
+                )
+            )
+            return mock_ev
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        with patch("ragaliq.evaluators.get_evaluator", return_value=mock_evaluator_factory):
+            runner = RagaliQ(judge=mock_judge, evaluators=["faithfulness"])
+
+            # Launch 10 concurrent evaluations
+            tasks = [runner.evaluate_async(sample_test_case) for _ in range(10)]
+            await asyncio.gather(*tasks)
+
+            # Evaluators should be created exactly once (1 evaluator name × 1 init call)
+            assert evaluator_creation_count == 1

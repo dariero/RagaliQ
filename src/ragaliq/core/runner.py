@@ -1,5 +1,6 @@
 """Main test runner for RagaliQ."""
 
+import asyncio
 import logging
 from typing import Any, Literal
 
@@ -68,6 +69,7 @@ class RagaliQ:
             self.judge_type = judge
 
         self._evaluators: list[Evaluator] = []
+        self._init_lock = asyncio.Lock()
 
     def __repr__(self) -> str:
         return f"RagaliQ(judge_type={self.judge_type!r}, evaluators={self.evaluator_names!r})"
@@ -101,6 +103,17 @@ class RagaliQ:
             evaluator_class = get_evaluator(name)
             self._evaluators.append(evaluator_class(threshold=self.default_threshold))
 
+    async def _ensure_initialized(self) -> None:
+        """
+        Ensure judge and evaluators are initialized exactly once.
+
+        Uses an async lock to prevent race conditions when multiple
+        concurrent calls to evaluate_async() attempt initialization.
+        """
+        async with self._init_lock:
+            self._init_judge()
+            self._init_evaluators()
+
     async def evaluate_async(self, test_case: RAGTestCase) -> RAGTestResult:
         """
         Evaluate a single test case asynchronously.
@@ -115,8 +128,7 @@ class RagaliQ:
 
         start_time = time.perf_counter()
 
-        self._init_judge()
-        self._init_evaluators()
+        await self._ensure_initialized()
 
         if self._judge is None:
             raise RuntimeError("Judge must be initialized before evaluation")
