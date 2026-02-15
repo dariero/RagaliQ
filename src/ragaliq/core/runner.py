@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -69,7 +70,7 @@ class RagaliQ:
             self.judge_type = judge
 
         self._evaluators: list[Evaluator] = []
-        self._init_lock = asyncio.Lock()
+        self._init_lock = threading.Lock()
 
     def __repr__(self) -> str:
         return f"RagaliQ(judge_type={self.judge_type!r}, evaluators={self.evaluator_names!r})"
@@ -107,10 +108,13 @@ class RagaliQ:
         """
         Ensure judge and evaluators are initialized exactly once.
 
-        Uses an async lock to prevent race conditions when multiple
-        concurrent calls to evaluate_async() attempt initialization.
+        Uses a threading lock to prevent race conditions when multiple
+        concurrent calls (or repeated sync calls across different event loops)
+        attempt initialization. Threading lock is used instead of asyncio.Lock
+        to avoid loop-binding issues when the same runner is used across
+        multiple asyncio.run() calls.
         """
-        async with self._init_lock:
+        with self._init_lock:
             self._init_judge()
             self._init_evaluators()
 

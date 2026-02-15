@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from ragaliq.core.runner import RagaliQ
+from ragaliq.core.test_case import EvalStatus
 from ragaliq.judges.base import JudgeConfig, LLMJudge
 from ragaliq.judges.claude import ClaudeJudge
 
@@ -422,7 +423,12 @@ class TestErrorEnvelopes:
 
 
 class TestAsyncInitSafety:
-    """Test that concurrent async initialization is safe from race conditions."""
+    """Test that concurrent async initialization is safe from race conditions.
+
+    Uses threading.Lock instead of asyncio.Lock to ensure initialization
+    works correctly even when the same runner is used across multiple
+    event loops (e.g., repeated sync evaluate() calls).
+    """
 
     @pytest.mark.asyncio
     async def test_concurrent_init_creates_single_judge(self, sample_test_case):
@@ -500,3 +506,60 @@ class TestAsyncInitSafety:
 
             # Evaluators should be created exactly once (1 evaluator name × 1 init call)
             assert evaluator_creation_count == 1
+
+    def test_repeated_sync_calls_across_event_loops(self, sample_test_case):
+        """Repeated sync evaluate() calls work correctly across different event loops.
+
+        This tests the fix for loop-bound asyncio.Lock issues. Using threading.Lock
+        instead ensures the same runner instance can be used across multiple
+        asyncio.run() calls (each creating a new event loop).
+        """
+        # Track judge instantiation count
+        judge_creation_count = 0
+
+        def mock_judge_factory(*_args, **_kwargs):
+            nonlocal judge_creation_count
+            judge_creation_count += 1
+            return MagicMock(spec=LLMJudge)
+
+        # Create mock evaluator with proper result structure
+        from ragaliq.core.evaluator import EvaluationResult
+
+        mock_result = EvaluationResult(
+            evaluator_name="test",
+            score=0.9,
+            passed=True,
+            reasoning="Mock test",
+            raw_response={},
+            tokens_used=50,
+        )
+
+        mock_evaluator = MagicMock()
+        mock_evaluator.name = "test"
+        mock_evaluator.evaluate = AsyncMock(return_value=mock_result)
+
+        def mock_get_evaluator(_name):
+            def factory(**_kwargs):
+                return mock_evaluator
+
+            return factory
+
+        with (
+            patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}),
+            patch("ragaliq.judges.claude.ClaudeJudge", side_effect=mock_judge_factory),
+            patch("ragaliq.evaluators.get_evaluator", side_effect=mock_get_evaluator),
+        ):
+            runner = RagaliQ(judge="claude")
+
+            # Call evaluate() three times (sync API, each creates new event loop)
+            result1 = runner.evaluate(sample_test_case)
+            result2 = runner.evaluate(sample_test_case)
+            result3 = runner.evaluate(sample_test_case)
+
+            # All should succeed
+            assert result1.status == EvalStatus.PASSED
+            assert result2.status == EvalStatus.PASSED
+            assert result3.status == EvalStatus.PASSED
+
+            # Judge should be created exactly once despite 3 calls across 3 event loops
+            assert judge_creation_count == 1
