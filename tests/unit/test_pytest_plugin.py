@@ -132,3 +132,28 @@ class TestTerminalSummary:
 
         # Should not show RagaliQ summary
         assert "RagaliQ Summary" not in output
+
+
+class TestLatencyInjection:
+    """Test artificial latency injection feature."""
+
+    def test_latency_option_accepted(self, pytester: pytest.Pytester) -> None:
+        """Test that --ragaliq-latency-ms option is accepted."""
+        pytester.makepyfile(
+            """
+            def test_dummy():
+                assert True
+            """
+        )
+
+        # Should accept the option without error
+        result = pytester.runpytest("--ragaliq-latency-ms=100")
+        assert result.ret == 0
+
+    def test_help_shows_latency_option(self, pytester: pytest.Pytester) -> None:
+        """Test that --help shows latency injection option."""
+        result = pytester.runpytest("--help")
+        output = result.stdout.str()
+
+        assert "--ragaliq-latency-ms" in output
+        assert "artificial latency" in output.lower() or "latency" in output.lower()

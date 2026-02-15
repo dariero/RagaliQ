@@ -32,6 +32,7 @@ def pytest_addoption(parser: Any) -> None:
         --ragaliq-model: Model override. Default: uses judge's default.
         --ragaliq-api-key: API key override. Default: uses environment variable.
         --ragaliq-cost-limit: Max USD to spend. Default: no limit.
+        --ragaliq-latency-ms: Artificial latency in ms. Default: 0 (no delay).
     """
     group = parser.getgroup("ragaliq", "RagaliQ LLM-as-Judge testing")
 
@@ -59,6 +60,13 @@ def pytest_addoption(parser: Any) -> None:
         type=float,
         default=None,
         help="Maximum cost in USD before aborting (default: no limit)",
+    )
+    group.addoption(
+        "--ragaliq-latency-ms",
+        action="store",
+        type=int,
+        default=0,
+        help="Artificial latency in milliseconds added to each judge call (default: 0)",
     )
 
 
@@ -100,15 +108,20 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
     - --ragaliq-judge: Provider selection
     - --ragaliq-model: Model override
     - --ragaliq-api-key: API key override
+    - --ragaliq-latency-ms: Artificial latency injection
 
     Returns:
         Configured LLMJudge instance.
     """
+    import asyncio
+
     from ragaliq.judges import ClaudeJudge, JudgeConfig
+    from ragaliq.judges.transport import JudgeTransport, TransportResponse
 
     judge_type = request.config.getoption("--ragaliq-judge")
     model = request.config.getoption("--ragaliq-model")
     api_key = request.config.getoption("--ragaliq-api-key")
+    latency_ms = request.config.getoption("--ragaliq-latency-ms")
 
     # Build config if model override provided
     config = None
@@ -116,11 +129,39 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
         config = JudgeConfig(model=model)
 
     if judge_type == "claude":
-        return ClaudeJudge(
+        judge = ClaudeJudge(
             config=config,
             api_key=api_key,
             trace_collector=ragaliq_trace_collector,
         )
+
+        # Wrap transport with latency injection if configured
+        if latency_ms > 0:
+
+            class LatencyInjectionTransport:
+                """Transport wrapper that adds artificial delay."""
+
+                def __init__(self, inner: JudgeTransport, delay_ms: int) -> None:
+                    self._inner = inner
+                    self._delay_ms = delay_ms
+
+                async def send(
+                    self,
+                    system_prompt: str,
+                    user_prompt: str,
+                    model: str = "claude-sonnet-4-20250514",
+                    temperature: float = 0.0,
+                    max_tokens: int = 1024,
+                ) -> TransportResponse:
+                    """Add delay before delegating to inner transport."""
+                    await asyncio.sleep(self._delay_ms / 1000.0)
+                    return await self._inner.send(
+                        system_prompt, user_prompt, model, temperature, max_tokens
+                    )
+
+            judge._transport = LatencyInjectionTransport(judge._transport, latency_ms)
+
+        return judge
     elif judge_type == "openai":
         raise NotImplementedError("OpenAI judge not yet implemented")
     else:
