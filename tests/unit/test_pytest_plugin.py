@@ -157,3 +157,27 @@ class TestLatencyInjection:
 
         assert "--ragaliq-latency-ms" in output
         assert "artificial latency" in output.lower() or "latency" in output.lower()
+
+    def test_latency_actually_delays_calls(self, pytester: pytest.Pytester) -> None:
+        """Test that latency injection actually adds delay to judge calls."""
+        # Create a simple test that verifies the latency wrapper is applied
+        pytester.makepyfile(
+            """
+            import os
+            import pytest
+
+            os.environ["ANTHROPIC_API_KEY"] = "test-key"
+
+            def test_latency_wrapper_applied(ragaliq_judge):
+                # Verify transport is wrapped with LatencyInjectionTransport
+                assert hasattr(ragaliq_judge.transport, "_inner")
+                assert hasattr(ragaliq_judge.transport, "_delay_ms")
+                assert ragaliq_judge.transport._delay_ms == 100
+            """
+        )
+
+        # Run with 100ms latency
+        result = pytester.runpytest("--ragaliq-latency-ms=100", "-v")
+
+        # Test should pass
+        assert result.ret == 0

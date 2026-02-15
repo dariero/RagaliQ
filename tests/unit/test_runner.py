@@ -272,6 +272,55 @@ class TestBoundedConcurrency:
         # Should not raise, just verify it accepts the parameter
         await runner.evaluate_batch_async([sample_test_case], max_concurrency=2)
 
+    @pytest.mark.asyncio
+    async def test_max_judge_concurrency_limits_parallel_calls(self):
+        """Test that max_judge_concurrency actually limits concurrent judge API calls."""
+        import asyncio
+
+        from ragaliq.core.evaluator import EvaluationResult
+        from ragaliq.judges.base import JudgeConfig
+        from ragaliq.judges.base_judge import BaseJudge
+        from ragaliq.judges.transport import TransportResponse
+
+        # Track concurrent call count
+        concurrent_calls = 0
+        max_concurrent = 0
+
+        async def mock_send(*args, **kwargs):
+            nonlocal concurrent_calls, max_concurrent
+            concurrent_calls += 1
+            max_concurrent = max(max_concurrent, concurrent_calls)
+
+            # Simulate slow API call
+            await asyncio.sleep(0.05)
+
+            concurrent_calls -= 1
+            return TransportResponse(
+                text='{"score": 0.9, "reasoning": "test"}',
+                input_tokens=10,
+                output_tokens=10,
+                model="test-model",
+            )
+
+        # Create mock transport
+        mock_transport = MagicMock()
+        mock_transport.send = mock_send
+
+        # Create judge with concurrency limit of 3
+        judge = BaseJudge(
+            transport=mock_transport, config=JudgeConfig(), max_concurrency=3
+        )
+
+        # Create 10 concurrent calls that would normally run in parallel
+        tasks = [
+            judge._call_llm("system", f"user {i}", operation=f"op_{i}") for i in range(10)
+        ]
+
+        await asyncio.gather(*tasks)
+
+        # Max concurrent should be 3 (the limit), not 10
+        assert max_concurrent == 3, f"Expected max 3 concurrent, got {max_concurrent}"
+
 
 class TestErrorEnvelopes:
     """Test that evaluator failures are gracefully handled with error envelopes."""
