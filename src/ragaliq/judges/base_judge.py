@@ -6,12 +6,14 @@ using a transport layer for API calls. It handles:
 - Prompt building (using prompt templates)
 - JSON response parsing
 - Score clamping to [0.0, 1.0]
+- Concurrency limiting to prevent API rate limit bursts
 
 Concrete judge classes (ClaudeJudge, OpenAIJudge) provide the transport.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
@@ -54,6 +56,7 @@ class BaseJudge(LLMJudge):
         config: JudgeConfig | None = None,
         *,
         trace_collector: TraceCollector | None = None,
+        max_concurrency: int = 20,
     ) -> None:
         """
         Initialize base judge with transport.
@@ -62,10 +65,14 @@ class BaseJudge(LLMJudge):
             transport: Transport layer for API calls.
             config: Judge configuration. Uses defaults if not provided.
             trace_collector: Optional trace collector for observability.
+            max_concurrency: Maximum concurrent API calls allowed. Prevents
+                rate limit bursts when evaluators have many claims/docs.
+                Default: 20.
         """
         super().__init__(config)
         self._transport = transport
         self._trace_collector = trace_collector
+        self._concurrency_limit = asyncio.Semaphore(max_concurrency)
 
     async def _call_llm(
         self, system_prompt: str, user_prompt: str, operation: str = "llm_call"
@@ -92,13 +99,15 @@ class BaseJudge(LLMJudge):
         error_msg = None
 
         try:
-            response = await self._transport.send(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=self.config.model,
-                temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens,
-            )
+            # Limit concurrent API calls to prevent rate limit bursts
+            async with self._concurrency_limit:
+                response = await self._transport.send(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    model=self.config.model,
+                    temperature=self.config.temperature,
+                    max_tokens=self.config.max_tokens,
+                )
             tokens_used = response.input_tokens + response.output_tokens
             success = True
 

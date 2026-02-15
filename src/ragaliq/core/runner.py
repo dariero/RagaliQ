@@ -42,6 +42,7 @@ class RagaliQ:
         judge_config: JudgeConfig | None = None,
         api_key: str | None = None,
         max_concurrency: int = 5,
+        max_judge_concurrency: int = 20,
     ) -> None:
         """
         Initialize RagaliQ.
@@ -53,11 +54,14 @@ class RagaliQ:
             default_threshold: Default passing threshold for evaluators.
             judge_config: Optional configuration for the judge (model, temperature, etc.).
             api_key: Optional API key for the judge. Falls back to environment variable.
-            max_concurrency: Maximum number of concurrent evaluations in batch mode.
+            max_concurrency: Maximum number of concurrent test case evaluations in batch mode.
+            max_judge_concurrency: Maximum concurrent judge API calls. Prevents rate limit
+                bursts when evaluators process many claims/docs in parallel. Default: 20.
         """
         self.evaluator_names = evaluators or ["faithfulness", "relevance"]
         self.default_threshold = default_threshold
         self.max_concurrency = max_concurrency
+        self.max_judge_concurrency = max_judge_concurrency
         self._judge_config = judge_config
         self._api_key = api_key
 
@@ -86,6 +90,7 @@ class RagaliQ:
             self._judge = ClaudeJudge(
                 config=self._judge_config,
                 api_key=self._api_key,
+                max_concurrency=self.max_judge_concurrency,
             )
         elif self.judge_type == "openai":
             # OpenAI judge not yet implemented

@@ -43,6 +43,7 @@ class ClaudeJudge(BaseJudge):
         *,
         api_key: str | None = None,
         trace_collector: TraceCollector | None = None,
+        max_concurrency: int = 20,
     ) -> None:
         """
         Initialize ClaudeJudge with optional configuration.
@@ -51,6 +52,9 @@ class ClaudeJudge(BaseJudge):
             config: Judge configuration. Uses defaults if not provided.
             api_key: Anthropic API key. Falls back to ANTHROPIC_API_KEY env var.
             trace_collector: Optional trace collector for observability.
+            max_concurrency: Maximum concurrent API calls. Prevents rate limit
+                bursts when evaluators process many claims/docs in parallel.
+                Default: 20.
 
         Raises:
             ValueError: If no API key is provided or found in environment.
@@ -65,4 +69,9 @@ class ClaudeJudge(BaseJudge):
 
         # Create transport and initialize base
         transport = ClaudeTransport(api_key=resolved_key)
-        super().__init__(transport=transport, config=config, trace_collector=trace_collector)
+        super().__init__(
+            transport=transport,
+            config=config,
+            trace_collector=trace_collector,
+            max_concurrency=max_concurrency,
+        )
