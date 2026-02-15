@@ -43,6 +43,7 @@ class RagaliQ:
         api_key: str | None = None,
         max_concurrency: int = 5,
         max_judge_concurrency: int = 20,
+        fail_fast: bool = False,
     ) -> None:
         """
         Initialize RagaliQ.
@@ -57,11 +58,14 @@ class RagaliQ:
             max_concurrency: Maximum number of concurrent test case evaluations in batch mode.
             max_judge_concurrency: Maximum concurrent judge API calls. Prevents rate limit
                 bursts when evaluators process many claims/docs in parallel. Default: 20.
+            fail_fast: If True, propagate evaluator exceptions immediately for debugging.
+                If False (default), convert errors to error-envelope results (robust batch mode).
         """
         self.evaluator_names = evaluators or ["faithfulness", "relevance"]
         self.default_threshold = default_threshold
         self.max_concurrency = max_concurrency
         self.max_judge_concurrency = max_judge_concurrency
+        self.fail_fast = fail_fast
         self._judge_config = judge_config
         self._api_key = api_key
 
@@ -155,6 +159,12 @@ class RagaliQ:
                 result = await evaluator.evaluate(test_case, self._judge)
                 return evaluator.name, result
             except Exception as exc:
+                # If fail_fast is enabled, propagate exceptions immediately for debugging
+                if self.fail_fast:
+                    logger.error("Evaluator '%s' failed (fail_fast=True)", evaluator.name)
+                    raise
+
+                # Otherwise, convert to error envelope for robust batch processing
                 logger.exception("Evaluator '%s' failed", evaluator.name)
                 error_result = EvaluationResult(
                     evaluator_name=evaluator.name,
@@ -242,8 +252,13 @@ class RagaliQ:
                 try:
                     return await self.evaluate_async(tc)
                 except Exception as exc:
+                    # If fail_fast is enabled, propagate exceptions immediately for debugging
+                    if self.fail_fast:
+                        logger.error("Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id)
+                        raise
+
+                    # Otherwise, convert to error envelope for robust batch processing
                     logger.exception("Batch evaluation failed for test case '%s'", tc.id)
-                    # Return error result instead of propagating exception
                     return RAGTestResult(
                         test_case=tc,
                         status=EvalStatus.ERROR,

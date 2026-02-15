@@ -421,6 +421,62 @@ class TestErrorEnvelopes:
         assert result.status == EvalStatus.FAILED
         assert "error" not in result.details["low"]
 
+    @pytest.mark.asyncio
+    async def test_fail_fast_true_propagates_exceptions(self, sample_test_case):
+        """When fail_fast=True, evaluator exceptions propagate immediately."""
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        failing_evaluator = MagicMock()
+        failing_evaluator.name = "failing"
+        failing_evaluator.evaluate = AsyncMock(side_effect=ValueError("Fast fail test"))
+
+        runner = RagaliQ(judge=mock_judge, fail_fast=True)
+        runner._evaluators = [failing_evaluator]
+
+        # Should raise, not return error envelope
+        with pytest.raises(ValueError, match="Fast fail test"):
+            await runner.evaluate_async(sample_test_case)
+
+    @pytest.mark.asyncio
+    async def test_fail_fast_false_converts_to_error_envelope(self, sample_test_case):
+        """When fail_fast=False (default), exceptions convert to error envelopes."""
+        from ragaliq.core.test_case import EvalStatus
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        failing_evaluator = MagicMock()
+        failing_evaluator.name = "failing"
+        failing_evaluator.evaluate = AsyncMock(side_effect=ValueError("Envelope test"))
+
+        runner = RagaliQ(judge=mock_judge, fail_fast=False)
+        runner._evaluators = [failing_evaluator]
+
+        # Should return error envelope, not raise
+        result = await runner.evaluate_async(sample_test_case)
+        assert result.status == EvalStatus.ERROR
+        assert "error" in result.details["failing"]
+        assert "ValueError" in result.details["failing"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_fail_fast_applies_to_batch_mode(self, sample_test_case):
+        """fail_fast also works in batch mode."""
+        from ragaliq.core.test_case import RAGTestCase
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        failing_evaluator = MagicMock()
+        failing_evaluator.name = "failing"
+        failing_evaluator.evaluate = AsyncMock(side_effect=RuntimeError("Batch fail fast"))
+
+        runner = RagaliQ(judge=mock_judge, fail_fast=True)
+        runner._evaluators = [failing_evaluator]
+
+        test_cases = [sample_test_case, sample_test_case]
+
+        # Should raise on first failure, not complete batch
+        with pytest.raises(RuntimeError, match="Batch fail fast"):
+            await runner.evaluate_batch_async(test_cases)
+
 
 class TestAsyncInitSafety:
     """Test that concurrent async initialization is safe from race conditions.
