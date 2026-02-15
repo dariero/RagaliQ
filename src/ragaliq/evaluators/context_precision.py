@@ -103,24 +103,30 @@ class ContextPrecisionEvaluator(Evaluator):
                 tokens_used=0,
             )
 
-        # Step 1: Score each document's relevance to the query
+        # Step 1: Score each document's relevance to the query (in parallel)
+        import asyncio
+
+        # Score all documents concurrently (errors propagate)
+        scoring_tasks = [
+            judge.evaluate_relevance(query=test_case.query, response=doc)
+            for doc in test_case.context
+        ]
+        results = await asyncio.gather(*scoring_tasks)
+
+        # Process results
         doc_scores: list[dict[str, Any]] = []
         total_tokens = 0
 
-        for i, doc in enumerate(test_case.context):
-            judge_result = await judge.evaluate_relevance(
-                query=test_case.query,
-                response=doc,
-            )
-            total_tokens += judge_result.tokens_used
+        for i, result in enumerate(results):
+            total_tokens += result.tokens_used
 
             rank = i + 1  # 1-based rank
             doc_scores.append(
                 {
                     "rank": rank,
-                    "document": doc[:200],  # Truncate for metadata readability
-                    "score": judge_result.score,
-                    "reasoning": judge_result.reasoning,
+                    "document": test_case.context[i][:200],  # Truncate for metadata readability
+                    "score": result.score,
+                    "reasoning": result.reasoning,
                 }
             )
 

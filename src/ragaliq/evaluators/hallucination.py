@@ -109,16 +109,22 @@ class HallucinationEvaluator(Evaluator):
                 tokens_used=total_tokens,
             )
 
-        # Step 2: Verify each claim and classify hallucinations
+        # Step 2: Verify each claim and classify hallucinations (in parallel)
+        import asyncio
+
+        # Verify all claims concurrently (errors propagate)
+        verification_tasks = [judge.verify_claim(claim, test_case.context) for claim in claims]
+        verdicts = await asyncio.gather(*verification_tasks)
+
+        # Process results
         claim_details: list[dict[str, Any]] = []
         hallucinated: list[dict[str, Any]] = []
 
-        for claim in claims:
-            verdict = await judge.verify_claim(claim, test_case.context)
+        for i, verdict in enumerate(verdicts):
             total_tokens += verdict.tokens_used
 
             detail = {
-                "claim": claim,
+                "claim": claims[i],
                 "verdict": verdict.verdict,
                 "evidence": verdict.evidence,
             }

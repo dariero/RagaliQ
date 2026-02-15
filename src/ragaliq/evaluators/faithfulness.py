@@ -103,17 +103,23 @@ class FaithfulnessEvaluator(Evaluator):
                 tokens_used=total_tokens,
             )
 
-        # Step 2: Verify each claim against the context
+        # Step 2: Verify each claim against the context (in parallel)
+        import asyncio
+
+        # Verify all claims concurrently (errors propagate)
+        verification_tasks = [judge.verify_claim(claim, test_case.context) for claim in claims]
+        verdicts = await asyncio.gather(*verification_tasks)
+
+        # Process results
         claim_details: list[dict[str, Any]] = []
         supported_count = 0
 
-        for claim in claims:
-            verdict = await judge.verify_claim(claim, test_case.context)
+        for i, verdict in enumerate(verdicts):
             total_tokens += verdict.tokens_used
 
             claim_details.append(
                 {
-                    "claim": claim,
+                    "claim": claims[i],
                     "verdict": verdict.verdict,
                     "evidence": verdict.evidence,
                 }

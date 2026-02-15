@@ -139,13 +139,15 @@ class RagaliQ:
         all_passed = True
         has_error = False
 
-        for evaluator in self._evaluators:
+        # Run all evaluators in parallel
+        async def _run_evaluator(evaluator: Evaluator) -> tuple[str, EvaluationResult]:
+            """Run a single evaluator, returning (evaluator_name, result)."""
             try:
-                result: EvaluationResult = await evaluator.evaluate(test_case, self._judge)
+                result = await evaluator.evaluate(test_case, self._judge)
+                return evaluator.name, result
             except Exception as exc:
                 logger.exception("Evaluator '%s' failed", evaluator.name)
-                # Convert exception to error envelope
-                result = EvaluationResult(
+                error_result = EvaluationResult(
                     evaluator_name=evaluator.name,
                     score=0.0,
                     passed=False,
@@ -154,16 +156,21 @@ class RagaliQ:
                     raw_response={"exception": str(exc)},
                     tokens_used=0,
                 )
-                has_error = True
+                return evaluator.name, error_result
 
-            scores[evaluator.name] = result.score
-            details[evaluator.name] = {
+        eval_tasks = [_run_evaluator(ev) for ev in self._evaluators]
+        results = await asyncio.gather(*eval_tasks)
+
+        # Collect results
+        for evaluator_name, result in results:
+            scores[evaluator_name] = result.score
+            details[evaluator_name] = {
                 "reasoning": result.reasoning,
                 "passed": result.passed,
                 "raw": result.raw_response,
             }
             if result.error:
-                details[evaluator.name]["error"] = result.error
+                details[evaluator_name]["error"] = result.error
                 has_error = True
 
             total_tokens += result.tokens_used
