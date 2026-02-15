@@ -137,28 +137,52 @@ class RagaliQ:
         details: dict[str, dict[str, Any]] = {}
         total_tokens = 0
         all_passed = True
+        has_error = False
 
         for evaluator in self._evaluators:
             try:
                 result: EvaluationResult = await evaluator.evaluate(test_case, self._judge)
-            except Exception:
+            except Exception as exc:
                 logger.exception("Evaluator '%s' failed", evaluator.name)
-                raise
+                # Convert exception to error envelope
+                result = EvaluationResult(
+                    evaluator_name=evaluator.name,
+                    score=0.0,
+                    passed=False,
+                    reasoning=f"Evaluation failed: {exc}",
+                    error=f"{type(exc).__name__}: {exc}",
+                    raw_response={"exception": str(exc)},
+                    tokens_used=0,
+                )
+                has_error = True
+
             scores[evaluator.name] = result.score
             details[evaluator.name] = {
                 "reasoning": result.reasoning,
                 "passed": result.passed,
                 "raw": result.raw_response,
             }
+            if result.error:
+                details[evaluator.name]["error"] = result.error
+                has_error = True
+
             total_tokens += result.tokens_used
             if not result.passed:
                 all_passed = False
 
         execution_time = int((time.perf_counter() - start_time) * 1000)
 
+        # Determine status: ERROR trumps FAILED/PASSED
+        if has_error:
+            status = EvalStatus.ERROR
+        elif all_passed:
+            status = EvalStatus.PASSED
+        else:
+            status = EvalStatus.FAILED
+
         return RAGTestResult(
             test_case=test_case,
-            status=EvalStatus.PASSED if all_passed else EvalStatus.FAILED,
+            status=status,
             scores=scores,
             details=details,
             execution_time_ms=execution_time,
@@ -199,7 +223,19 @@ class RagaliQ:
 
         async def bounded_evaluate(tc: RAGTestCase) -> RAGTestResult:
             async with semaphore:
-                return await self.evaluate_async(tc)
+                try:
+                    return await self.evaluate_async(tc)
+                except Exception as exc:
+                    logger.exception("Batch evaluation failed for test case '%s'", tc.id)
+                    # Return error result instead of propagating exception
+                    return RAGTestResult(
+                        test_case=tc,
+                        status=EvalStatus.ERROR,
+                        scores={},
+                        details={"error": f"{type(exc).__name__}: {exc}"},
+                        execution_time_ms=0,
+                        judge_tokens_used=0,
+                    )
 
         tasks = [bounded_evaluate(tc) for tc in test_cases]
         return await asyncio.gather(*tasks)

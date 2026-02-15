@@ -272,6 +272,155 @@ class TestBoundedConcurrency:
         await runner.evaluate_batch_async([sample_test_case], max_concurrency=2)
 
 
+class TestErrorEnvelopes:
+    """Test that evaluator failures are gracefully handled with error envelopes."""
+
+    @pytest.mark.asyncio
+    async def test_single_evaluator_failure_returns_error_result(self, sample_test_case):
+        """Single evaluator throwing exception returns EvaluationResult with error field."""
+        from ragaliq.core.test_case import EvalStatus
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        # Create evaluator that raises an exception
+        failing_evaluator = MagicMock()
+        failing_evaluator.name = "failing"
+        failing_evaluator.evaluate = AsyncMock(side_effect=ValueError("Test failure"))
+
+        runner = RagaliQ(judge=mock_judge)
+        runner._evaluators = [failing_evaluator]
+
+        result = await runner.evaluate_async(sample_test_case)
+
+        # Should return ERROR status, not raise
+        assert result.status == EvalStatus.ERROR
+        assert "failing" in result.scores
+        assert result.scores["failing"] == 0.0
+        assert "error" in result.details["failing"]
+        assert "ValueError" in result.details["failing"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_partial_failure_preserves_successful_scores(self, sample_test_case):
+        """First evaluator succeeds, second throws; first score should be preserved."""
+        from ragaliq.core.test_case import EvalStatus
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        # Success evaluator
+        success_evaluator = MagicMock()
+        success_evaluator.name = "success"
+        success_evaluator.evaluate = AsyncMock(
+            return_value=MagicMock(
+                score=0.85,
+                reasoning="Good",
+                passed=True,
+                raw_response={},
+                tokens_used=100,
+                error=None,
+            )
+        )
+
+        # Failing evaluator
+        failing_evaluator = MagicMock()
+        failing_evaluator.name = "failing"
+        failing_evaluator.evaluate = AsyncMock(side_effect=RuntimeError("Judge API timeout"))
+
+        runner = RagaliQ(judge=mock_judge)
+        runner._evaluators = [success_evaluator, failing_evaluator]
+
+        result = await runner.evaluate_async(sample_test_case)
+
+        # Should have ERROR status but preserve successful score
+        assert result.status == EvalStatus.ERROR
+        assert result.scores["success"] == 0.85
+        assert result.details["success"]["passed"] is True
+        assert result.scores["failing"] == 0.0
+        assert "error" in result.details["failing"]
+        assert "RuntimeError" in result.details["failing"]["error"]
+
+    @pytest.mark.asyncio
+    async def test_batch_single_failure_doesnt_crash_batch(self, sample_test_case):
+        """One test case failing shouldn't crash the entire batch."""
+        import asyncio
+        from ragaliq.core.test_case import EvalStatus, RAGTestCase
+
+        mock_judge = MagicMock(spec=LLMJudge)
+        mock_evaluator = MagicMock()
+        mock_evaluator.name = "test"
+
+        # First call succeeds, second fails, third succeeds
+        mock_evaluator.evaluate = AsyncMock(
+            side_effect=[
+                MagicMock(
+                    score=0.9, reasoning="", passed=True, raw_response={}, tokens_used=50, error=None
+                ),
+                RuntimeError("Middle test case failed"),
+                MagicMock(
+                    score=0.8, reasoning="", passed=True, raw_response={}, tokens_used=50, error=None
+                ),
+            ]
+        )
+
+        runner = RagaliQ(judge=mock_judge)
+        runner._evaluators = [mock_evaluator]
+
+        test_cases = [
+            sample_test_case,
+            RAGTestCase(
+                id="tc2",
+                name="Test 2",
+                query="Query 2",
+                context=["Context 2"],
+                response="Response 2",
+            ),
+            RAGTestCase(
+                id="tc3",
+                name="Test 3",
+                query="Query 3",
+                context=["Context 3"],
+                response="Response 3",
+            ),
+        ]
+
+        results = await runner.evaluate_batch_async(test_cases)
+
+        # All 3 results should be returned
+        assert len(results) == 3
+        assert results[0].status == EvalStatus.PASSED
+        assert results[1].status == EvalStatus.ERROR
+        assert results[2].status == EvalStatus.PASSED
+
+    @pytest.mark.asyncio
+    async def test_error_status_distinct_from_failed(self, sample_test_case):
+        """ERROR status is distinct from FAILED (low score)."""
+        from ragaliq.core.test_case import EvalStatus
+
+        mock_judge = MagicMock(spec=LLMJudge)
+
+        # Evaluator returns low score (not an error)
+        low_score_evaluator = MagicMock()
+        low_score_evaluator.name = "low"
+        low_score_evaluator.evaluate = AsyncMock(
+            return_value=MagicMock(
+                score=0.3,
+                reasoning="Low quality",
+                passed=False,
+                raw_response={},
+                tokens_used=50,
+                error=None,
+            )
+        )
+
+        runner = RagaliQ(judge=mock_judge)
+        runner._evaluators = [low_score_evaluator]
+
+        result = await runner.evaluate_async(sample_test_case)
+
+        # Should be FAILED, not ERROR
+        assert result.status == EvalStatus.FAILED
+        assert "error" not in result.details["low"]
+
+
 class TestAsyncInitSafety:
     """Test that concurrent async initialization is safe from race conditions."""
 
