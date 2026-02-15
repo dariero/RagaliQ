@@ -76,6 +76,10 @@ def pytest_configure(config: Any) -> None:
 
     Registers the @pytest.mark.ragaliq marker and initializes
     the trace collector for cost tracking.
+
+    If ragaliq is not installed (e.g., running pytest without editable install),
+    this hook gracefully skips initialization. Fixtures will fail with clear
+    error messages if actually used.
     """
     config.addinivalue_line(
         "markers",
@@ -83,20 +87,35 @@ def pytest_configure(config: Any) -> None:
     )
 
     # Initialize trace collector on config for session-wide tracking
-    from ragaliq.judges.trace import TraceCollector
+    # Try to import - if ragaliq not installed, skip (plugin loads but is inactive)
+    try:
+        from ragaliq.judges.trace import TraceCollector
 
-    config._ragaliq_trace_collector = TraceCollector()
+        config._ragaliq_trace_collector = TraceCollector()
+    except (ImportError, ModuleNotFoundError):
+        # ragaliq not installed - plugin entry point loaded but can't initialize
+        # This is expected in non-editable installs or when running pytest --collect-only
+        config._ragaliq_trace_collector = None
 
 
 @pytest.fixture(scope="session")
-def ragaliq_trace_collector(request: Any) -> TraceCollector:
+def ragaliq_trace_collector(request: Any) -> "TraceCollector":
     """
     Session-scoped trace collector for cost tracking.
 
     Returns:
         TraceCollector instance shared across all tests.
+
+    Raises:
+        RuntimeError: If ragaliq is not installed (no editable install).
     """
-    return request.config._ragaliq_trace_collector
+    collector = request.config._ragaliq_trace_collector
+    if collector is None:
+        raise RuntimeError(
+            "RagaliQ is not installed. Please install in editable mode: "
+            "pip install -e . or pip install -e '.[dev]'"
+        )
+    return collector
 
 
 @pytest.fixture(scope="session")
