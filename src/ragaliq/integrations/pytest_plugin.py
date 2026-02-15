@@ -233,7 +233,9 @@ def pytest_runtest_makereport(item: Any, call: Any) -> None:
     if cost_limit is None:
         return
 
-    collector: TraceCollector = item.config._ragaliq_trace_collector
+    collector: TraceCollector | None = item.config._ragaliq_trace_collector
+    if collector is None:
+        return
     current_cost = collector.total_cost_estimate
 
     if current_cost > cost_limit:
@@ -254,9 +256,8 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any)
     - Total latency
     - Number of failures
     """
-    collector: TraceCollector = config._ragaliq_trace_collector
-
-    if len(collector.traces) == 0:
+    collector: TraceCollector | None = config._ragaliq_trace_collector
+    if collector is None or len(collector.traces) == 0:
         return
 
     # Write summary header
