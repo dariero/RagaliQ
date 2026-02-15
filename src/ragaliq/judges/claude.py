@@ -8,10 +8,14 @@ It evaluates RAG responses for faithfulness and relevance using structured promp
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 from ragaliq.judges.base import JudgeConfig
 from ragaliq.judges.base_judge import BaseJudge
 from ragaliq.judges.transport import ClaudeTransport
+
+if TYPE_CHECKING:
+    from ragaliq.judges.trace import TraceCollector
 
 
 class ClaudeJudge(BaseJudge):
@@ -38,6 +42,7 @@ class ClaudeJudge(BaseJudge):
         config: JudgeConfig | None = None,
         *,
         api_key: str | None = None,
+        trace_collector: TraceCollector | None = None,
     ) -> None:
         """
         Initialize ClaudeJudge with optional configuration.
@@ -45,6 +50,7 @@ class ClaudeJudge(BaseJudge):
         Args:
             config: Judge configuration. Uses defaults if not provided.
             api_key: Anthropic API key. Falls back to ANTHROPIC_API_KEY env var.
+            trace_collector: Optional trace collector for observability.
 
         Raises:
             ValueError: If no API key is provided or found in environment.
@@ -59,4 +65,4 @@ class ClaudeJudge(BaseJudge):
 
         # Create transport and initialize base
         transport = ClaudeTransport(api_key=resolved_key)
-        super().__init__(transport=transport, config=config)
+        super().__init__(transport=transport, config=config, trace_collector=trace_collector)

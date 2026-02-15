@@ -12,6 +12,7 @@ from ragaliq.judges.base import (
 )
 from ragaliq.judges.base_judge import BaseJudge
 from ragaliq.judges.claude import ClaudeJudge
+from ragaliq.judges.trace import JudgeTrace, TraceCollector
 from ragaliq.judges.transport import ClaudeTransport, JudgeTransport, TransportResponse
 
 __all__ = [
@@ -25,7 +26,9 @@ __all__ = [
     "JudgeError",
     "JudgeResponseError",
     "JudgeResult",
+    "JudgeTrace",
     "JudgeTransport",
     "LLMJudge",
+    "TraceCollector",
     "TransportResponse",
 ]

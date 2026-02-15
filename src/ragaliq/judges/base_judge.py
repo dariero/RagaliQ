@@ -13,6 +13,7 @@ Concrete judge classes (ClaudeJudge, OpenAIJudge) provide the transport.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from ragaliq.judges.base import (
@@ -26,6 +27,7 @@ from ragaliq.judges.base import (
 from ragaliq.judges.prompts.loader import get_prompt
 
 if TYPE_CHECKING:
+    from ragaliq.judges.trace import TraceCollector
     from ragaliq.judges.transport import JudgeTransport
 
 
@@ -50,6 +52,8 @@ class BaseJudge(LLMJudge):
         self,
         transport: JudgeTransport,
         config: JudgeConfig | None = None,
+        *,
+        trace_collector: TraceCollector | None = None,
     ) -> None:
         """
         Initialize base judge with transport.
@@ -57,17 +61,22 @@ class BaseJudge(LLMJudge):
         Args:
             transport: Transport layer for API calls.
             config: Judge configuration. Uses defaults if not provided.
+            trace_collector: Optional trace collector for observability.
         """
         super().__init__(config)
         self._transport = transport
+        self._trace_collector = trace_collector
 
-    async def _call_llm(self, system_prompt: str, user_prompt: str) -> tuple[str, int]:
+    async def _call_llm(
+        self, system_prompt: str, user_prompt: str, operation: str = "llm_call"
+    ) -> tuple[str, int]:
         """
-        Make an LLM call via the transport layer.
+        Make an LLM call via the transport layer with tracing.
 
         Args:
             system_prompt: System message defining the LLM's role.
             user_prompt: User message with the task.
+            operation: Name of the operation for trace logging.
 
         Returns:
             Tuple of (response_text, tokens_used).
@@ -76,15 +85,51 @@ class BaseJudge(LLMJudge):
             JudgeAPIError: If the API call fails.
             JudgeResponseError: If the response cannot be processed.
         """
-        response = await self._transport.send(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            model=self.config.model,
-            temperature=self.config.temperature,
-            max_tokens=self.config.max_tokens,
-        )
-        tokens_used = response.input_tokens + response.output_tokens
-        return response.text, tokens_used
+        import time
+
+        start_time = time.perf_counter()
+        success = False
+        error_msg = None
+
+        try:
+            response = await self._transport.send(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                model=self.config.model,
+                temperature=self.config.temperature,
+                max_tokens=self.config.max_tokens,
+            )
+            tokens_used = response.input_tokens + response.output_tokens
+            success = True
+
+            return response.text, tokens_used
+
+        except Exception as exc:
+            error_msg = f"{type(exc).__name__}: {exc}"
+            raise
+
+        finally:
+            # Emit trace if collector is configured
+            if self._trace_collector is not None:
+                from ragaliq.judges.trace import JudgeTrace
+
+                latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+                # Use response token counts if available, else 0
+                input_tokens = response.input_tokens if success else 0
+                output_tokens = response.output_tokens if success else 0
+
+                trace = JudgeTrace(
+                    timestamp=datetime.now(timezone.utc),
+                    operation=operation,
+                    model=self.config.model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    latency_ms=latency_ms,
+                    success=success,
+                    error=error_msg,
+                )
+                self._trace_collector.add(trace)
 
     def _parse_json_response(self, text: str) -> dict[str, Any]:
         """
@@ -187,7 +232,9 @@ class BaseJudge(LLMJudge):
             )
 
         system_prompt, user_prompt = self._build_faithfulness_prompt(response, context)
-        raw_response, tokens_used = await self._call_llm(system_prompt, user_prompt)
+        raw_response, tokens_used = await self._call_llm(
+            system_prompt, user_prompt, operation="evaluate_faithfulness"
+        )
         parsed = self._parse_json_response(raw_response)
 
         # Validate required fields
@@ -228,7 +275,9 @@ class BaseJudge(LLMJudge):
             JudgeResponseError: If response parsing fails.
         """
         system_prompt, user_prompt = self._build_relevance_prompt(query, response)
-        raw_response, tokens_used = await self._call_llm(system_prompt, user_prompt)
+        raw_response, tokens_used = await self._call_llm(
+            system_prompt, user_prompt, operation="evaluate_relevance"
+        )
         parsed = self._parse_json_response(raw_response)
 
         # Validate required fields
@@ -269,7 +318,9 @@ class BaseJudge(LLMJudge):
 
         template = get_prompt("extract_claims")
         user_prompt = template.format_user_prompt(response=response)
-        raw_response, tokens_used = await self._call_llm(template.system_prompt, user_prompt)
+        raw_response, tokens_used = await self._call_llm(
+            template.system_prompt, user_prompt, operation="extract_claims"
+        )
         parsed = self._parse_json_response(raw_response)
 
         # Validate and extract claims list
@@ -316,7 +367,9 @@ class BaseJudge(LLMJudge):
             claim=claim,
             context=formatted_context,
         )
-        raw_response, tokens_used = await self._call_llm(template.system_prompt, user_prompt)
+        raw_response, tokens_used = await self._call_llm(
+            template.system_prompt, user_prompt, operation="verify_claim"
+        )
         parsed = self._parse_json_response(raw_response)
 
         # Validate verdict field
