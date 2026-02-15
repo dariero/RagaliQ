@@ -124,14 +124,22 @@ class BaseJudge(LLMJudge):
 
                 latency_ms = int((time.perf_counter() - start_time) * 1000)
 
-                # Use response token counts if available, else 0
-                input_tokens = response.input_tokens if success else 0
-                output_tokens = response.output_tokens if success else 0
+                # Use response data if available, else defaults
+                if success:
+                    # Record actual model from response (may differ from config)
+                    input_tokens = response.input_tokens
+                    output_tokens = response.output_tokens
+                    actual_model = response.model
+                else:
+                    # No response on failure, use config model and zero tokens
+                    input_tokens = 0
+                    output_tokens = 0
+                    actual_model = self.config.model
 
                 trace = JudgeTrace(
                     timestamp=datetime.now(timezone.utc),
                     operation=operation,
-                    model=self.config.model,
+                    model=actual_model,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     latency_ms=latency_ms,

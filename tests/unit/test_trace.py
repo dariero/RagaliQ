@@ -63,6 +63,72 @@ class TestJudgeTrace:
             trace.success = False  # type: ignore[misc]
 
 
+class TestTraceModelAccuracy:
+    """Tests that traces record actual model from response, not config."""
+
+    @pytest.mark.asyncio
+    async def test_trace_records_actual_model_from_response(self) -> None:
+        """Trace should record model from response, not config."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from ragaliq.judges.base_judge import BaseJudge
+        from ragaliq.judges.transport import TransportResponse
+
+        # Mock transport that returns different model than requested
+        mock_transport = MagicMock()
+        mock_transport.send = AsyncMock(
+            return_value=TransportResponse(
+                text='{"score": 0.9}',
+                input_tokens=100,
+                output_tokens=50,
+                model="claude-opus-4-20250514",  # Different from config!
+            )
+        )
+
+        collector = TraceCollector()
+
+        # Create judge with config requesting sonnet, but transport returns opus
+        from ragaliq.judges.base import JudgeConfig
+
+        config = JudgeConfig(model="claude-sonnet-4-20250514")
+        judge = BaseJudge(transport=mock_transport, config=config, trace_collector=collector)
+
+        # Make a call
+        await judge._call_llm("system", "user", operation="test_op")
+
+        # Trace should record opus (what we got), not sonnet (what we asked for)
+        assert len(collector.traces) == 1
+        assert collector.traces[0].model == "claude-opus-4-20250514"
+        assert collector.traces[0].model != config.model
+
+    @pytest.mark.asyncio
+    async def test_trace_uses_config_model_on_failure(self) -> None:
+        """On failure, trace should fall back to config model."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from ragaliq.judges.base import JudgeConfig
+        from ragaliq.judges.base_judge import BaseJudge
+
+        # Mock transport that raises exception
+        mock_transport = MagicMock()
+        mock_transport.send = AsyncMock(side_effect=RuntimeError("API failed"))
+
+        collector = TraceCollector()
+        config = JudgeConfig(model="claude-sonnet-4-20250514")
+        judge = BaseJudge(transport=mock_transport, config=config, trace_collector=collector)
+
+        # Make a call that fails
+        try:
+            await judge._call_llm("system", "user", operation="test_op")
+        except RuntimeError:
+            pass
+
+        # Trace should record config model (no response to get actual model from)
+        assert len(collector.traces) == 1
+        assert collector.traces[0].model == "claude-sonnet-4-20250514"
+        assert collector.traces[0].success is False
+
+
 class TestTraceCollector:
     """Tests for TraceCollector."""
 
