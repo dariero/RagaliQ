@@ -74,6 +74,41 @@ class BaseJudge(LLMJudge):
         self._trace_collector = trace_collector
         self._concurrency_limit = asyncio.Semaphore(max_concurrency)
 
+    @property
+    def transport(self) -> JudgeTransport:
+        """
+        Get the current transport layer.
+
+        Returns:
+            The transport instance used for API calls.
+        """
+        return self._transport
+
+    def wrap_transport(self, wrapper: JudgeTransport) -> None:
+        """
+        Replace the transport layer with a wrapper.
+
+        This is the official API for wrapping the transport with middleware
+        (e.g., latency injection, retry logic, caching).
+
+        Args:
+            wrapper: New transport instance that wraps or replaces the current one.
+
+        Example:
+            # Wrap with latency injection
+            class LatencyWrapper:
+                def __init__(self, inner, delay_ms):
+                    self._inner = inner
+                    self._delay_ms = delay_ms
+
+                async def send(self, ...):
+                    await asyncio.sleep(self._delay_ms / 1000)
+                    return await self._inner.send(...)
+
+            judge.wrap_transport(LatencyWrapper(judge.transport, 100))
+        """
+        self._transport = wrapper
+
     async def _call_llm(
         self, system_prompt: str, user_prompt: str, operation: str = "llm_call"
     ) -> tuple[str, int]:

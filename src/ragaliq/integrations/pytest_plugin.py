@@ -178,7 +178,8 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                         system_prompt, user_prompt, model, temperature, max_tokens
                     )
 
-            judge._transport = LatencyInjectionTransport(judge._transport, latency_ms)
+            # Use public API to wrap transport (not private _transport mutation)
+            judge.wrap_transport(LatencyInjectionTransport(judge.transport, latency_ms))
 
         return judge
     elif judge_type == "openai":
