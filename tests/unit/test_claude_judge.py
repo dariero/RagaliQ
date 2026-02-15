@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def mock_anthropic_client() -> Generator[MagicMock]:
     """Create a mock Anthropic client."""
-    with patch("ragaliq.judges.claude.AsyncAnthropic") as mock_class:
+    with patch("ragaliq.judges.transport.AsyncAnthropic") as mock_class:
         mock_client = MagicMock()
         mock_class.return_value = mock_client
         yield mock_client
@@ -61,7 +61,7 @@ class TestClaudeJudgeInit:
         """Test that missing API key raises ValueError."""
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("ragaliq.judges.claude.AsyncAnthropic"),
+            patch("ragaliq.judges.transport.AsyncAnthropic"),
             pytest.raises(ValueError, match="Anthropic API key required"),
         ):
             # Ensure ANTHROPIC_API_KEY is not set
@@ -343,7 +343,7 @@ class TestClaudeJudgeErrorHandling:
         )
 
         judge = ClaudeJudge(api_key="test-key")
-        with pytest.raises(JudgeAPIError, match="Connection to Claude API failed"):
+        with pytest.raises(JudgeAPIError, match="Claude API error"):
             await judge.evaluate_faithfulness(
                 response="Test",
                 context=["Context"],
