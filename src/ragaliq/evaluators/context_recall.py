@@ -120,18 +120,26 @@ class ContextRecallEvaluator(Evaluator):
                 tokens_used=0,
             )
 
-        # Step 1: Verify each fact against the context
+        # Step 1: Verify each fact against the context (in parallel)
+        import asyncio
+
+        # Verify all facts concurrently (errors propagate)
+        verification_tasks = [
+            judge.verify_claim(fact, test_case.context) for fact in test_case.expected_facts
+        ]
+        verdicts = await asyncio.gather(*verification_tasks)
+
+        # Process results
         fact_coverage: list[dict[str, Any]] = []
         covered_count = 0
         total_tokens = 0
 
-        for fact in test_case.expected_facts:
-            verdict = await judge.verify_claim(fact, test_case.context)
+        for i, verdict in enumerate(verdicts):
             total_tokens += verdict.tokens_used
 
             fact_coverage.append(
                 {
-                    "fact": fact,
+                    "fact": test_case.expected_facts[i],
                     "verdict": verdict.verdict,
                     "evidence": verdict.evidence,
                 }

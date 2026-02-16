@@ -21,6 +21,7 @@ class EvaluationResult(BaseModel):
         reasoning: Human-readable explanation of the score.
         raw_response: Raw response from the LLM judge for debugging.
         tokens_used: Total tokens consumed by this evaluation.
+        error: Error message if evaluation failed. Non-None indicates failure.
     """
 
     evaluator_name: str = Field(..., description="Name of the evaluator")
@@ -29,6 +30,7 @@ class EvaluationResult(BaseModel):
     reasoning: str = Field(default="", description="Explanation of the score")
     raw_response: dict[str, Any] = Field(default_factory=dict, description="Raw judge response")
     tokens_used: int = Field(default=0, ge=0, description="Total tokens consumed")
+    error: str | None = Field(default=None, description="Error message if evaluation failed")
 
     model_config = {"frozen": True, "extra": "forbid"}
 

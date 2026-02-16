@@ -1,6 +1,8 @@
 """Main test runner for RagaliQ."""
 
+import asyncio
 import logging
+import threading
 from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -40,6 +42,8 @@ class RagaliQ:
         judge_config: JudgeConfig | None = None,
         api_key: str | None = None,
         max_concurrency: int = 5,
+        max_judge_concurrency: int = 20,
+        fail_fast: bool = False,
     ) -> None:
         """
         Initialize RagaliQ.
@@ -51,11 +55,17 @@ class RagaliQ:
             default_threshold: Default passing threshold for evaluators.
             judge_config: Optional configuration for the judge (model, temperature, etc.).
             api_key: Optional API key for the judge. Falls back to environment variable.
-            max_concurrency: Maximum number of concurrent evaluations in batch mode.
+            max_concurrency: Maximum number of concurrent test case evaluations in batch mode.
+            max_judge_concurrency: Maximum concurrent judge API calls. Prevents rate limit
+                bursts when evaluators process many claims/docs in parallel. Default: 20.
+            fail_fast: If True, propagate evaluator exceptions immediately for debugging.
+                If False (default), convert errors to error-envelope results (robust batch mode).
         """
         self.evaluator_names = evaluators or ["faithfulness", "relevance"]
         self.default_threshold = default_threshold
         self.max_concurrency = max_concurrency
+        self.max_judge_concurrency = max_judge_concurrency
+        self.fail_fast = fail_fast
         self._judge_config = judge_config
         self._api_key = api_key
 
@@ -68,6 +78,7 @@ class RagaliQ:
             self.judge_type = judge
 
         self._evaluators: list[Evaluator] = []
+        self._init_lock = threading.Lock()
 
     def __repr__(self) -> str:
         return f"RagaliQ(judge_type={self.judge_type!r}, evaluators={self.evaluator_names!r})"
@@ -83,6 +94,7 @@ class RagaliQ:
             self._judge = ClaudeJudge(
                 config=self._judge_config,
                 api_key=self._api_key,
+                max_concurrency=self.max_judge_concurrency,
             )
         elif self.judge_type == "openai":
             # OpenAI judge not yet implemented
@@ -101,6 +113,20 @@ class RagaliQ:
             evaluator_class = get_evaluator(name)
             self._evaluators.append(evaluator_class(threshold=self.default_threshold))
 
+    async def _ensure_initialized(self) -> None:
+        """
+        Ensure judge and evaluators are initialized exactly once.
+
+        Uses a threading lock to prevent race conditions when multiple
+        concurrent calls (or repeated sync calls across different event loops)
+        attempt initialization. Threading lock is used instead of asyncio.Lock
+        to avoid loop-binding issues when the same runner is used across
+        multiple asyncio.run() calls.
+        """
+        with self._init_lock:
+            self._init_judge()
+            self._init_evaluators()
+
     async def evaluate_async(self, test_case: RAGTestCase) -> RAGTestResult:
         """
         Evaluate a single test case asynchronously.
@@ -115,8 +141,7 @@ class RagaliQ:
 
         start_time = time.perf_counter()
 
-        self._init_judge()
-        self._init_evaluators()
+        await self._ensure_initialized()
 
         if self._judge is None:
             raise RuntimeError("Judge must be initialized before evaluation")
@@ -125,28 +150,65 @@ class RagaliQ:
         details: dict[str, dict[str, Any]] = {}
         total_tokens = 0
         all_passed = True
+        has_error = False
 
-        for evaluator in self._evaluators:
+        # Run all evaluators in parallel
+        async def _run_evaluator(evaluator: Evaluator) -> tuple[str, EvaluationResult]:
+            """Run a single evaluator, returning (evaluator_name, result)."""
             try:
-                result: EvaluationResult = await evaluator.evaluate(test_case, self._judge)
-            except Exception:
+                result = await evaluator.evaluate(test_case, self._judge)
+                return evaluator.name, result
+            except Exception as exc:
+                # If fail_fast is enabled, propagate exceptions immediately for debugging
+                if self.fail_fast:
+                    logger.error("Evaluator '%s' failed (fail_fast=True)", evaluator.name)
+                    raise
+
+                # Otherwise, convert to error envelope for robust batch processing
                 logger.exception("Evaluator '%s' failed", evaluator.name)
-                raise
-            scores[evaluator.name] = result.score
-            details[evaluator.name] = {
+                error_result = EvaluationResult(
+                    evaluator_name=evaluator.name,
+                    score=0.0,
+                    passed=False,
+                    reasoning=f"Evaluation failed: {exc}",
+                    error=f"{type(exc).__name__}: {exc}",
+                    raw_response={"exception": str(exc)},
+                    tokens_used=0,
+                )
+                return evaluator.name, error_result
+
+        eval_tasks = [_run_evaluator(ev) for ev in self._evaluators]
+        results = await asyncio.gather(*eval_tasks)
+
+        # Collect results
+        for evaluator_name, result in results:
+            scores[evaluator_name] = result.score
+            details[evaluator_name] = {
                 "reasoning": result.reasoning,
                 "passed": result.passed,
                 "raw": result.raw_response,
             }
+            if result.error:
+                details[evaluator_name]["error"] = result.error
+                has_error = True
+
             total_tokens += result.tokens_used
             if not result.passed:
                 all_passed = False
 
         execution_time = int((time.perf_counter() - start_time) * 1000)
 
+        # Determine status: ERROR trumps FAILED/PASSED
+        if has_error:
+            status = EvalStatus.ERROR
+        elif all_passed:
+            status = EvalStatus.PASSED
+        else:
+            status = EvalStatus.FAILED
+
         return RAGTestResult(
             test_case=test_case,
-            status=EvalStatus.PASSED if all_passed else EvalStatus.FAILED,
+            status=status,
             scores=scores,
             details=details,
             execution_time_ms=execution_time,
@@ -187,7 +249,26 @@ class RagaliQ:
 
         async def bounded_evaluate(tc: RAGTestCase) -> RAGTestResult:
             async with semaphore:
-                return await self.evaluate_async(tc)
+                try:
+                    return await self.evaluate_async(tc)
+                except Exception as exc:
+                    # If fail_fast is enabled, propagate exceptions immediately for debugging
+                    if self.fail_fast:
+                        logger.error(
+                            "Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id
+                        )
+                        raise
+
+                    # Otherwise, convert to error envelope for robust batch processing
+                    logger.exception("Batch evaluation failed for test case '%s'", tc.id)
+                    return RAGTestResult(
+                        test_case=tc,
+                        status=EvalStatus.ERROR,
+                        scores={},
+                        details={"error": f"{type(exc).__name__}: {exc}"},
+                        execution_time_ms=0,
+                        judge_tokens_used=0,
+                    )
 
         tasks = [bounded_evaluate(tc) for tc in test_cases]
         return await asyncio.gather(*tasks)
