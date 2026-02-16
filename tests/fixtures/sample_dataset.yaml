@@ -1,0 +1,38 @@
+version: "1.0"
+metadata:
+  description: Sample RAG test dataset in YAML
+  domain: general_qa
+
+test_cases:
+  - id: test_001
+    name: Python list methods
+    query: How do I add an item to a list in Python?
+    context:
+      - "Python lists have several methods for adding items: append() adds to end, insert() adds at position, extend() adds multiple items."
+      - "The append() method takes a single argument and adds it to the end of the list."
+    response: "You can add an item to a Python list using the append() method. For example: my_list.append('new_item')."
+    expected_answer: Use the append() method to add items to a list.
+    expected_facts:
+      - append() method adds items to list
+      - append() adds to the end of the list
+    tags:
+      - python
+      - lists
+      - basic
+
+  - id: test_002
+    name: RAG system components
+    query: What are the main components of a RAG system?
+    context:
+      - "A RAG (Retrieval-Augmented Generation) system consists of three main components: a retriever that fetches relevant documents, a document store that holds the knowledge base, and a generator (LLM) that produces responses."
+      - The retriever typically uses vector embeddings to find semantically similar documents.
+    response: "A RAG system has three main components: retriever, document store, and generator (LLM). The retriever fetches relevant documents using vector embeddings, the document store maintains the knowledge base, and the generator produces the final response."
+    expected_facts:
+      - RAG has three components
+      - retriever fetches documents
+      - document store holds knowledge
+      - generator produces responses
+    tags:
+      - rag
+      - architecture
+      - advanced
