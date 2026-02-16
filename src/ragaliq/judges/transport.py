@@ -164,7 +164,8 @@ class ClaudeTransport:
 
         @retry(
             retry=(
-                retry_if_exception_type(APIConnectionError) | retry_if_exception(_is_retryable_api_error)
+                retry_if_exception_type(APIConnectionError)
+                | retry_if_exception(_is_retryable_api_error)
             ),
             stop=stop_after_attempt(3),
             wait=wait_exponential(multiplier=1, min=1, max=10),

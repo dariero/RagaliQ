@@ -277,7 +277,6 @@ class TestBoundedConcurrency:
         """Test that max_judge_concurrency actually limits concurrent judge API calls."""
         import asyncio
 
-        from ragaliq.core.evaluator import EvaluationResult
         from ragaliq.judges.base import JudgeConfig
         from ragaliq.judges.base_judge import BaseJudge
         from ragaliq.judges.transport import TransportResponse
@@ -307,14 +306,10 @@ class TestBoundedConcurrency:
         mock_transport.send = mock_send
 
         # Create judge with concurrency limit of 3
-        judge = BaseJudge(
-            transport=mock_transport, config=JudgeConfig(), max_concurrency=3
-        )
+        judge = BaseJudge(transport=mock_transport, config=JudgeConfig(), max_concurrency=3)
 
         # Create 10 concurrent calls that would normally run in parallel
-        tasks = [
-            judge._call_llm("system", f"user {i}", operation=f"op_{i}") for i in range(10)
-        ]
+        tasks = [judge._call_llm("system", f"user {i}", operation=f"op_{i}") for i in range(10)]
 
         await asyncio.gather(*tasks)
 
@@ -391,7 +386,6 @@ class TestErrorEnvelopes:
     @pytest.mark.asyncio
     async def test_batch_single_failure_doesnt_crash_batch(self, sample_test_case):
         """One test case failing shouldn't crash the entire batch."""
-        import asyncio
         from ragaliq.core.test_case import EvalStatus, RAGTestCase
 
         mock_judge = MagicMock(spec=LLMJudge)
@@ -402,11 +396,21 @@ class TestErrorEnvelopes:
         mock_evaluator.evaluate = AsyncMock(
             side_effect=[
                 MagicMock(
-                    score=0.9, reasoning="", passed=True, raw_response={}, tokens_used=50, error=None
+                    score=0.9,
+                    reasoning="",
+                    passed=True,
+                    raw_response={},
+                    tokens_used=50,
+                    error=None,
                 ),
                 RuntimeError("Middle test case failed"),
                 MagicMock(
-                    score=0.8, reasoning="", passed=True, raw_response={}, tokens_used=50, error=None
+                    score=0.8,
+                    reasoning="",
+                    passed=True,
+                    raw_response={},
+                    tokens_used=50,
+                    error=None,
                 ),
             ]
         )
@@ -509,7 +513,6 @@ class TestErrorEnvelopes:
     @pytest.mark.asyncio
     async def test_fail_fast_applies_to_batch_mode(self, sample_test_case):
         """fail_fast also works in batch mode."""
-        from ragaliq.core.test_case import RAGTestCase
 
         mock_judge = MagicMock(spec=LLMJudge)
 

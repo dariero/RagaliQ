@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from ragaliq.judges.base import (
@@ -172,7 +172,7 @@ class BaseJudge(LLMJudge):
                     actual_model = self.config.model
 
                 trace = JudgeTrace(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     operation=operation,
                     model=actual_model,
                     input_tokens=input_tokens,

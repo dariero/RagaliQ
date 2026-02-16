@@ -92,14 +92,14 @@ def pytest_configure(config: Any) -> None:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         # ragaliq not installed - plugin entry point loaded but can't initialize
         # This is expected in non-editable installs or when running pytest --collect-only
         config._ragaliq_trace_collector = None
 
 
 @pytest.fixture(scope="session")
-def ragaliq_trace_collector(request: Any) -> "TraceCollector":
+def ragaliq_trace_collector(request: Any) -> TraceCollector:
     """
     Session-scoped trace collector for cost tracking.
 
@@ -279,6 +279,4 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any)
 
     # Warn if approaching common budget limits
     if total_cost > 10.0:
-        terminalreporter.write_line(
-            f"WARNING: High cost detected (${total_cost:.2f})", red=True
-        )
+        terminalreporter.write_line(f"WARNING: High cost detected (${total_cost:.2f})", red=True)

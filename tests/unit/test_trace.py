@@ -1,6 +1,6 @@
 """Unit tests for JudgeTrace and TraceCollector."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -13,7 +13,7 @@ class TestJudgeTrace:
     def test_create_successful_trace(self) -> None:
         """Test creating a successful trace."""
         trace = JudgeTrace(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             operation="evaluate_faithfulness",
             model="claude-sonnet-4-20250514",
             input_tokens=100,
@@ -33,7 +33,7 @@ class TestJudgeTrace:
     def test_create_failed_trace(self) -> None:
         """Test creating a failed trace with error message."""
         trace = JudgeTrace(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             operation="verify_claim",
             model="claude-sonnet-4-20250514",
             input_tokens=80,
@@ -50,7 +50,7 @@ class TestJudgeTrace:
     def test_trace_is_immutable(self) -> None:
         """Test that traces are frozen (immutable)."""
         trace = JudgeTrace(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             operation="extract_claims",
             model="claude-sonnet-4-20250514",
             input_tokens=50,
@@ -147,7 +147,7 @@ class TestTraceCollector:
         collector = TraceCollector()
 
         trace = JudgeTrace(
-            timestamp=datetime.now(timezone.utc),
+            timestamp=datetime.now(UTC),
             operation="evaluate_relevance",
             model="claude-sonnet-4-20250514",
             input_tokens=100,
@@ -166,7 +166,7 @@ class TestTraceCollector:
 
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op1",
                 model="model",
                 input_tokens=100,
@@ -177,7 +177,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op2",
                 model="model",
                 input_tokens=200,
@@ -198,7 +198,7 @@ class TestTraceCollector:
 
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op1",
                 model="model",
                 input_tokens=50,
@@ -209,7 +209,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op2",
                 model="model",
                 input_tokens=60,
@@ -229,7 +229,7 @@ class TestTraceCollector:
         for _ in range(2):
             collector.add(
                 JudgeTrace(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     operation="op",
                     model="model",
                     input_tokens=50,
@@ -242,7 +242,7 @@ class TestTraceCollector:
         # Add 1 failed
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op",
                 model="model",
                 input_tokens=50,
@@ -264,7 +264,7 @@ class TestTraceCollector:
         # Add trace with 1M input tokens and 1M output tokens
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op",
                 model="claude-sonnet-4-20250514",
                 input_tokens=1_000_000,
@@ -284,7 +284,7 @@ class TestTraceCollector:
 
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="evaluate_faithfulness",
                 model="model",
                 input_tokens=100,
@@ -295,7 +295,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="verify_claim",
                 model="model",
                 input_tokens=80,
@@ -306,7 +306,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="verify_claim",
                 model="model",
                 input_tokens=85,
@@ -329,7 +329,7 @@ class TestTraceCollector:
 
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op1",
                 model="model",
                 input_tokens=100,
@@ -340,7 +340,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op2",
                 model="model",
                 input_tokens=80,
@@ -352,7 +352,7 @@ class TestTraceCollector:
         )
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op3",
                 model="model",
                 input_tokens=90,
@@ -378,7 +378,7 @@ class TestTraceCollector:
         for _ in range(3):
             collector.add(
                 JudgeTrace(
-                    timestamp=datetime.now(timezone.utc),
+                    timestamp=datetime.now(UTC),
                     operation="op",
                     model="model",
                     input_tokens=50,
@@ -402,7 +402,7 @@ class TestTraceCollector:
 
         collector.add(
             JudgeTrace(
-                timestamp=datetime.now(timezone.utc),
+                timestamp=datetime.now(UTC),
                 operation="op",
                 model="model",
                 input_tokens=100,

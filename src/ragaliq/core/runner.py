@@ -254,7 +254,9 @@ class RagaliQ:
                 except Exception as exc:
                     # If fail_fast is enabled, propagate exceptions immediately for debugging
                     if self.fail_fast:
-                        logger.error("Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id)
+                        logger.error(
+                            "Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id
+                        )
                         raise
 
                     # Otherwise, convert to error envelope for robust batch processing
