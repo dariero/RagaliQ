@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
@@ -68,7 +69,7 @@ def run(
     typer.echo(f"\nRagaliQ — {total} test case{'s' if total != 1 else ''} loaded\n")
 
     runner_obj = RagaliQ(
-        judge=judge,
+        judge=judge,  # type: ignore[arg-type]
         evaluators=evaluator if evaluator else None,
         default_threshold=threshold,
         fail_fast=fail_fast,
@@ -100,7 +101,7 @@ def run(
         typer.echo(f"\nSummary: {passed}/{total} passed")
 
 
-def _print_results_table(results: list, console: object) -> None:
+def _print_results_table(results: list[Any], console: object) -> None:
     """Render evaluation results as a Rich table.
 
     Args:

@@ -85,6 +85,14 @@ def pytest_configure(config: Any) -> None:
         "markers",
         "ragaliq: Mark test as a RagaliQ evaluation test",
     )
+    config.addinivalue_line(
+        "markers",
+        "rag_test: Mark test as a RAG quality evaluation (requires LLM judge)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "rag_slow: Mark RAG test as slow-running (useful for -m 'not rag_slow' skipping)",
+    )
 
     # Initialize trace collector on config for session-wide tracking
     # Try to import - if ragaliq not installed, skip (plugin loads but is inactive)
@@ -217,6 +225,77 @@ def ragaliq_runner(ragaliq_judge: LLMJudge) -> RagaliQ:
     from ragaliq.core.runner import RagaliQ
 
     return RagaliQ(judge=ragaliq_judge)
+
+
+@pytest.fixture
+def rag_tester(ragaliq_judge: LLMJudge) -> RagaliQ:
+    """
+    Pre-configured RagaliQ runner — concise alias for ragaliq_runner.
+
+    Provides the same session judge and configuration as ragaliq_runner.
+    Prefer this fixture for brevity in test signatures.
+
+    Returns:
+        RagaliQ instance ready for test evaluation.
+    """
+    from ragaliq.core.runner import RagaliQ
+
+    return RagaliQ(judge=ragaliq_judge)
+
+
+def assert_rag_quality(
+    test_case: Any,
+    judge: Any = None,
+    evaluators: list[str] | None = None,
+    threshold: float = 0.7,
+) -> Any:
+    """
+    Evaluate a RAG test case and assert it meets quality thresholds.
+
+    Convenience helper for use inside pytest tests. Evaluates the test case
+    and raises AssertionError with a descriptive message if any metric fails.
+
+    Args:
+        test_case: The RAGTestCase to evaluate.
+        judge: Optional LLM judge instance. If None, creates a default
+            ClaudeJudge using the ANTHROPIC_API_KEY environment variable.
+        evaluators: Evaluator names to run. Defaults to ["faithfulness", "relevance"].
+        threshold: Minimum passing score per metric (0.0–1.0). Default: 0.7.
+
+    Returns:
+        RAGTestResult with all metric scores if all metrics pass.
+
+    Raises:
+        AssertionError: If any evaluator score falls below the threshold,
+            with a message listing each failing metric and its score.
+
+    Example:
+        def test_answer_quality(ragaliq_judge):
+            test_case = RAGTestCase(
+                id="t1",
+                name="Capital query",
+                query="What is the capital of France?",
+                context=["France's capital city is Paris."],
+                response="The capital of France is Paris.",
+            )
+            assert_rag_quality(test_case, judge=ragaliq_judge)
+    """
+    from ragaliq.core.runner import RagaliQ
+
+    runner = RagaliQ(
+        judge=judge if judge is not None else "claude",
+        evaluators=evaluators,
+        default_threshold=threshold,
+    )
+    result = runner.evaluate(test_case)
+
+    if not result.passed:
+        failing = {name: score for name, score in result.scores.items() if score < threshold}
+        raise AssertionError(
+            f"RAG quality check failed for '{test_case.name}': failing metrics: {failing}"
+        )
+
+    return result
 
 
 def pytest_runtest_makereport(item: Any, call: Any) -> None:
