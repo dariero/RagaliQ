@@ -729,11 +729,10 @@ class TestContextRecallRegistration:
     """Tests that ContextRecallEvaluator is properly registered."""
 
     def test_registered_in_registry(self) -> None:
-        """Should be registered as 'context_recall' in EVALUATOR_REGISTRY."""
-        from ragaliq.evaluators import EVALUATOR_REGISTRY
+        """Should be registered as 'context_recall' in the evaluator registry."""
+        from ragaliq.evaluators import get_evaluator
 
-        assert "context_recall" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["context_recall"] is ContextRecallEvaluator
+        assert get_evaluator("context_recall") is ContextRecallEvaluator
 
     def test_retrievable_via_get_evaluator(self) -> None:
         """Should be retrievable via get_evaluator()."""

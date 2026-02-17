@@ -8,9 +8,8 @@ from ragaliq.evaluators.context_recall import ContextRecallEvaluator
 from ragaliq.evaluators.faithfulness import FaithfulnessEvaluator
 from ragaliq.evaluators.hallucination import HallucinationEvaluator
 
-# Import registry functions and backward-compat dict
+# Import registry functions
 from ragaliq.evaluators.registry import (
-    EVALUATOR_REGISTRY,
     get_evaluator,
     list_evaluators,
     register_evaluator,
@@ -25,7 +24,6 @@ __all__ = [
     "FaithfulnessEvaluator",
     "HallucinationEvaluator",
     "RelevanceEvaluator",
-    "EVALUATOR_REGISTRY",
     "get_evaluator",
     "list_evaluators",
     "register_evaluator",

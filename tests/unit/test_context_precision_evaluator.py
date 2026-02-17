@@ -749,11 +749,10 @@ class TestContextPrecisionRegistration:
     """Tests that ContextPrecisionEvaluator is properly registered."""
 
     def test_registered_in_registry(self) -> None:
-        """Should be registered as 'context_precision' in EVALUATOR_REGISTRY."""
-        from ragaliq.evaluators import EVALUATOR_REGISTRY
+        """Should be registered as 'context_precision' in the evaluator registry."""
+        from ragaliq.evaluators import get_evaluator
 
-        assert "context_precision" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["context_precision"] is ContextPrecisionEvaluator
+        assert get_evaluator("context_precision") is ContextPrecisionEvaluator
 
     def test_retrievable_via_get_evaluator(self) -> None:
         """Should be retrievable via get_evaluator()."""

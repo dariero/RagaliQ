@@ -121,7 +121,7 @@ class TestFaithfulnessTemplate:
     def test_output_format(self, template: PromptTemplate) -> None:
         """Template should specify output format."""
         assert template.output_format is not None
-        assert template.output_format.type == "json"
+        assert template.output_format["type"] == "json"
 
 
 class TestRelevanceTemplate:
@@ -174,7 +174,7 @@ class TestExtractClaimsTemplate:
     def test_output_format_claims_array(self, template: PromptTemplate) -> None:
         """Output format should specify claims as array."""
         assert template.output_format is not None
-        assert "claims" in template.output_format.schema_
+        assert "claims" in template.output_format["schema"]
 
     def test_has_examples(self, template: PromptTemplate) -> None:
         """Template should have few-shot examples."""
@@ -205,7 +205,7 @@ class TestVerifyClaimTemplate:
     def test_output_format_verdict(self, template: PromptTemplate) -> None:
         """Output format should specify verdict enum."""
         assert template.output_format is not None
-        assert "verdict" in template.output_format.schema_
+        assert "verdict" in template.output_format["schema"]
 
     def test_has_examples(self, template: PromptTemplate) -> None:
         """Template should have few-shot examples."""

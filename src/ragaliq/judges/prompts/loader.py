@@ -16,32 +16,6 @@ import yaml
 from pydantic import BaseModel, Field
 
 
-class OutputSchema(BaseModel):
-    """Schema definition for a single output field."""
-
-    type: str = Field(..., description="Data type of the field")
-    description: str = Field(default="", description="Field description")
-    min: float | None = Field(default=None, description="Minimum value for numeric types")
-    max: float | None = Field(default=None, description="Maximum value for numeric types")
-    enum: list[str] | None = Field(default=None, description="Allowed values for enum types")
-    items: dict[str, Any] | None = Field(default=None, description="Schema for array items")
-
-    model_config = {"extra": "forbid"}
-
-
-class OutputFormat(BaseModel):
-    """Output format specification for a prompt template."""
-
-    type: str = Field(..., description="Output type (e.g., 'json')")
-    schema_: dict[str, OutputSchema] = Field(
-        default_factory=dict,
-        alias="schema",
-        description="Schema definition for output fields",
-    )
-
-    model_config = {"extra": "forbid", "populate_by_name": True}
-
-
 class PromptExample(BaseModel):
     """A few-shot example for a prompt template."""
 
@@ -74,7 +48,7 @@ class PromptTemplate(BaseModel):
     description: str = Field(default="", description="Template description")
     system_prompt: str = Field(..., description="System prompt for the LLM")
     user_template: str = Field(..., description="User message template with placeholders")
-    output_format: OutputFormat | None = Field(default=None, description="Expected output format")
+    output_format: dict[str, Any] | None = Field(default=None, description="Expected output format")
     examples: list[PromptExample] = Field(default_factory=list, description="Few-shot examples")
 
     model_config = {"extra": "forbid"}
