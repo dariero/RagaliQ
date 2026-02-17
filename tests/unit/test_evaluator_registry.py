@@ -37,7 +37,7 @@ def clean_registry():
 class TestRegisterEvaluatorDecorator:
     """Tests for the @register_evaluator decorator."""
 
-    def test_registers_evaluator_class(self, clean_registry):
+    def test_registers_evaluator_class(self, clean_registry) -> None:  # noqa: ARG002
         """Decorator should register the class in the global registry."""
 
         @register_evaluator("test_metric")
@@ -45,7 +45,7 @@ class TestRegisterEvaluatorDecorator:
             name = "test_metric"
             description = "Test evaluator"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -55,7 +55,7 @@ class TestRegisterEvaluatorDecorator:
 
         assert get_evaluator("test_metric") is TestEvaluator
 
-    def test_returns_class_unchanged(self, clean_registry):
+    def test_returns_class_unchanged(self, clean_registry) -> None:  # noqa: ARG002
         """Decorator should return the class unchanged (type-preserving)."""
 
         @register_evaluator("test_metric")
@@ -63,7 +63,7 @@ class TestRegisterEvaluatorDecorator:
             name = "test_metric"
             description = "Test evaluator"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -75,7 +75,7 @@ class TestRegisterEvaluatorDecorator:
         assert TestEvaluator.name == "test_metric"
         assert TestEvaluator.description == "Test evaluator"
 
-    def test_rejects_non_evaluator_class(self, clean_registry):
+    def test_rejects_non_evaluator_class(self, clean_registry) -> None:  # noqa: ARG002
         """Decorator should reject classes that don't subclass Evaluator."""
         with pytest.raises(ValueError, match="must be a subclass of Evaluator"):
 
@@ -83,7 +83,7 @@ class TestRegisterEvaluatorDecorator:
             class NotAnEvaluator:
                 pass
 
-    def test_rejects_empty_name(self, clean_registry):
+    def test_rejects_empty_name(self, clean_registry) -> None:  # noqa: ARG002
         """Decorator should reject empty evaluator names."""
         with pytest.raises(ValueError, match="name cannot be empty"):
 
@@ -93,7 +93,7 @@ class TestRegisterEvaluatorDecorator:
                 description = "Test"
 
                 async def evaluate(
-                    self, test_case: RAGTestCase, judge: LLMJudge
+                    self, _test_case: RAGTestCase, _judge: LLMJudge
                 ) -> EvaluationResult:
                     return EvaluationResult(
                         evaluator_name=self.name,
@@ -102,7 +102,7 @@ class TestRegisterEvaluatorDecorator:
                         reasoning="Test",
                     )
 
-    def test_rejects_duplicate_name(self, clean_registry):
+    def test_rejects_duplicate_name(self, clean_registry) -> None:  # noqa: ARG002
         """Decorator should reject duplicate evaluator names."""
 
         @register_evaluator("duplicate")
@@ -110,7 +110,7 @@ class TestRegisterEvaluatorDecorator:
             name = "duplicate"
             description = "First"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -127,7 +127,7 @@ class TestRegisterEvaluatorDecorator:
                 description = "Second"
 
                 async def evaluate(
-                    self, test_case: RAGTestCase, judge: LLMJudge
+                    self, _test_case: RAGTestCase, _judge: LLMJudge
                 ) -> EvaluationResult:
                     return EvaluationResult(
                         evaluator_name=self.name,
@@ -140,14 +140,14 @@ class TestRegisterEvaluatorDecorator:
 class TestRegisterEvaluatorClass:
     """Tests for the programmatic register_evaluator_class() function."""
 
-    def test_registers_evaluator_class(self, clean_registry):
+    def test_registers_evaluator_class(self, clean_registry) -> None:  # noqa: ARG002
         """Should register the class programmatically."""
 
         class TestEvaluator(Evaluator):
             name = "test_metric"
             description = "Test evaluator"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -159,7 +159,7 @@ class TestRegisterEvaluatorClass:
 
         assert get_evaluator("test_metric") is TestEvaluator
 
-    def test_rejects_non_evaluator_class(self, clean_registry):
+    def test_rejects_non_evaluator_class(self, clean_registry) -> None:  # noqa: ARG002
         """Should reject classes that don't subclass Evaluator."""
 
         class NotAnEvaluator:
@@ -168,14 +168,14 @@ class TestRegisterEvaluatorClass:
         with pytest.raises(ValueError, match="must be a subclass of Evaluator"):
             register_evaluator_class("not_an_evaluator", NotAnEvaluator)  # type: ignore[arg-type]
 
-    def test_rejects_empty_name(self, clean_registry):
+    def test_rejects_empty_name(self, clean_registry) -> None:  # noqa: ARG002
         """Should reject empty evaluator names."""
 
         class TestEvaluator(Evaluator):
             name = "test"
             description = "Test"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -189,14 +189,14 @@ class TestRegisterEvaluatorClass:
         with pytest.raises(ValueError, match="name cannot be empty"):
             register_evaluator_class("   ", TestEvaluator)
 
-    def test_rejects_duplicate_name(self, clean_registry):
+    def test_rejects_duplicate_name(self, clean_registry) -> None:  # noqa: ARG002
         """Should reject duplicate evaluator names."""
 
         class FirstEvaluator(Evaluator):
             name = "duplicate"
             description = "First"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -208,7 +208,7 @@ class TestRegisterEvaluatorClass:
             name = "duplicate"
             description = "Second"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -265,7 +265,7 @@ class TestListEvaluators:
         assert "relevance" in evaluators
         assert "hallucination" in evaluators
 
-    def test_includes_custom_evaluators(self, clean_registry):
+    def test_includes_custom_evaluators(self, clean_registry) -> None:  # noqa: ARG002
         """Should include custom evaluators after registration."""
 
         @register_evaluator("custom_metric")
@@ -273,7 +273,7 @@ class TestListEvaluators:
             name = "custom_metric"
             description = "Custom"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=1.0,
@@ -322,7 +322,7 @@ class TestBuiltInRegistration:
 class TestCustomEvaluatorRegistration:
     """Tests for user-defined custom evaluator registration."""
 
-    def test_custom_evaluator_via_decorator(self, clean_registry):
+    def test_custom_evaluator_via_decorator(self, clean_registry) -> None:  # noqa: ARG002
         """Users should be able to register custom evaluators using the decorator."""
 
         @register_evaluator("user_custom")
@@ -330,7 +330,7 @@ class TestCustomEvaluatorRegistration:
             name = "user_custom"
             description = "User's custom evaluator"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=0.95,
@@ -350,14 +350,14 @@ class TestCustomEvaluatorRegistration:
         assert evaluator.name == "user_custom"
         assert evaluator.threshold == 0.8
 
-    def test_custom_evaluator_via_programmatic_api(self, clean_registry):
+    def test_custom_evaluator_via_programmatic_api(self, clean_registry) -> None:  # noqa: ARG002
         """Users should be able to register custom evaluators programmatically."""
 
         class UserCustomEvaluator(Evaluator):
             name = "programmatic_custom"
             description = "Programmatically registered"
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=0.85,
@@ -374,7 +374,7 @@ class TestCustomEvaluatorRegistration:
         # Should be in list
         assert "programmatic_custom" in list_evaluators()
 
-    def test_custom_evaluator_with_custom_threshold(self, clean_registry):
+    def test_custom_evaluator_with_custom_threshold(self, clean_registry) -> None:  # noqa: ARG002
         """Custom evaluators should support custom default thresholds."""
 
         @register_evaluator("strict_custom")
@@ -383,7 +383,7 @@ class TestCustomEvaluatorRegistration:
             description = "Strict evaluator"
             threshold = 0.95  # Custom default threshold
 
-            async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+            async def evaluate(self, _test_case: RAGTestCase, _judge: LLMJudge) -> EvaluationResult:
                 return EvaluationResult(
                     evaluator_name=self.name,
                     score=0.9,
