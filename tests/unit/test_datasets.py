@@ -215,9 +215,7 @@ class TestDatasetLoaderCSV:
         """Test CSV file missing required columns."""
         invalid_csv = tmp_path / "missing_column.csv"
         invalid_csv.write_text("id,name,query\ntest_1,Test,Query?")
-        with pytest.raises(
-            DatasetLoadError, match="missing required columns:"
-        ):
+        with pytest.raises(DatasetLoadError, match="missing required columns:"):
             DatasetLoader.load(invalid_csv)
 
     def test_load_csv_empty_after_header(self, tmp_path: Path):
