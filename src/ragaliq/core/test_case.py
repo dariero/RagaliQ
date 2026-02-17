@@ -1,12 +1,12 @@
 """Test case models for RagaliQ."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 
-class EvalStatus(str, Enum):
+class EvalStatus(StrEnum):
     """Status of an evaluation execution."""
 
     PASSED = "passed"

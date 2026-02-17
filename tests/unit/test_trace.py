@@ -1,8 +1,10 @@
 """Unit tests for JudgeTrace and TraceCollector."""
 
+import contextlib
 from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from ragaliq.judges.trace import JudgeTrace, TraceCollector
 
@@ -59,7 +61,7 @@ class TestJudgeTrace:
             success=True,
         )
 
-        with pytest.raises(Exception):  # Pydantic raises validation error on frozen model
+        with pytest.raises(ValidationError):  # Pydantic raises validation error on frozen model
             trace.success = False  # type: ignore[misc]
 
 
@@ -118,10 +120,8 @@ class TestTraceModelAccuracy:
         judge = BaseJudge(transport=mock_transport, config=config, trace_collector=collector)
 
         # Make a call that fails
-        try:
+        with contextlib.suppress(RuntimeError):
             await judge._call_llm("system", "user", operation="test_op")
-        except RuntimeError:
-            pass
 
         # Trace should record config model (no response to get actual model from)
         assert len(collector.traces) == 1

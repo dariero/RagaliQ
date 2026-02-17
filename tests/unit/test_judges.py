@@ -251,7 +251,7 @@ class TestLLMJudge:
         class MockJudge(LLMJudge):
             async def evaluate_faithfulness(
                 self,
-                response: str,
+                response: str,  # noqa: ARG002
                 context: list[str],  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(
@@ -262,7 +262,7 @@ class TestLLMJudge:
 
             async def evaluate_relevance(
                 self,
-                query: str,
+                query: str,  # noqa: ARG002
                 response: str,  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
@@ -288,14 +288,14 @@ class TestLLMJudge:
         class MockJudge(LLMJudge):
             async def evaluate_faithfulness(
                 self,
-                response: str,
+                response: str,  # noqa: ARG002
                 context: list[str],  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
             async def evaluate_relevance(
                 self,
-                query: str,
+                query: str,  # noqa: ARG002
                 response: str,  # noqa: ARG002
             ) -> JudgeResult:
                 return JudgeResult(

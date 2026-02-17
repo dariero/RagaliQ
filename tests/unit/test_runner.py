@@ -285,7 +285,7 @@ class TestBoundedConcurrency:
         concurrent_calls = 0
         max_concurrent = 0
 
-        async def mock_send(*args, **kwargs):
+        async def mock_send(*_args, **_kwargs):
             nonlocal concurrent_calls, max_concurrent
             concurrent_calls += 1
             max_concurrent = max(max_concurrent, concurrent_calls)

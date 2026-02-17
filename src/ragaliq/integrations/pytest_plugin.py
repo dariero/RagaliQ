@@ -327,7 +327,7 @@ def pytest_runtest_makereport(item: Any, call: Any) -> None:
         )
 
 
-def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any) -> None:
+def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any) -> None:  # noqa: ARG001
     """
     Add RagaliQ summary to pytest terminal output.
 
