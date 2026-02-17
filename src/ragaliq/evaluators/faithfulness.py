@@ -13,9 +13,10 @@ Algorithm:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
+from ragaliq.evaluators._claims import verify_all_claims
 from ragaliq.evaluators.registry import register_evaluator
 
 if TYPE_CHECKING:
@@ -83,13 +84,10 @@ class FaithfulnessEvaluator(Evaluator):
                 - reasoning: Human-readable explanation
                 - raw_response: Detailed claim-level metadata
         """
-        # Step 1: Extract atomic claims from the response
-        claims_result = await judge.extract_claims(test_case.response)
-        claims = claims_result.claims
-        total_tokens = claims_result.tokens_used
+        verification = await verify_all_claims(test_case.response, test_case.context, judge)
 
         # Handle empty claims edge case: vacuously faithful
-        if not claims:
+        if verification.claims_empty:
             return EvaluationResult(
                 evaluator_name=self.name,
                 score=1.0,
@@ -100,39 +98,14 @@ class FaithfulnessEvaluator(Evaluator):
                     "total_claims": 0,
                     "supported_claims": 0,
                 },
-                tokens_used=total_tokens,
+                tokens_used=verification.total_tokens,
             )
 
-        # Step 2: Verify each claim against the context (in parallel)
-        import asyncio
-
-        # Verify all claims concurrently (errors propagate)
-        verification_tasks = [judge.verify_claim(claim, test_case.context) for claim in claims]
-        verdicts = await asyncio.gather(*verification_tasks)
-
-        # Process results
-        claim_details: list[dict[str, Any]] = []
-        supported_count = 0
-
-        for i, verdict in enumerate(verdicts):
-            total_tokens += verdict.tokens_used
-
-            claim_details.append(
-                {
-                    "claim": claims[i],
-                    "verdict": verdict.verdict,
-                    "evidence": verdict.evidence,
-                }
-            )
-
-            if verdict.verdict == "SUPPORTED":
-                supported_count += 1
-
-        # Step 3: Calculate score as ratio
-        total_claims = len(claims)
+        # Count supported claims
+        supported_count = sum(1 for d in verification.claim_details if d.verdict == "SUPPORTED")
+        total_claims = len(verification.claim_details)
         score = supported_count / total_claims
 
-        # Step 4: Build reasoning
         reasoning = self._build_reasoning(supported_count, total_claims)
 
         return EvaluationResult(
@@ -141,11 +114,11 @@ class FaithfulnessEvaluator(Evaluator):
             passed=self.is_passing(score),
             reasoning=reasoning,
             raw_response={
-                "claims": claim_details,
+                "claims": [d.to_dict() for d in verification.claim_details],
                 "total_claims": total_claims,
                 "supported_claims": supported_count,
             },
-            tokens_used=total_tokens,
+            tokens_used=verification.total_tokens,
         )
 
     def _build_reasoning(self, supported: int, total: int) -> str:

@@ -150,8 +150,3 @@ def list_evaluators() -> list[str]:
         # ['faithfulness', 'hallucination', 'relevance']
     """
     return sorted(_REGISTRY.keys())
-
-
-# Backward compatibility: expose the registry dict directly
-# (same object, so mutations are reflected)
-EVALUATOR_REGISTRY = _REGISTRY

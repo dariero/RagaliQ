@@ -20,9 +20,10 @@ Distinction from FaithfulnessEvaluator:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
+from ragaliq.evaluators._claims import verify_all_claims
 from ragaliq.evaluators.registry import register_evaluator
 
 if TYPE_CHECKING:
@@ -88,13 +89,10 @@ class HallucinationEvaluator(Evaluator):
                 - reasoning: Human-readable explanation
                 - raw_response: Detailed hallucination metadata
         """
-        # Step 1: Extract atomic claims from the response
-        claims_result = await judge.extract_claims(test_case.response)
-        claims = claims_result.claims
-        total_tokens = claims_result.tokens_used
+        verification = await verify_all_claims(test_case.response, test_case.context, judge)
 
         # Handle empty claims edge case: no claims means no hallucinations
-        if not claims:
+        if verification.claims_empty:
             return EvaluationResult(
                 evaluator_name=self.name,
                 score=1.0,
@@ -106,40 +104,17 @@ class HallucinationEvaluator(Evaluator):
                     "hallucinated_claims": [],
                     "hallucination_count": 0,
                 },
-                tokens_used=total_tokens,
+                tokens_used=verification.total_tokens,
             )
 
-        # Step 2: Verify each claim and classify hallucinations (in parallel)
-        import asyncio
+        # Classify hallucinated claims (non-SUPPORTED)
+        all_details = [d.to_dict() for d in verification.claim_details]
+        hallucinated = [d for d in all_details if d["verdict"] != "SUPPORTED"]
 
-        # Verify all claims concurrently (errors propagate)
-        verification_tasks = [judge.verify_claim(claim, test_case.context) for claim in claims]
-        verdicts = await asyncio.gather(*verification_tasks)
-
-        # Process results
-        claim_details: list[dict[str, Any]] = []
-        hallucinated: list[dict[str, Any]] = []
-
-        for i, verdict in enumerate(verdicts):
-            total_tokens += verdict.tokens_used
-
-            detail = {
-                "claim": claims[i],
-                "verdict": verdict.verdict,
-                "evidence": verdict.evidence,
-            }
-            claim_details.append(detail)
-
-            # Non-SUPPORTED claims are hallucinated
-            if verdict.verdict != "SUPPORTED":
-                hallucinated.append(detail)
-
-        # Step 3: Calculate score = 1.0 - (hallucinated / total)
-        total_claims = len(claims)
+        total_claims = len(verification.claim_details)
         hallucination_count = len(hallucinated)
         score = 1.0 - (hallucination_count / total_claims)
 
-        # Step 4: Build reasoning
         reasoning = self._build_reasoning(hallucination_count, total_claims)
 
         return EvaluationResult(
@@ -148,12 +123,12 @@ class HallucinationEvaluator(Evaluator):
             passed=self.is_passing(score),
             reasoning=reasoning,
             raw_response={
-                "claims": claim_details,
+                "claims": all_details,
                 "total_claims": total_claims,
                 "hallucinated_claims": hallucinated,
                 "hallucination_count": hallucination_count,
             },
-            tokens_used=total_tokens,
+            tokens_used=verification.total_tokens,
         )
 
     def _build_reasoning(self, hallucinated: int, total: int) -> str:

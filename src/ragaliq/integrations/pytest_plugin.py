@@ -13,12 +13,14 @@ errors if dependencies are missing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pytest
 
 if TYPE_CHECKING:
     from ragaliq.core.runner import RagaliQ
+    from ragaliq.core.test_case import RAGTestCase, RAGTestResult
     from ragaliq.judges.base import LLMJudge
     from ragaliq.judges.trace import TraceCollector
 
@@ -155,49 +157,50 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
     if model:
         config = JudgeConfig(model=model)
 
-    if judge_type == "claude":
-        judge = ClaudeJudge(
-            config=config,
-            api_key=api_key,
-            trace_collector=ragaliq_trace_collector,
-        )
+    match judge_type:
+        case "claude":
+            judge = ClaudeJudge(
+                config=config,
+                api_key=api_key,
+                trace_collector=ragaliq_trace_collector,
+            )
 
-        # Wrap transport with latency injection if configured
-        if latency_ms > 0:
+            # Wrap transport with latency injection if configured
+            if latency_ms > 0:
 
-            class LatencyInjectionTransport:
-                """Transport wrapper that adds artificial delay."""
+                class LatencyInjectionTransport:
+                    """Transport wrapper that adds artificial delay."""
 
-                def __init__(self, inner: JudgeTransport, delay_ms: int) -> None:
-                    self._inner = inner
-                    self._delay_ms = delay_ms
+                    def __init__(self, inner: JudgeTransport, delay_ms: int) -> None:
+                        self._inner = inner
+                        self._delay_ms = delay_ms
 
-                async def send(
-                    self,
-                    system_prompt: str,
-                    user_prompt: str,
-                    model: str = "claude-sonnet-4-20250514",
-                    temperature: float = 0.0,
-                    max_tokens: int = 1024,
-                ) -> TransportResponse:
-                    """Add delay before delegating to inner transport."""
-                    await asyncio.sleep(self._delay_ms / 1000.0)
-                    return await self._inner.send(
-                        system_prompt, user_prompt, model, temperature, max_tokens
-                    )
+                    async def send(
+                        self,
+                        system_prompt: str,
+                        user_prompt: str,
+                        model: str = "claude-sonnet-4-20250514",
+                        temperature: float = 0.0,
+                        max_tokens: int = 1024,
+                    ) -> TransportResponse:
+                        """Add delay before delegating to inner transport."""
+                        await asyncio.sleep(self._delay_ms / 1000.0)
+                        return await self._inner.send(
+                            system_prompt, user_prompt, model, temperature, max_tokens
+                        )
 
-            # Use public API to wrap transport (not private _transport mutation)
-            judge.wrap_transport(LatencyInjectionTransport(judge.transport, latency_ms))
+                # Use public API to wrap transport (not private _transport mutation)
+                judge.wrap_transport(LatencyInjectionTransport(judge.transport, latency_ms))
 
-        return judge
-    elif judge_type == "openai":
-        raise NotImplementedError("OpenAI judge not yet implemented")
-    else:
-        raise ValueError(f"Unknown judge type: {judge_type}")
+            return judge
+        case "openai":
+            raise NotImplementedError("OpenAI judge not yet implemented")
+        case _:
+            raise ValueError(f"Unknown judge type: {judge_type}")
 
 
 @pytest.fixture(scope="session")
-def judge_factory(ragaliq_judge: LLMJudge) -> Any:
+def judge_factory(ragaliq_judge: LLMJudge) -> Callable[[], LLMJudge]:
     """
     Factory that returns the session judge.
 
@@ -244,11 +247,11 @@ def rag_tester(ragaliq_judge: LLMJudge) -> RagaliQ:
 
 
 def assert_rag_quality(
-    test_case: Any,
-    judge: Any = None,
+    test_case: RAGTestCase,
+    judge: LLMJudge | None = None,
     evaluators: list[str] | None = None,
     threshold: float = 0.7,
-) -> Any:
+) -> RAGTestResult:
     """
     Evaluate a RAG test case and assert it meets quality thresholds.
 

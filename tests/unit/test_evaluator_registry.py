@@ -8,7 +8,6 @@ import pytest
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.evaluators.registry import (
-    EVALUATOR_REGISTRY,
     get_evaluator,
     list_evaluators,
     register_evaluator,
@@ -54,8 +53,7 @@ class TestRegisterEvaluatorDecorator:
                     reasoning="Test",
                 )
 
-        assert "test_metric" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["test_metric"] is TestEvaluator
+        assert get_evaluator("test_metric") is TestEvaluator
 
     def test_returns_class_unchanged(self, clean_registry):
         """Decorator should return the class unchanged (type-preserving)."""
@@ -159,8 +157,7 @@ class TestRegisterEvaluatorClass:
 
         register_evaluator_class("test_metric", TestEvaluator)
 
-        assert "test_metric" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["test_metric"] is TestEvaluator
+        assert get_evaluator("test_metric") is TestEvaluator
 
     def test_rejects_non_evaluator_class(self, clean_registry):
         """Should reject classes that don't subclass Evaluator."""
@@ -295,22 +292,19 @@ class TestBuiltInRegistration:
         """FaithfulnessEvaluator should be registered as 'faithfulness'."""
         from ragaliq.evaluators import FaithfulnessEvaluator
 
-        assert "faithfulness" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["faithfulness"] is FaithfulnessEvaluator
+        assert get_evaluator("faithfulness") is FaithfulnessEvaluator
 
     def test_relevance_registered(self):
         """RelevanceEvaluator should be registered as 'relevance'."""
         from ragaliq.evaluators import RelevanceEvaluator
 
-        assert "relevance" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["relevance"] is RelevanceEvaluator
+        assert get_evaluator("relevance") is RelevanceEvaluator
 
     def test_hallucination_registered(self):
         """HallucinationEvaluator should be registered as 'hallucination'."""
         from ragaliq.evaluators import HallucinationEvaluator
 
-        assert "hallucination" in EVALUATOR_REGISTRY
-        assert EVALUATOR_REGISTRY["hallucination"] is HallucinationEvaluator
+        assert get_evaluator("hallucination") is HallucinationEvaluator
 
     def test_all_built_ins_retrievable(self):
         """All built-in evaluators should be retrievable via get_evaluator()."""
@@ -323,30 +317,6 @@ class TestBuiltInRegistration:
         assert get_evaluator("faithfulness") is FaithfulnessEvaluator
         assert get_evaluator("relevance") is RelevanceEvaluator
         assert get_evaluator("hallucination") is HallucinationEvaluator
-
-
-class TestBackwardCompatibility:
-    """Tests for backward compatibility with the EVALUATOR_REGISTRY dict."""
-
-    def test_evaluator_registry_importable(self):
-        """EVALUATOR_REGISTRY should be importable from evaluators package."""
-        from ragaliq.evaluators import EVALUATOR_REGISTRY as reg
-
-        assert isinstance(reg, dict)
-
-    def test_evaluator_registry_is_same_dict(self):
-        """EVALUATOR_REGISTRY should be the same dict object as _REGISTRY."""
-        import ragaliq.evaluators.registry as reg_module
-        from ragaliq.evaluators import EVALUATOR_REGISTRY as public_reg
-
-        # Should be the exact same object (mutations reflected)
-        assert public_reg is reg_module._REGISTRY
-
-    def test_can_access_built_ins_via_dict(self):
-        """Should be able to access built-in evaluators via EVALUATOR_REGISTRY dict."""
-        from ragaliq.evaluators import EVALUATOR_REGISTRY, FaithfulnessEvaluator
-
-        assert EVALUATOR_REGISTRY["faithfulness"] is FaithfulnessEvaluator
 
 
 class TestCustomEvaluatorRegistration:

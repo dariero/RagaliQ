@@ -90,17 +90,17 @@ class RagaliQ:
 
         from ragaliq.judges.claude import ClaudeJudge
 
-        if self.judge_type == "claude":
-            self._judge = ClaudeJudge(
-                config=self._judge_config,
-                api_key=self._api_key,
-                max_concurrency=self.max_judge_concurrency,
-            )
-        elif self.judge_type == "openai":
-            # OpenAI judge not yet implemented
-            raise NotImplementedError("OpenAI judge not yet implemented")
-        else:
-            raise ValueError(f"Unknown judge type: {self.judge_type}")
+        match self.judge_type:
+            case "claude":
+                self._judge = ClaudeJudge(
+                    config=self._judge_config,
+                    api_key=self._api_key,
+                    max_concurrency=self.max_judge_concurrency,
+                )
+            case "openai":
+                raise NotImplementedError("OpenAI judge not yet implemented")
+            case _:
+                raise ValueError(f"Unknown judge type: {self.judge_type}")
 
     def _init_evaluators(self) -> None:
         """Initialize evaluators based on configuration."""

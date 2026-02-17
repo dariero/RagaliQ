@@ -1,6 +1,6 @@
 """Unit tests for RagaliQ CLI entry point."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -179,7 +179,9 @@ class TestRunCommand:
             patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
             patch("ragaliq.RagaliQ") as mock_cls,
         ):
-            mock_cls.return_value.evaluate.return_value = self._mock_passing_result()
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                return_value=[self._mock_passing_result()]
+            )
             result = runner.invoke(app, ["run", "dataset.json"])
 
         assert result.exit_code == 0
@@ -193,7 +195,9 @@ class TestRunCommand:
             patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
             patch("ragaliq.RagaliQ") as mock_cls,
         ):
-            mock_cls.return_value.evaluate.return_value = self._mock_failing_result()
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                return_value=[self._mock_failing_result()]
+            )
             result = runner.invoke(app, ["run", "dataset.json"])
 
         assert result.exit_code == 1
@@ -233,7 +237,7 @@ class TestRunCommand:
             patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
             patch("ragaliq.RagaliQ") as mock_cls,
         ):
-            mock_cls.return_value.evaluate.return_value = mock_result
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(return_value=[mock_result])
             runner.invoke(app, ["run", "dataset.json", "--evaluator", "relevance"])
 
         call_kwargs = mock_cls.call_args.kwargs
@@ -248,7 +252,9 @@ class TestRunCommand:
             patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
             patch("ragaliq.RagaliQ") as mock_cls,
         ):
-            mock_cls.return_value.evaluate.return_value = self._mock_passing_result()
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                return_value=[self._mock_passing_result()]
+            )
             runner.invoke(app, ["run", "dataset.json", "--threshold", "0.9"])
 
         call_kwargs = mock_cls.call_args.kwargs
@@ -263,7 +269,9 @@ class TestRunCommand:
             patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
             patch("ragaliq.RagaliQ") as mock_cls,
         ):
-            mock_cls.return_value.evaluate.return_value = self._mock_passing_result()
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                return_value=[self._mock_passing_result()]
+            )
             result = runner.invoke(app, ["run", "dataset.json"])
 
         assert "1/1 passed" in result.output

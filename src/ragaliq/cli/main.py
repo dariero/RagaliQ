@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import typer
+from rich.console import Console
 from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
 import ragaliq
+
+if TYPE_CHECKING:
+    from ragaliq.core.test_case import RAGTestResult
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -51,7 +55,7 @@ def run(
     fail_fast: bool = typer.Option(False, "--fail-fast", help="Stop on first evaluator error."),
 ) -> None:
     """Run evaluations against a dataset."""
-    from rich.console import Console
+    import asyncio
 
     from ragaliq import RagaliQ
     from ragaliq.datasets import DatasetLoader, DatasetLoadError
@@ -75,7 +79,6 @@ def run(
         fail_fast=fail_fast,
     )
 
-    results = []
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -84,11 +87,8 @@ def run(
         console=console,
         transient=True,
     ) as progress:
-        task_id = progress.add_task("Evaluating...", total=total)
-        for tc in test_cases:
-            result = runner_obj.evaluate(tc)
-            results.append(result)
-            progress.advance(task_id)
+        progress.add_task("Evaluating...", total=None)
+        results = asyncio.run(runner_obj.evaluate_batch_async(test_cases))
 
     _print_results_table(results, console)
 
@@ -101,19 +101,14 @@ def run(
         typer.echo(f"\nSummary: {passed}/{total} passed")
 
 
-def _print_results_table(results: list[Any], console: object) -> None:
+def _print_results_table(results: list[RAGTestResult], console: Console) -> None:
     """Render evaluation results as a Rich table.
 
     Args:
         results: List of RAGTestResult objects.
         console: Rich Console to render to.
     """
-    from rich.console import Console
-
     from ragaliq.core.test_case import EvalStatus
-
-    if not isinstance(console, Console):
-        return
 
     table = Table(title="Evaluation Results", show_lines=True)
     table.add_column("Test Case", style="bold")
@@ -152,8 +147,6 @@ def _print_results_table(results: list[Any], console: object) -> None:
 @app.command("list-evaluators")
 def list_evaluators_cmd() -> None:
     """List all available evaluators."""
-    from rich.console import Console
-
     import ragaliq.evaluators  # noqa: F401 — triggers registration of built-ins
     from ragaliq.evaluators import get_evaluator, list_evaluators
 
