@@ -153,10 +153,13 @@ class RagaliQ:
         has_error = False
 
         # Run all evaluators in parallel
+        judge = self._judge
+        assert judge is not None  # guaranteed by _ensure_initialized()
+
         async def _run_evaluator(evaluator: Evaluator) -> tuple[str, EvaluationResult]:
             """Run a single evaluator, returning (evaluator_name, result)."""
             try:
-                result = await evaluator.evaluate(test_case, self._judge)
+                result = await evaluator.evaluate(test_case, judge)
                 return evaluator.name, result
             except Exception as exc:
                 # If fail_fast is enabled, propagate exceptions immediately for debugging

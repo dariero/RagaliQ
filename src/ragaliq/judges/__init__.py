@@ -3,6 +3,8 @@
 from ragaliq.judges.base import (
     ClaimsResult,
     ClaimVerdict,
+    GeneratedAnswerResult,
+    GeneratedQuestionsResult,
     JudgeAPIError,
     JudgeConfig,
     JudgeError,
@@ -21,6 +23,8 @@ __all__ = [
     "ClaimVerdict",
     "ClaudeJudge",
     "ClaudeTransport",
+    "GeneratedAnswerResult",
+    "GeneratedQuestionsResult",
     "JudgeAPIError",
     "JudgeConfig",
     "JudgeError",

@@ -3,6 +3,7 @@
 import csv
 import json
 from pathlib import Path
+from typing import cast
 
 import yaml
 from pydantic import ValidationError
@@ -144,7 +145,7 @@ class DatasetLoader:
             value = value.strip()
             # Try JSON array first
             if value.startswith("["):
-                return json.loads(value)
+                return cast(list[str], json.loads(value))
             # Fallback to pipe-separated
             return [item.strip() for item in value.split("|") if item.strip()]
 

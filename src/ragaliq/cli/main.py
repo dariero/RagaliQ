@@ -144,6 +144,120 @@ def _print_results_table(results: list[RAGTestResult], console: Console) -> None
     console.print(table)
 
 
+@app.command("generate")
+def generate(
+    docs_path: Path = typer.Argument(
+        ...,
+        help="Path to documents: a .txt file, a directory of .txt files, or a .json/.yaml list.",
+    ),
+    n: int = typer.Option(10, "--num", "-n", help="Number of test cases to generate."),
+    output: Path = typer.Option(
+        Path("output.json"), "--output", "-o", help="Output JSON file path."
+    ),
+    judge: str = typer.Option("claude", "--judge", "-j", help="LLM judge to use."),
+) -> None:
+    """Generate test cases from documents using an LLM."""
+    import asyncio
+    import json
+
+    from ragaliq.datasets.generator import TestCaseGenerator
+    from ragaliq.datasets.schemas import DatasetSchema
+
+    console = Console()
+
+    documents = _load_documents(docs_path)
+    if not documents:
+        typer.echo(f"Error: no documents found at {docs_path}", err=True)
+        raise typer.Exit(code=1)
+
+    doc_word = "document" if len(documents) == 1 else "documents"
+    typer.echo(
+        f"\nRagaliQ Generate — {len(documents)} {doc_word} loaded, generating {n} test cases\n"
+    )
+
+    if judge == "claude":
+        from ragaliq.judges import ClaudeJudge
+
+        judge_instance = ClaudeJudge()
+    else:
+        typer.echo(f"Error: unsupported judge '{judge}'. Supported: claude", err=True)
+        raise typer.Exit(code=1)
+
+    generator = TestCaseGenerator()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+        transient=True,
+    ) as progress:
+        progress.add_task("Generating test cases...", total=None)
+        test_cases = asyncio.run(
+            generator.generate_from_documents(documents=documents, n=n, judge=judge_instance)
+        )
+
+    dataset = DatasetSchema(
+        test_cases=test_cases,
+        metadata={"generator": "ragaliq", "source": str(docs_path)},
+    )
+    output.write_text(
+        json.dumps(dataset.model_dump(mode="json"), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    case_word = "test case" if len(test_cases) == 1 else "test cases"
+    typer.echo(f"Generated {len(test_cases)} {case_word} → {output}")
+
+
+def _load_documents(docs_path: Path) -> list[str]:
+    """
+    Load documents from a file or directory.
+
+    Supports:
+    - .txt file: read as a single document
+    - directory: read all .txt files as separate documents
+    - .json file: must contain a list of strings
+    - .yaml / .yml file: must contain a list of strings
+
+    Args:
+        docs_path: Path to the document source.
+
+    Returns:
+        List of non-empty document strings.
+    """
+    if not docs_path.exists():
+        return []
+
+    if docs_path.is_dir():
+        docs = [
+            txt_file.read_text(encoding="utf-8").strip()
+            for txt_file in sorted(docs_path.glob("*.txt"))
+        ]
+        return [d for d in docs if d]
+
+    suffix = docs_path.suffix.lower()
+
+    if suffix == ".txt":
+        content = docs_path.read_text(encoding="utf-8").strip()
+        return [content] if content else []
+
+    if suffix == ".json":
+        import json
+
+        data = json.loads(docs_path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return [str(d).strip() for d in data if d]
+
+    if suffix in {".yaml", ".yml"}:
+        import yaml
+
+        data = yaml.safe_load(docs_path.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return [str(d).strip() for d in data if d]
+
+    return []
+
+
 @app.command("list-evaluators")
 def list_evaluators_cmd() -> None:
     """List all available evaluators."""

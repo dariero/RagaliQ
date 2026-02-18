@@ -3,6 +3,7 @@
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.runner import RagaliQ
 from ragaliq.core.test_case import RAGTestCase, RAGTestResult
+from ragaliq.datasets.generator import TestCaseGenerator
 
 __version__ = "0.1.0"
 
@@ -12,4 +13,5 @@ __all__ = [
     "RAGTestResult",
     "Evaluator",
     "EvaluationResult",
+    "TestCaseGenerator",
 ]
