@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any
 from ragaliq.judges.base import (
     ClaimsResult,
     ClaimVerdict,
+    GeneratedAnswerResult,
+    GeneratedQuestionsResult,
     JudgeConfig,
     JudgeResponseError,
     JudgeResult,
@@ -387,6 +389,117 @@ class BaseJudge(LLMJudge):
 
         return ClaimsResult(claims=claims, tokens_used=tokens_used)
 
+    def _build_generate_questions_prompt(
+        self,
+        documents: list[str],
+        n: int,
+    ) -> tuple[str, str]:
+        """
+        Build prompts for question generation.
+
+        Args:
+            documents: Source documents to generate questions from.
+            n: Number of questions to generate.
+
+        Returns:
+            Tuple of (system_prompt, user_prompt).
+        """
+        template = get_prompt("generate_questions")
+        formatted_docs = template.format_context(documents)
+        user_prompt = template.format_user_prompt(n=n, documents=formatted_docs)
+        return template.system_prompt, user_prompt
+
+    def _build_generate_answer_prompt(
+        self,
+        question: str,
+        context: list[str],
+    ) -> tuple[str, str]:
+        """
+        Build prompts for answer generation.
+
+        Args:
+            question: The question to answer.
+            context: Context documents to answer from.
+
+        Returns:
+            Tuple of (system_prompt, user_prompt).
+        """
+        template = get_prompt("generate_answer")
+        formatted_context = template.format_context(context)
+        user_prompt = template.format_user_prompt(context=formatted_context, question=question)
+        return template.system_prompt, user_prompt
+
+    async def generate_questions(
+        self,
+        documents: list[str],
+        n: int,
+    ) -> GeneratedQuestionsResult:
+        """
+        Generate questions grounded in the provided documents.
+
+        Args:
+            documents: Source documents to generate questions from.
+            n: Number of questions to generate.
+
+        Returns:
+            GeneratedQuestionsResult containing the list of questions.
+
+        Raises:
+            JudgeAPIError: If API call fails.
+            JudgeResponseError: If response parsing fails.
+        """
+        if not documents:
+            return GeneratedQuestionsResult(questions=[], tokens_used=0)
+
+        system_prompt, user_prompt = self._build_generate_questions_prompt(documents, n)
+        raw_response, tokens_used = await self._call_llm(
+            system_prompt, user_prompt, operation="generate_questions"
+        )
+        parsed = self._parse_json_response(raw_response)
+
+        questions = parsed.get("questions", [])
+        if not isinstance(questions, list):
+            raise JudgeResponseError(
+                f"Expected 'questions' to be a list, got {type(questions).__name__}: {parsed}"
+            )
+
+        questions = [str(q) for q in questions if q]
+        return GeneratedQuestionsResult(questions=questions, tokens_used=tokens_used)
+
+    async def generate_answer(
+        self,
+        question: str,
+        context: list[str],
+    ) -> GeneratedAnswerResult:
+        """
+        Generate an answer to a question using only the provided context.
+
+        Args:
+            question: The question to answer.
+            context: List of context documents to answer from.
+
+        Returns:
+            GeneratedAnswerResult containing the generated answer.
+
+        Raises:
+            JudgeAPIError: If API call fails.
+            JudgeResponseError: If response parsing fails.
+        """
+        if not context:
+            return GeneratedAnswerResult(answer="", tokens_used=0)
+
+        system_prompt, user_prompt = self._build_generate_answer_prompt(question, context)
+        raw_response, tokens_used = await self._call_llm(
+            system_prompt, user_prompt, operation="generate_answer"
+        )
+        parsed = self._parse_json_response(raw_response)
+
+        answer = parsed.get("answer", "")
+        if not isinstance(answer, str):
+            answer = str(answer)
+
+        return GeneratedAnswerResult(answer=answer, tokens_used=tokens_used)
+
     async def verify_claim(
         self,
         claim: str,
@@ -433,7 +546,7 @@ class BaseJudge(LLMJudge):
             )
 
         return ClaimVerdict(
-            verdict=verdict,  # type: ignore[arg-type]
+            verdict=verdict,
             evidence=parsed.get("evidence", ""),
             tokens_used=tokens_used,
         )

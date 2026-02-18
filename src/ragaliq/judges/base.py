@@ -87,6 +87,36 @@ class ClaimsResult(BaseModel):
     model_config = {"frozen": True, "extra": "forbid"}
 
 
+class GeneratedQuestionsResult(BaseModel):
+    """
+    Result of generating questions from documents.
+
+    Attributes:
+        questions: List of generated question strings.
+        tokens_used: Number of tokens consumed by this judge call.
+    """
+
+    questions: list[str] = Field(default_factory=list, description="Generated questions")
+    tokens_used: int = Field(default=0, ge=0, description="Tokens used")
+
+    model_config = {"frozen": True, "extra": "forbid"}
+
+
+class GeneratedAnswerResult(BaseModel):
+    """
+    Result of generating an answer for a question given context.
+
+    Attributes:
+        answer: The generated answer string.
+        tokens_used: Number of tokens consumed by this judge call.
+    """
+
+    answer: str = Field(default="", description="Generated answer")
+    tokens_used: int = Field(default=0, ge=0, description="Tokens used")
+
+    model_config = {"frozen": True, "extra": "forbid"}
+
+
 class JudgeError(Exception):
     """Base exception for judge operations."""
 
@@ -234,6 +264,57 @@ class LLMJudge(ABC):
 
         Returns:
             ClaimVerdict with verdict and supporting evidence.
+
+        Raises:
+            JudgeAPIError: If the LLM API call fails.
+            JudgeResponseError: If the response cannot be parsed.
+        """
+        ...
+
+    @abstractmethod
+    async def generate_questions(
+        self,
+        documents: list[str],
+        n: int,
+    ) -> GeneratedQuestionsResult:
+        """
+        Generate questions that can be answered using the provided documents.
+
+        Produces n diverse, document-grounded questions for building RAG
+        test datasets. Questions are meant to be specific and answerable
+        solely from the provided document content.
+
+        Args:
+            documents: Source documents to generate questions from.
+            n: Number of questions to generate.
+
+        Returns:
+            GeneratedQuestionsResult containing the list of questions.
+
+        Raises:
+            JudgeAPIError: If the LLM API call fails.
+            JudgeResponseError: If the response cannot be parsed.
+        """
+        ...
+
+    @abstractmethod
+    async def generate_answer(
+        self,
+        question: str,
+        context: list[str],
+    ) -> GeneratedAnswerResult:
+        """
+        Generate an answer to a question using only the provided context.
+
+        Simulates a RAG system response — the answer is grounded in the
+        context documents and does not introduce outside knowledge.
+
+        Args:
+            question: The question to answer.
+            context: List of context documents to answer from.
+
+        Returns:
+            GeneratedAnswerResult containing the generated answer.
 
         Raises:
             JudgeAPIError: If the LLM API call fails.

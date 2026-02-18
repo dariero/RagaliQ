@@ -14,7 +14,7 @@ errors if dependencies are missing.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -125,7 +125,7 @@ def ragaliq_trace_collector(request: Any) -> TraceCollector:
             "RagaliQ is not installed. Please install in editable mode: "
             "pip install -e . or pip install -e '.[dev]'"
         )
-    return collector
+    return cast("TraceCollector", collector)
 
 
 @pytest.fixture(scope="session")

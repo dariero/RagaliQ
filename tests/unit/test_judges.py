@@ -6,6 +6,8 @@ from pydantic import ValidationError
 from ragaliq.judges import (
     ClaimsResult,
     ClaimVerdict,
+    GeneratedAnswerResult,
+    GeneratedQuestionsResult,
     JudgeAPIError,
     JudgeConfig,
     JudgeError,
@@ -196,6 +198,16 @@ class TestLLMJudge:
             async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
 
+            async def generate_questions(
+                self, _documents: list[str], _n: int
+            ) -> GeneratedQuestionsResult:
+                return GeneratedQuestionsResult(questions=[])
+
+            async def generate_answer(
+                self, _question: str, _context: list[str]
+            ) -> GeneratedAnswerResult:
+                return GeneratedAnswerResult(answer="")
+
         judge = MockJudge()
         assert judge.config.model == "claude-sonnet-4-20250514"
         assert judge.config.temperature == 0.0
@@ -217,6 +229,16 @@ class TestLLMJudge:
 
             async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
+
+            async def generate_questions(
+                self, _documents: list[str], _n: int
+            ) -> GeneratedQuestionsResult:
+                return GeneratedQuestionsResult(questions=[])
+
+            async def generate_answer(
+                self, _question: str, _context: list[str]
+            ) -> GeneratedAnswerResult:
+                return GeneratedAnswerResult(answer="")
 
         config = JudgeConfig(model="gpt-4", temperature=0.3)
         judge = MockJudge(config=config)
@@ -240,6 +262,16 @@ class TestLLMJudge:
 
             async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
+
+            async def generate_questions(
+                self, _documents: list[str], _n: int
+            ) -> GeneratedQuestionsResult:
+                return GeneratedQuestionsResult(questions=[])
+
+            async def generate_answer(
+                self, _question: str, _context: list[str]
+            ) -> GeneratedAnswerResult:
+                return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
         assert repr(judge) == "MockJudge(model='claude-sonnet-4-20250514')"
@@ -272,6 +304,16 @@ class TestLLMJudge:
 
             async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
+
+            async def generate_questions(
+                self, _documents: list[str], _n: int
+            ) -> GeneratedQuestionsResult:
+                return GeneratedQuestionsResult(questions=[])
+
+            async def generate_answer(
+                self, _question: str, _context: list[str]
+            ) -> GeneratedAnswerResult:
+                return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
         result = await judge.evaluate_faithfulness(
@@ -309,6 +351,16 @@ class TestLLMJudge:
 
             async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
                 return ClaimVerdict(verdict="SUPPORTED")
+
+            async def generate_questions(
+                self, _documents: list[str], _n: int
+            ) -> GeneratedQuestionsResult:
+                return GeneratedQuestionsResult(questions=[])
+
+            async def generate_answer(
+                self, _question: str, _context: list[str]
+            ) -> GeneratedAnswerResult:
+                return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
         result = await judge.evaluate_relevance(
