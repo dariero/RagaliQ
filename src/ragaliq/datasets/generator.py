@@ -4,8 +4,6 @@ This module provides TestCaseGenerator, which synthesizes RAGTestCase objects
 from raw documents by using an LLM judge to generate questions and answers.
 """
 
-from __future__ import annotations
-
 import asyncio
 import uuid
 from typing import TYPE_CHECKING

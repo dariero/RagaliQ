@@ -12,8 +12,6 @@ Algorithm:
     4. Empty context = 1.0 (vacuously precise — no irrelevant docs retrieved)
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator

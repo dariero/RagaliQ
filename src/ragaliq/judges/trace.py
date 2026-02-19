@@ -5,8 +5,7 @@ This module provides structured logging of LLM judge API calls for debugging,
 cost tracking, and performance analysis.
 """
 
-from __future__ import annotations
-
+import threading
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -72,15 +71,21 @@ class TraceCollector:
     def __init__(self) -> None:
         """Initialize empty trace collector."""
         self.traces: list[JudgeTrace] = []
+        self._lock = threading.Lock()
 
     def add(self, trace: JudgeTrace) -> None:
         """
         Add a trace to the collection.
 
+        Thread-safe: uses a lock to prevent corruption when multiple
+        threads emit traces concurrently (e.g. pytest-xdist workers
+        sharing a session-scoped collector).
+
         Args:
             trace: The JudgeTrace to record.
         """
-        self.traces.append(trace)
+        with self._lock:
+            self.traces.append(trace)
 
     @property
     def total_tokens(self) -> int:
@@ -157,7 +162,8 @@ class TraceCollector:
 
     def clear(self) -> None:
         """Clear all collected traces."""
-        self.traces.clear()
+        with self._lock:
+            self.traces.clear()
 
     def __repr__(self) -> str:
         """String representation with summary statistics."""

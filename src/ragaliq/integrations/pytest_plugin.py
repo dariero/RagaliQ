@@ -11,8 +11,6 @@ Bootstrap safety: All ragaliq imports are deferred to avoid import
 errors if dependencies are missing.
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
@@ -102,7 +100,7 @@ def pytest_configure(config: Any) -> None:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
-    except ImportError, ModuleNotFoundError:
+    except (ImportError, ModuleNotFoundError):
         # ragaliq not installed - plugin entry point loaded but can't initialize
         # This is expected in non-editable installs or when running pytest --collect-only
         config._ragaliq_trace_collector = None

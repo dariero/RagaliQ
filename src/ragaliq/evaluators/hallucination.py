@@ -18,8 +18,6 @@ Distinction from FaithfulnessEvaluator:
     - Reasoning framed as hallucination detection, not faithfulness assessment
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -108,7 +106,7 @@ class HallucinationEvaluator(Evaluator):
             )
 
         # Classify hallucinated claims (non-SUPPORTED)
-        all_details = [d.to_dict() for d in verification.claim_details]
+        all_details = [d.model_dump() for d in verification.claim_details]
         hallucinated = [d for d in all_details if d["verdict"] != "SUPPORTED"]
 
         total_claims = len(verification.claim_details)

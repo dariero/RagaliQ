@@ -12,8 +12,6 @@ Algorithm:
     4. Empty facts list = 1.0 (vacuously complete - no facts required)
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator

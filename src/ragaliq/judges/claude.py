@@ -5,8 +5,6 @@ This module provides an LLM-as-Judge implementation using Anthropic's Claude API
 It evaluates RAG responses for faithfulness and relevance using structured prompts.
 """
 
-from __future__ import annotations
-
 import os
 from typing import TYPE_CHECKING
 

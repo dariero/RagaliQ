@@ -11,8 +11,6 @@ Algorithm:
     3. Include judge's reasoning and metadata in result
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
