@@ -57,8 +57,13 @@ class Evaluator(ABC):
 
         Args:
             threshold: Optional custom threshold (overrides class default).
+
+        Raises:
+            ValueError: If threshold is not between 0.0 and 1.0.
         """
         if threshold is not None:
+            if not 0.0 <= threshold <= 1.0:
+                raise ValueError(f"threshold must be between 0.0 and 1.0, got {threshold}")
             self.threshold = threshold
 
     @abstractmethod

@@ -41,6 +41,18 @@ class JudgeTrace(BaseModel):
     model_config = {"frozen": True, "extra": "forbid"}
 
 
+# Per-model pricing: (input_cost_per_million, output_cost_per_million) in USD.
+# Source: Anthropic pricing page. Override via TraceCollector(model_pricing=...).
+_DEFAULT_MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "claude-sonnet-4-20250514": (3.0, 15.0),
+    "claude-opus-4-20250514": (15.0, 75.0),
+    "claude-haiku-3-5-20241022": (0.80, 4.0),
+}
+
+# Fallback for unknown models (uses Sonnet 4 pricing as reasonable middle ground).
+_FALLBACK_PRICING: tuple[float, float] = (3.0, 15.0)
+
+
 class TraceCollector:
     """
     Session-scoped collector for judge traces.
@@ -66,12 +78,29 @@ class TraceCollector:
         # After evaluation, inspect statistics
         print(f"Total cost: ${collector.total_cost_estimate:.4f}")
         print(f"Total latency: {collector.total_latency_ms}ms")
+
+        # Custom pricing for a specific model
+        collector = TraceCollector(model_pricing={
+            "my-custom-model": (1.0, 5.0),
+        })
     """
 
-    def __init__(self) -> None:
-        """Initialize empty trace collector."""
+    def __init__(
+        self,
+        model_pricing: dict[str, tuple[float, float]] | None = None,
+    ) -> None:
+        """
+        Initialize empty trace collector.
+
+        Args:
+            model_pricing: Optional per-model pricing overrides. Each entry
+                maps a model identifier to (input_cost_per_million,
+                output_cost_per_million) in USD. Merged with built-in defaults;
+                user entries take precedence.
+        """
         self.traces: list[JudgeTrace] = []
         self._lock = threading.Lock()
+        self._pricing = {**_DEFAULT_MODEL_PRICING, **(model_pricing or {})}
 
     def add(self, trace: JudgeTrace) -> None:
         """
@@ -120,24 +149,21 @@ class TraceCollector:
     @property
     def total_cost_estimate(self) -> float:
         """
-        Rough cost estimate in USD based on token usage.
+        Rough cost estimate in USD based on per-model token pricing.
 
-        Uses approximate pricing for Claude Sonnet 4:
-        - Input: $3 per 1M tokens
-        - Output: $15 per 1M tokens
+        Looks up each trace's model in the pricing table. Falls back to
+        Sonnet 4 pricing for unknown models. Override pricing via the
+        ``model_pricing`` constructor parameter.
 
-        Note: This is a rough estimate. Actual costs may vary by model
-        and provider pricing. Check your provider's pricing page for
-        accurate rates.
+        Note: This is a rough estimate. Actual costs may vary by provider
+        pricing tiers, caching discounts, and batch API usage.
         """
-        # Rough pricing (per 1M tokens)
-        input_cost_per_million = 3.0
-        output_cost_per_million = 15.0
-
-        input_cost = (self.total_input_tokens / 1_000_000) * input_cost_per_million
-        output_cost = (self.total_output_tokens / 1_000_000) * output_cost_per_million
-
-        return input_cost + output_cost
+        total = 0.0
+        for trace in self.traces:
+            input_rate, output_rate = self._pricing.get(trace.model, _FALLBACK_PRICING)
+            total += (trace.input_tokens / 1_000_000) * input_rate
+            total += (trace.output_tokens / 1_000_000) * output_rate
+        return total
 
     def get_by_operation(self, operation: str) -> list[JudgeTrace]:
         """
