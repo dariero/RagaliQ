@@ -11,8 +11,6 @@ using a transport layer for API calls. It handles:
 Concrete judge classes (ClaudeJudge, OpenAIJudge) provide the transport.
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 from datetime import UTC, datetime

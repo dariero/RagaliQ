@@ -1,7 +1,5 @@
 """HTML report exporter for RagaliQ evaluation results."""
 
-from __future__ import annotations
-
 import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any

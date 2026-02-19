@@ -29,10 +29,8 @@ Example:
     all_evaluators = list_evaluators()  # ['faithfulness', 'hallucination', 'relevance']
 """
 
-from __future__ import annotations
-
 from collections.abc import Callable
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ragaliq.core.evaluator import Evaluator
@@ -40,11 +38,8 @@ if TYPE_CHECKING:
 # Private registry dict
 _REGISTRY: dict[str, type[Evaluator]] = {}
 
-# Type variable for the decorator to preserve class types
-_E = TypeVar("_E", bound=type["Evaluator"])
 
-
-def register_evaluator(name: str) -> Callable[[_E], _E]:
+def register_evaluator[E: type[Evaluator]](name: str) -> Callable[[E], E]:
     """
     Class decorator to register an evaluator in the global registry.
 
@@ -70,7 +65,7 @@ def register_evaluator(name: str) -> Callable[[_E], _E]:
             ...
     """
 
-    def decorator(cls: _E) -> _E:
+    def decorator(cls: E) -> E:
         register_evaluator_class(name, cls)
         return cls
 

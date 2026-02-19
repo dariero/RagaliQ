@@ -6,35 +6,28 @@ FaithfulnessEvaluator and HallucinationEvaluator, eliminating duplication
 and providing a single place to maintain the claim verification flow.
 """
 
-from __future__ import annotations
-
 import asyncio
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+from pydantic import BaseModel, Field
+
+from ragaliq.judges.base import ClaimVerdict
 
 if TYPE_CHECKING:
-    from ragaliq.judges.base import ClaimVerdict, LLMJudge
+    from ragaliq.judges.base import LLMJudge
 
 
-@dataclass(frozen=True)
-class ClaimDetail:
+class ClaimDetail(BaseModel):
     """A single claim with its verification verdict and evidence."""
 
     claim: str
     verdict: str
     evidence: str
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary for raw_response metadata."""
-        return {
-            "claim": self.claim,
-            "verdict": self.verdict,
-            "evidence": self.evidence,
-        }
+    model_config = {"frozen": True, "extra": "forbid"}
 
 
-@dataclass(frozen=True)
-class ClaimVerificationResult:
+class ClaimVerificationResult(BaseModel):
     """Result of verifying all claims extracted from a response.
 
     Attributes:
@@ -44,10 +37,12 @@ class ClaimVerificationResult:
         claims_empty: True if no claims were extracted (vacuous case).
     """
 
-    claim_details: list[ClaimDetail] = field(default_factory=list)
-    verdicts: list[ClaimVerdict] = field(default_factory=list)
-    total_tokens: int = 0
+    claim_details: list[ClaimDetail] = Field(default_factory=list)
+    verdicts: list[ClaimVerdict] = Field(default_factory=list)
+    total_tokens: int = Field(default=0, ge=0)
     claims_empty: bool = False
+
+    model_config = {"frozen": True, "extra": "forbid"}
 
 
 async def verify_all_claims(

@@ -11,8 +11,6 @@ Algorithm:
     4. Empty claims = 1.0 (vacuously faithful)
 """
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -114,7 +112,7 @@ class FaithfulnessEvaluator(Evaluator):
             passed=self.is_passing(score),
             reasoning=reasoning,
             raw_response={
-                "claims": [d.to_dict() for d in verification.claim_details],
+                "claims": [d.model_dump() for d in verification.claim_details],
                 "total_claims": total_claims,
                 "supported_claims": supported_count,
             },

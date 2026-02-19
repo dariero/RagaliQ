@@ -6,8 +6,6 @@ for LLM judge operations. Templates include system prompts, user templates,
 output format specifications, and few-shot examples.
 """
 
-from __future__ import annotations
-
 from functools import lru_cache
 from pathlib import Path
 from typing import Any

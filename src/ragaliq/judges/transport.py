@@ -13,8 +13,6 @@ It does NOT handle:
 - Score clamping (done by BaseJudge)
 """
 
-from __future__ import annotations
-
 from typing import Protocol
 
 from anthropic import AsyncAnthropic
@@ -152,6 +150,7 @@ class ClaudeTransport:
             retry_if_exception_type,
             stop_after_attempt,
             wait_exponential,
+            wait_random,
         )
 
         from ragaliq.judges.base import JudgeAPIError, JudgeResponseError
@@ -168,7 +167,7 @@ class ClaudeTransport:
                 | retry_if_exception(_is_retryable_api_error)
             ),
             stop=stop_after_attempt(3),
-            wait=wait_exponential(multiplier=1, min=1, max=10),
+            wait=wait_exponential(multiplier=1, min=1, max=10) + wait_random(min=0, max=1),
             reraise=True,
         )
         async def _call_with_retry() -> Message:
