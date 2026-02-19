@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
@@ -11,9 +10,6 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.table import Table
 
 import ragaliq
-
-if TYPE_CHECKING:
-    from ragaliq.core.test_case import RAGTestResult
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -90,58 +86,14 @@ def run(
         progress.add_task("Evaluating...", total=None)
         results = asyncio.run(runner_obj.evaluate_batch_async(test_cases))
 
-    _print_results_table(results, console)
+    from ragaliq.reports.console import ConsoleReporter
+
+    ConsoleReporter(console=console, threshold=threshold).report(results)
 
     passed = sum(1 for r in results if r.passed)
-    failed = total - passed
-    if failed:
-        typer.echo(f"\nSummary: {passed}/{total} passed, {failed} failed")
+    if passed < total:
         raise typer.Exit(code=1)
-    else:
-        typer.echo(f"\nSummary: {passed}/{total} passed")
 
-
-def _print_results_table(results: list[RAGTestResult], console: Console) -> None:
-    """Render evaluation results as a Rich table.
-
-    Args:
-        results: List of RAGTestResult objects.
-        console: Rich Console to render to.
-    """
-    from ragaliq.core.test_case import EvalStatus
-
-    table = Table(title="Evaluation Results", show_lines=True)
-    table.add_column("Test Case", style="bold")
-    table.add_column("Status", justify="center")
-
-    evaluator_names: list[str] = []
-    if results:
-        evaluator_names = sorted(results[0].scores.keys())
-
-    for name in evaluator_names:
-        table.add_column(name.replace("_", " ").title(), justify="center")
-
-    status_map = {
-        EvalStatus.PASSED: "[green]PASS[/green]",
-        EvalStatus.FAILED: "[red]FAIL[/red]",
-        EvalStatus.ERROR: "[yellow]ERROR[/yellow]",
-        EvalStatus.SKIPPED: "[dim]SKIP[/dim]",
-    }
-
-    for result in results:
-        status_str = status_map.get(result.status, str(result.status))
-        score_cells = []
-        for name in evaluator_names:
-            score = result.scores.get(name)
-            if score is None:
-                score_cells.append("—")
-            elif score >= 0.7:
-                score_cells.append(f"[green]{score:.2f}[/green]")
-            else:
-                score_cells.append(f"[red]{score:.2f}[/red]")
-        table.add_row(result.test_case.name, status_str, *score_cells)
-
-    console.print(table)
 
 
 @app.command("generate")

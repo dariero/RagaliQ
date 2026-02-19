@@ -153,6 +153,8 @@ class TestRunCommand:
         result.passed = True
         result.status = EvalStatus.PASSED
         result.scores = {"faithfulness": 0.9, "relevance": 0.85}
+        result.details = {}
+        result.judge_tokens_used = 0
         result.test_case = tc
         return result
 
@@ -167,6 +169,8 @@ class TestRunCommand:
         result.passed = False
         result.status = EvalStatus.FAILED
         result.scores = {"faithfulness": 0.3, "relevance": 0.4}
+        result.details = {}
+        result.judge_tokens_used = 0
         result.test_case = tc
         return result
 
