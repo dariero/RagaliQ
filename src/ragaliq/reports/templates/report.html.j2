@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RagaliQ Evaluation Report</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f0f2f5;
+      color: #1a1a1a;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    header {
+      background: #0f172a;
+      color: #f1f5f9;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: baseline;
+      gap: 1.5rem;
+    }
+    header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; }
+    header .meta { font-size: 0.8rem; color: #94a3b8; }
+
+    .container { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+
+    /* ── Summary cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+    }
+    .card .label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 0.3rem;
+    }
+    .card .value { font-size: 1.75rem; font-weight: 700; }
+    .card.c-pass  .value { color: #16a34a; }
+    .card.c-fail  .value { color: #dc2626; }
+    .card.c-error .value { color: #d97706; }
+    .card.c-rate  .value { color: #2563eb; }
+
+    /* ── Per-evaluator stats ── */
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+    .ev-table-wrap { margin-bottom: 1.5rem; }
+    .ev-table {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+      border-collapse: collapse;
+      width: auto;
+      min-width: 400px;
+    }
+    .ev-table th, .ev-table td {
+      padding: 0.5rem 1rem;
+      text-align: left;
+    }
+    .ev-table th {
+      background: #f8fafc;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .ev-table td { border-bottom: 1px solid #f3f4f6; }
+    .ev-table tr:last-child td { border-bottom: none; }
+
+    /* ── Results table ── */
+    .results-wrap { overflow-x: auto; }
+    table.results {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.07);
+    }
+    table.results th {
+      background: #f8fafc;
+      padding: 0.6rem 1rem;
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+      border-bottom: 2px solid #e5e7eb;
+      white-space: nowrap;
+    }
+    table.results td {
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: top;
+    }
+    table.results tr:last-child td { border-bottom: none; }
+    table.results tr:hover td { background: #fafafa; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-passed  { background: #dcfce7; color: #15803d; }
+    .badge-failed  { background: #fee2e2; color: #b91c1c; }
+    .badge-error   { background: #fef3c7; color: #b45309; }
+    .badge-skipped { background: #f3f4f6; color: #6b7280; }
+
+    .score-pass { color: #16a34a; font-weight: 600; }
+    .score-fail { color: #dc2626; font-weight: 600; }
+    .score-none { color: #9ca3af; }
+
+    /* ── Expandable failure details ── */
+    .detail-cell { background: #fafafa !important; padding: 0 !important; }
+    details { padding: 0.6rem 1rem 0.75rem; }
+    summary {
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #6b7280;
+      user-select: none;
+      list-style: none;
+    }
+    summary::before { content: "▶ "; font-size: 0.65rem; }
+    details[open] summary::before { content: "▼ "; }
+    summary:hover { color: #374151; }
+    .detail-item {
+      margin-top: 0.5rem;
+      font-size: 0.82rem;
+      padding-left: 1rem;
+      border-left: 2px solid #e5e7eb;
+    }
+    .detail-item .ev-label { color: #d97706; font-weight: 600; }
+    .detail-item .ev-error { color: #dc2626; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.75rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>RagaliQ Evaluation Report</h1>
+  <span class="meta">Generated {{ generated_at }} &nbsp;·&nbsp; Threshold {{ threshold }}</span>
+</header>
+
+<div class="container">
+
+  <!-- Summary cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="label">Total</div>
+      <div class="value">{{ summary.total }}</div>
+    </div>
+    <div class="card c-pass">
+      <div class="label">Passed</div>
+      <div class="value">{{ summary.passed }}</div>
+    </div>
+    <div class="card c-fail">
+      <div class="label">Failed</div>
+      <div class="value">{{ summary.failed }}</div>
+    </div>
+    {% if summary.errored > 0 %}
+    <div class="card c-error">
+      <div class="label">Errored</div>
+      <div class="value">{{ summary.errored }}</div>
+    </div>
+    {% endif %}
+    <div class="card c-rate">
+      <div class="label">Pass Rate</div>
+      <div class="value">{{ "%.0f%%" | format(summary.pass_rate * 100) }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Tokens</div>
+      <div class="value" style="font-size:1.2rem">{{ "{:,}".format(summary.total_tokens) }}</div>
+    </div>
+  </div>
+
+  <!-- Per-evaluator stats -->
+  {% if evaluators %}
+  <div class="ev-table-wrap">
+    <div class="section-title">Evaluator Summary</div>
+    <table class="ev-table">
+      <thead>
+        <tr>
+          <th>Evaluator</th>
+          <th>Passed</th>
+          <th>Failed</th>
+          <th>Avg Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in evaluators %}
+        <tr>
+          <td>{{ ev.name }}</td>
+          <td style="color:#16a34a;font-weight:600">{{ ev.passed }}</td>
+          <td style="color:{% if ev.failed > 0 %}#dc2626{% else %}#6b7280{% endif %};font-weight:{% if ev.failed > 0 %}600{% else %}400{% endif %}">{{ ev.failed }}</td>
+          <td>{{ "%.3f" | format(ev.avg_score) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Results table -->
+  <div class="section-title">Results</div>
+  <div class="results-wrap">
+    <table class="results">
+      <thead>
+        <tr>
+          <th>Test Case</th>
+          <th>Status</th>
+          {% for ev in evaluators %}
+          <th>{{ ev.name | replace("_", " ") | title }}</th>
+          {% endfor %}
+          <th>Time (ms)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for result in results %}
+        <tr>
+          <td>{{ result.name }}</td>
+          <td><span class="badge badge-{{ result.status }}">{{ result.status }}</span></td>
+          {% for score in result.scores %}
+          <td>
+            {% if score.value is none %}
+              <span class="score-none">—</span>
+            {% elif score.passes %}
+              <span class="score-pass">{{ "%.2f" | format(score.value) }}</span>
+            {% else %}
+              <span class="score-fail">{{ "%.2f" | format(score.value) }}</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td style="color:#6b7280">{{ result.execution_time_ms }}</td>
+        </tr>
+        {% if result.failing_details %}
+        <tr>
+          <td class="detail-cell" colspan="{{ 3 + evaluators | length }}">
+            <details>
+              <summary>Failure details</summary>
+              {% for item in result.failing_details %}
+              <div class="detail-item">
+                <span class="ev-label">{{ item.evaluator }}</span>:
+                {% if item.is_error %}
+                  <span class="ev-error">{{ item.text }}</span>
+                {% else %}
+                  {{ item.text }}
+                {% endif %}
+              </div>
+              {% endfor %}
+            </details>
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  Generated by <strong>RagaliQ</strong> &nbsp;·&nbsp; {{ generated_at }}
+</footer>
+
+</body>
+</html>

@@ -112,9 +112,7 @@ class ConsoleReporter:
         from ragaliq.core.test_case import EvalStatus
 
         targets = [
-            r
-            for r in results
-            if self._verbose or r.status in {EvalStatus.FAILED, EvalStatus.ERROR}
+            r for r in results if self._verbose or r.status in {EvalStatus.FAILED, EvalStatus.ERROR}
         ]
         if not targets:
             return
@@ -123,9 +121,7 @@ class ConsoleReporter:
 
         for result in targets:
             self._console.print(f"\n[bold]{result.test_case.name}[/bold]")
-            details: dict[str, Any] = (
-                result.details if isinstance(result.details, dict) else {}
-            )
+            details: dict[str, Any] = result.details if isinstance(result.details, dict) else {}
             for evaluator_name, detail in details.items():
                 if not isinstance(detail, dict):
                     continue
@@ -137,9 +133,7 @@ class ConsoleReporter:
                         f"  [yellow]{evaluator_name}[/yellow] [red]ERROR[/red]: {error}"
                     )
                 elif score is not None and score < self._threshold and reasoning:
-                    self._console.print(
-                        f"  [yellow]{evaluator_name}[/yellow]: {reasoning}"
-                    )
+                    self._console.print(f"  [yellow]{evaluator_name}[/yellow]: {reasoning}")
 
     def _print_summary(self, results: list[RAGTestResult]) -> None:
         """Print per-evaluator statistics and overall pass/fail count."""

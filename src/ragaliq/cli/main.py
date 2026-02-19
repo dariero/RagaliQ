@@ -49,6 +49,18 @@ def run(
     ),
     judge: str = typer.Option("claude", "--judge", "-j", help="LLM judge to use."),
     fail_fast: bool = typer.Option(False, "--fail-fast", help="Stop on first evaluator error."),
+    output: str = typer.Option(
+        "console",
+        "--output",
+        "-o",
+        help="Output format: console, json, or html.",
+    ),
+    output_file: Path | None = typer.Option(
+        None,
+        "--output-file",
+        "-f",
+        help="File path for json/html output. Defaults to report.json or report.html.",
+    ),
 ) -> None:
     """Run evaluations against a dataset."""
     import asyncio
@@ -57,6 +69,13 @@ def run(
     from ragaliq.datasets import DatasetLoader, DatasetLoadError
 
     console = Console()
+
+    if output not in {"console", "json", "html"}:
+        typer.echo(
+            f"Error: unknown output format '{output}'. Supported: console, json, html",
+            err=True,
+        )
+        raise typer.Exit(code=1)
 
     try:
         dataset_obj = DatasetLoader.load(dataset)
@@ -86,14 +105,27 @@ def run(
         progress.add_task("Evaluating...", total=None)
         results = asyncio.run(runner_obj.evaluate_batch_async(test_cases))
 
-    from ragaliq.reports.console import ConsoleReporter
+    match output:
+        case "console":
+            from ragaliq.reports.console import ConsoleReporter
 
-    ConsoleReporter(console=console, threshold=threshold).report(results)
+            ConsoleReporter(console=console, threshold=threshold).report(results)
+        case "json":
+            from ragaliq.reports.json_export import JSONReporter
+
+            path = output_file or Path("report.json")
+            path.write_text(JSONReporter(threshold=threshold).export(results), encoding="utf-8")
+            typer.echo(f"JSON report written to {path}")
+        case "html":
+            from ragaliq.reports.html import HTMLReporter
+
+            path = output_file or Path("report.html")
+            path.write_text(HTMLReporter(threshold=threshold).export(results), encoding="utf-8")
+            typer.echo(f"HTML report written to {path}")
 
     passed = sum(1 for r in results if r.passed)
     if passed < total:
         raise typer.Exit(code=1)
-
 
 
 @app.command("generate")

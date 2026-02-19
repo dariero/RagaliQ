@@ -85,7 +85,9 @@ class TestCaseGenerator:
                 response=answer_result.answer,
                 tags=["generated"],
             )
-            for i, (question, answer_result) in enumerate(zip(questions, answer_results, strict=True), start=1)
+            for i, (question, answer_result) in enumerate(
+                zip(questions, answer_results, strict=True), start=1
+            )
         ]
 
     def generate_from_documents_sync(
