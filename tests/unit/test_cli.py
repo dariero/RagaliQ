@@ -285,3 +285,120 @@ class TestRunCommand:
         result = runner.invoke(app, ["run"])
 
         assert result.exit_code != 0
+
+    def _real_passing_result(self, name: str = "test-1") -> object:
+        """Build a real RAGTestResult for reporters that need serializable data."""
+        from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
+
+        tc = RAGTestCase(id="t1", name=name, query="Q?", context=["C."], response="A.")
+        return RAGTestResult(
+            test_case=tc,
+            status=EvalStatus.PASSED,
+            scores={"faithfulness": 0.9},
+            details={},
+            judge_tokens_used=0,
+        )
+
+    def test_unknown_output_format_exits_one(self):
+        """--output with an unknown format exits 1 before loading dataset."""
+        result = runner.invoke(app, ["run", "dataset.json", "--output", "xml"])
+
+        assert result.exit_code == 1
+        assert "unknown output format" in result.output.lower() or "xml" in result.output
+
+    def test_output_json_writes_file(self):
+        """--output json writes a report.json file."""
+        import json
+        import tempfile
+        from pathlib import Path
+
+        mock_dataset = MagicMock()
+        mock_dataset.test_cases = [MagicMock()]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "out.json"
+            with (
+                patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
+                patch("ragaliq.RagaliQ") as mock_cls,
+            ):
+                mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                    return_value=[self._real_passing_result()]
+                )
+                result = runner.invoke(
+                    app,
+                    ["run", "dataset.json", "--output", "json", "--output-file", str(output_path)],
+                )
+
+            assert result.exit_code == 0
+            assert output_path.exists()
+            doc = json.loads(output_path.read_text())
+            assert "results" in doc
+            assert "summary" in doc
+
+    def test_output_html_writes_file(self):
+        """--output html writes an HTML report file."""
+        import tempfile
+        from pathlib import Path
+
+        mock_dataset = MagicMock()
+        mock_dataset.test_cases = [MagicMock()]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "out.html"
+            with (
+                patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
+                patch("ragaliq.RagaliQ") as mock_cls,
+            ):
+                mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                    return_value=[self._real_passing_result()]
+                )
+                result = runner.invoke(
+                    app,
+                    ["run", "dataset.json", "--output", "html", "--output-file", str(output_path)],
+                )
+
+            assert result.exit_code == 0
+            assert output_path.exists()
+            content = output_path.read_text()
+            assert "<!DOCTYPE html>" in content
+
+    def test_output_json_shows_file_path_in_output(self):
+        """--output json echoes the file path written."""
+        import tempfile
+        from pathlib import Path
+
+        mock_dataset = MagicMock()
+        mock_dataset.test_cases = [MagicMock()]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "report.json"
+            with (
+                patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
+                patch("ragaliq.RagaliQ") as mock_cls,
+            ):
+                mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                    return_value=[self._real_passing_result()]
+                )
+                result = runner.invoke(
+                    app,
+                    ["run", "dataset.json", "--output", "json", "--output-file", str(output_path)],
+                )
+
+            assert "report.json" in result.output or str(output_path) in result.output
+
+    def test_output_console_is_default(self):
+        """Without --output flag, console output is used (table shown)."""
+        mock_dataset = MagicMock()
+        mock_dataset.test_cases = [MagicMock()]
+
+        with (
+            patch("ragaliq.datasets.DatasetLoader.load", return_value=mock_dataset),
+            patch("ragaliq.RagaliQ") as mock_cls,
+        ):
+            mock_cls.return_value.evaluate_batch_async = AsyncMock(
+                return_value=[self._mock_passing_result()]
+            )
+            result = runner.invoke(app, ["run", "dataset.json"])
+
+        # Console reporter renders a summary line
+        assert "passed" in result.output
