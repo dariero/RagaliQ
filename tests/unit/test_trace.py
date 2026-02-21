@@ -17,7 +17,7 @@ class TestJudgeTrace:
         trace = JudgeTrace(
             timestamp=datetime.now(UTC),
             operation="evaluate_faithfulness",
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             input_tokens=100,
             output_tokens=50,
             latency_ms=2100,
@@ -25,7 +25,7 @@ class TestJudgeTrace:
         )
 
         assert trace.operation == "evaluate_faithfulness"
-        assert trace.model == "claude-sonnet-4-20250514"
+        assert trace.model == "claude-sonnet-4-6"
         assert trace.input_tokens == 100
         assert trace.output_tokens == 50
         assert trace.latency_ms == 2100
@@ -37,7 +37,7 @@ class TestJudgeTrace:
         trace = JudgeTrace(
             timestamp=datetime.now(UTC),
             operation="verify_claim",
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             input_tokens=80,
             output_tokens=0,
             latency_ms=150,
@@ -54,7 +54,7 @@ class TestJudgeTrace:
         trace = JudgeTrace(
             timestamp=datetime.now(UTC),
             operation="extract_claims",
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             input_tokens=50,
             output_tokens=30,
             latency_ms=1800,
@@ -83,7 +83,7 @@ class TestTraceModelAccuracy:
                 text='{"score": 0.9}',
                 input_tokens=100,
                 output_tokens=50,
-                model="claude-opus-4-20250514",  # Different from config!
+                model="claude-opus-4-6",  # Different from config!
             )
         )
 
@@ -92,7 +92,7 @@ class TestTraceModelAccuracy:
         # Create judge with config requesting sonnet, but transport returns opus
         from ragaliq.judges.base import JudgeConfig
 
-        config = JudgeConfig(model="claude-sonnet-4-20250514")
+        config = JudgeConfig(model="claude-sonnet-4-6")
         judge = BaseJudge(transport=mock_transport, config=config, trace_collector=collector)
 
         # Make a call
@@ -100,7 +100,7 @@ class TestTraceModelAccuracy:
 
         # Trace should record opus (what we got), not sonnet (what we asked for)
         assert len(collector.traces) == 1
-        assert collector.traces[0].model == "claude-opus-4-20250514"
+        assert collector.traces[0].model == "claude-opus-4-6"
         assert collector.traces[0].model != config.model
 
     @pytest.mark.asyncio
@@ -116,7 +116,7 @@ class TestTraceModelAccuracy:
         mock_transport.send = AsyncMock(side_effect=RuntimeError("API failed"))
 
         collector = TraceCollector()
-        config = JudgeConfig(model="claude-sonnet-4-20250514")
+        config = JudgeConfig(model="claude-sonnet-4-6")
         judge = BaseJudge(transport=mock_transport, config=config, trace_collector=collector)
 
         # Make a call that fails
@@ -125,7 +125,7 @@ class TestTraceModelAccuracy:
 
         # Trace should record config model (no response to get actual model from)
         assert len(collector.traces) == 1
-        assert collector.traces[0].model == "claude-sonnet-4-20250514"
+        assert collector.traces[0].model == "claude-sonnet-4-6"
         assert collector.traces[0].success is False
 
 
@@ -149,7 +149,7 @@ class TestTraceCollector:
         trace = JudgeTrace(
             timestamp=datetime.now(UTC),
             operation="evaluate_relevance",
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             input_tokens=100,
             output_tokens=50,
             latency_ms=2000,
@@ -266,7 +266,7 @@ class TestTraceCollector:
             JudgeTrace(
                 timestamp=datetime.now(UTC),
                 operation="op",
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 input_tokens=1_000_000,
                 output_tokens=1_000_000,
                 latency_ms=10000,

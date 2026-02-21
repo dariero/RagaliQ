@@ -264,3 +264,18 @@ class TestTransportResponseMapping:
 
         with pytest.raises(JudgeResponseError, match="Expected text response"):
             await transport.send("sys", "usr")
+
+    @pytest.mark.asyncio
+    async def test_mixed_content_uses_text_block(self, mock_client):
+        response = MagicMock()
+        response.content = [
+            MagicMock(type="thinking"),
+            MagicMock(type="text", text='{"score": 1.0, "reasoning": "ok"}'),
+        ]
+        response.usage.input_tokens = 40
+        response.usage.output_tokens = 20
+        mock_client.messages.create = AsyncMock(return_value=response)
+        transport = ClaudeTransport(api_key="test")
+
+        result = await transport.send("sys", "usr")
+        assert result.text == '{"score": 1.0, "reasoning": "ok"}'

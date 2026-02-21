@@ -21,7 +21,7 @@ class JudgeConfig(BaseModel):
         max_tokens: Maximum tokens in judge response.
     """
 
-    model: str = Field(default="claude-sonnet-4-20250514", description="Model identifier")
+    model: str = Field(default="claude-sonnet-4-6", description="Model identifier")
     temperature: float = Field(default=0.0, ge=0.0, le=1.0, description="Sampling temperature")
     max_tokens: int = Field(default=1024, ge=1, le=4096, description="Max response tokens")
 

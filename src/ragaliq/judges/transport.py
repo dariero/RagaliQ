@@ -73,7 +73,7 @@ class JudgeTransport(Protocol):
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-6",
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> TransportResponse:
@@ -117,7 +117,7 @@ class ClaudeTransport:
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-6",
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> TransportResponse:
@@ -183,19 +183,22 @@ class ClaudeTransport:
         try:
             response: Message = await _call_with_retry()
 
-            # Extract text content
+            # Extract text content. Claude may return non-text blocks (for example,
+            # thinking/tool blocks) before the final text answer.
             if not response.content:
                 raise JudgeResponseError("Empty response from Claude API")
-            content = response.content[0]
-            if content.type != "text":
-                raise JudgeResponseError(f"Expected text response, got {content.type}")
+
+            text_blocks = [block.text for block in response.content if block.type == "text"]
+            if not text_blocks:
+                block_types = ", ".join(block.type for block in response.content)
+                raise JudgeResponseError(f"Expected text response, got {block_types}")
 
             # Calculate total tokens
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
             return TransportResponse(
-                text=content.text,
+                text="\n".join(text_blocks),
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 model=model,

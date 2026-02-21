@@ -48,14 +48,14 @@ class TestClaudeJudgeInit:
     def test_init_with_api_key(self) -> None:
         """Test initialization with explicit API key."""
         judge = ClaudeJudge(api_key="test-key")
-        assert judge.config.model == "claude-sonnet-4-20250514"
+        assert judge.config.model == "claude-sonnet-4-6"
         assert judge.config.temperature == 0.0
 
     def test_init_with_env_var(self) -> None:
         """Test initialization with environment variable."""
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "env-key"}):
             judge = ClaudeJudge()
-            assert judge.config.model == "claude-sonnet-4-20250514"
+            assert judge.config.model == "claude-sonnet-4-6"
 
     def test_init_no_api_key_raises(self) -> None:
         """Test that missing API key raises ValueError."""
@@ -72,16 +72,16 @@ class TestClaudeJudgeInit:
 
     def test_init_with_custom_config(self) -> None:
         """Test initialization with custom configuration."""
-        config = JudgeConfig(model="claude-opus-4-20250514", temperature=0.3, max_tokens=2048)
+        config = JudgeConfig(model="claude-opus-4-6", temperature=0.3, max_tokens=2048)
         judge = ClaudeJudge(config=config, api_key="test-key")
-        assert judge.config.model == "claude-opus-4-20250514"
+        assert judge.config.model == "claude-opus-4-6"
         assert judge.config.temperature == 0.3
         assert judge.config.max_tokens == 2048
 
     def test_repr(self) -> None:
         """Test string representation."""
         judge = ClaudeJudge(api_key="test-key")
-        assert repr(judge) == "ClaudeJudge(model='claude-sonnet-4-20250514')"
+        assert repr(judge) == "ClaudeJudge(model='claude-sonnet-4-6')"
 
 
 class TestClaudeJudgeFaithfulness:
@@ -590,7 +590,7 @@ class TestClaudeJudgeApiCallParameters:
         """Test that API calls use configuration parameters."""
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
-        config = JudgeConfig(model="claude-opus-4-20250514", temperature=0.5, max_tokens=2048)
+        config = JudgeConfig(model="claude-opus-4-6", temperature=0.5, max_tokens=2048)
         judge = ClaudeJudge(config=config, api_key="test-key")
 
         await judge.evaluate_faithfulness(
@@ -599,7 +599,7 @@ class TestClaudeJudgeApiCallParameters:
         )
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
-        assert call_kwargs["model"] == "claude-opus-4-20250514"
+        assert call_kwargs["model"] == "claude-opus-4-6"
         assert call_kwargs["temperature"] == 0.5
         assert call_kwargs["max_tokens"] == 2048
 

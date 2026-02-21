@@ -170,13 +170,13 @@ class TestEvaluationResult:
             score=0.8,
             passed=True,
             raw_response={
-                "model": "claude-opus-4-5-20251101",
+                "model": "claude-opus-4-6",
                 "tokens_used": 150,
                 "response_text": "...",
             },
         )
 
-        assert result.raw_response["model"] == "claude-opus-4-5-20251101"
+        assert result.raw_response["model"] == "claude-opus-4-6"
 
 
 class TestEvalStatus:

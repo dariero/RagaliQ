@@ -23,7 +23,7 @@ class TestJudgeConfig:
     def test_default_values(self) -> None:
         """Test that defaults are set correctly."""
         config = JudgeConfig()
-        assert config.model == "claude-sonnet-4-20250514"
+        assert config.model == "claude-sonnet-4-6"
         assert config.temperature == 0.0
         assert config.max_tokens == 1024
 
@@ -209,7 +209,7 @@ class TestLLMJudge:
                 return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
-        assert judge.config.model == "claude-sonnet-4-20250514"
+        assert judge.config.model == "claude-sonnet-4-6"
         assert judge.config.temperature == 0.0
 
     def test_concrete_implementation_custom_config(self) -> None:
@@ -274,7 +274,7 @@ class TestLLMJudge:
                 return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
-        assert repr(judge) == "MockJudge(model='claude-sonnet-4-20250514')"
+        assert repr(judge) == "MockJudge(model='claude-sonnet-4-6')"
 
     @pytest.mark.asyncio
     async def test_evaluate_faithfulness_signature(self) -> None:

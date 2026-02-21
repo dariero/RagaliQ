@@ -32,7 +32,7 @@ class TestRagaliQInstantiation:
 
     def test_instantiate_with_config(self):
         """RagaliQ can be instantiated with custom judge config."""
-        config = JudgeConfig(model="claude-sonnet-4-20250514", temperature=0.1)
+        config = JudgeConfig(model="claude-sonnet-4-6", temperature=0.1)
         runner = RagaliQ(judge_config=config)
 
         assert runner._judge_config == config
@@ -102,7 +102,7 @@ class TestLazyInitialization:
 
     def test_lazy_init_with_custom_config(self):
         """Judge is initialized with provided config."""
-        config = JudgeConfig(model="claude-sonnet-4-20250514", temperature=0.5)
+        config = JudgeConfig(model="claude-sonnet-4-6", temperature=0.5)
 
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}):
             runner = RagaliQ(judge_config=config)
