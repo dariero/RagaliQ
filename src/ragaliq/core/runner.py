@@ -98,7 +98,11 @@ class RagaliQ:
                     max_concurrency=self.max_judge_concurrency,
                 )
             case "openai":
-                raise NotImplementedError("OpenAI judge not yet implemented")
+                raise NotImplementedError(
+                    "The OpenAI judge is not yet available in v0.1.0. "
+                    "Use judge='claude' with an ANTHROPIC_API_KEY instead. "
+                    "Track OpenAI support at: https://github.com/dariero/RagaliQ/issues"
+                )
             case _:
                 raise ValueError(f"Unknown judge type: {self.judge_type}")
 
@@ -227,6 +231,12 @@ class RagaliQ:
 
         Returns:
             RAGTestResult with all metric scores.
+
+        Note:
+            This method calls asyncio.run() internally and cannot be used from
+            within a running event loop (e.g. FastAPI route handlers, Jupyter
+            notebooks, or async test functions). Use evaluate_async() instead
+            in those contexts.
         """
         import asyncio
 
@@ -285,6 +295,11 @@ class RagaliQ:
 
         Returns:
             List of RAGTestResults in the same order.
+
+        Note:
+            This method calls asyncio.run() internally and cannot be used from
+            within a running event loop. Use evaluate_batch_async() instead
+            in async contexts (FastAPI, Jupyter, async test functions).
         """
         import asyncio
 

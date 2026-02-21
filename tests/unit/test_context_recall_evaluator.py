@@ -194,7 +194,7 @@ class TestContextRecallAcceptanceCriteria:
         """AC: ValueError when expected_facts missing."""
         evaluator = ContextRecallEvaluator()
 
-        with pytest.raises(ValueError, match="requires test_case.expected_facts"):
+        with pytest.raises(ValueError, match="context_recall requires 'expected_facts'"):
             await evaluator.evaluate(no_expected_facts_test_case, mock_judge)
 
     @pytest.mark.asyncio

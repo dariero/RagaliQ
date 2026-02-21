@@ -12,7 +12,9 @@
 
 When you deploy a RAG system, how do you know the answers are accurate? How do you catch hallucinations before your users do? How do you ensure your retrieval pipeline returns the right documents?
 
-Traditional keyword-matching approaches miss semantic errors. RagaliQ solves this with **LLM-as-Judge evaluation**: Claude (or OpenAI) assesses response quality with deep semantic understanding, scoring each response across multiple evaluation metrics. This is the same approach used in academic LLM benchmarking — now available as a developer-friendly testing framework.
+Traditional keyword-matching approaches miss semantic errors. RagaliQ solves this with **LLM-as-Judge evaluation**: Claude assesses response quality with deep semantic understanding, scoring each response across multiple evaluation metrics. This is the same approach used in academic LLM benchmarking — now available as a developer-friendly testing framework.
+
+> **v0.1.0:** Claude is the supported judge. OpenAI judge support is planned — track it at [GitHub Issues](https://github.com/dariero/RagaliQ/issues).
 
 ---
 
@@ -68,6 +70,8 @@ print(f"Faithfulness: {result.scores['faithfulness']:.2f}")
 print(f"Relevance:    {result.scores['relevance']:.2f}")
 print(f"Status:       {'PASSED' if result.passed else 'FAILED'}")
 ```
+
+> **Sync vs async:** `evaluate()` and `evaluate_batch()` use `asyncio.run()` internally — they work great in scripts and CLI tools, but **cannot be called from inside a running event loop** (FastAPI handlers, Jupyter notebooks, async test functions). Use `evaluate_async()` / `evaluate_batch_async()` in those contexts.
 
 ### Pytest Integration
 
