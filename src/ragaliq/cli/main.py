@@ -65,8 +65,10 @@ def run(
 
     from ragaliq import RagaliQ
     from ragaliq.datasets import DatasetLoader, DatasetLoadError
+    from ragaliq.integrations.github_actions import is_ci, is_github_actions
 
-    console = Console()
+    in_ci = is_ci()
+    console = Console(no_color=in_ci, force_terminal=False) if in_ci else Console()
 
     if output not in {"console", "json", "html"}:
         typer.echo(
@@ -92,16 +94,20 @@ def run(
         fail_fast=fail_fast,
     )
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task("Evaluating...", total=None)
+    if in_ci:
+        typer.echo("Evaluating...")
         results = asyncio.run(runner_obj.evaluate_batch_async(test_cases))
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task("Evaluating...", total=None)
+            results = asyncio.run(runner_obj.evaluate_batch_async(test_cases))
 
     match output:
         case "console":
@@ -120,6 +126,12 @@ def run(
             path = output_file or Path("report.html")
             path.write_text(HTMLReporter(threshold=threshold).export(results), encoding="utf-8")
             typer.echo(f"HTML report written to {path}")
+
+    # GitHub Actions: write step summary + failure annotations
+    if is_github_actions():
+        from ragaliq.integrations.github_actions import emit_ci_summary
+
+        emit_ci_summary(results, threshold=threshold)
 
     passed = sum(1 for r in results if r.passed)
     if passed < total:
