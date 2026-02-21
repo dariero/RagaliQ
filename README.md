@@ -280,11 +280,14 @@ Raises `AssertionError` with failing metric names and scores if any metric falls
 
 ```bash
 pytest --ragaliq-judge claude \
-       --ragaliq-model claude-sonnet-4-20250514 \
+       --ragaliq-model claude-sonnet-4-6 \
        --ragaliq-api-key sk-ant-... \
        --ragaliq-cost-limit 5.00 \
        --ragaliq-latency-ms 100
 ```
+
+For complex multi-step or gold-standard judging flows, use
+`--ragaliq-model claude-opus-4-6`.
 
 ---
 

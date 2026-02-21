@@ -177,7 +177,7 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                         self,
                         system_prompt: str,
                         user_prompt: str,
-                        model: str = "claude-sonnet-4-20250514",
+                        model: str = "claude-sonnet-4-6",
                         temperature: float = 0.0,
                         max_tokens: int = 1024,
                     ) -> TransportResponse:

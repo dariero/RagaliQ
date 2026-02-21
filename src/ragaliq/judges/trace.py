@@ -44,9 +44,9 @@ class JudgeTrace(BaseModel):
 # Per-model pricing: (input_cost_per_million, output_cost_per_million) in USD.
 # Source: Anthropic pricing page. Override via TraceCollector(model_pricing=...).
 _DEFAULT_MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-20250514": (3.0, 15.0),
-    "claude-opus-4-20250514": (15.0, 75.0),
-    "claude-haiku-3-5-20241022": (0.80, 4.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-6": (5.0, 25.0),
+    "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 
 # Fallback for unknown models (uses Sonnet 4 pricing as reasonable middle ground).
@@ -67,7 +67,7 @@ class TraceCollector:
         trace = JudgeTrace(
             timestamp=datetime.now(timezone.utc),
             operation="evaluate_faithfulness",
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             input_tokens=100,
             output_tokens=50,
             latency_ms=2100,
