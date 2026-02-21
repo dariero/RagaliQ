@@ -1,31 +1,34 @@
-# RagaliQ
-
-**RAG + Quality** — A Testing Framework for LLM and RAG Systems
+# RagaliQ: The Ultimate LLM & RAG Evaluation Testing Framework
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PyPI version](https://img.shields.io/pypi/v/ragaliq.svg)](https://pypi.org/project/ragaliq/)
 
-RagaliQ brings software testing discipline to LLM and RAG systems. Write quality tests for your AI responses as naturally as you write unit tests — using pytest, the CLI, or the Python API.
+**RagaliQ** (**RAG** + **Quality**) is an open-source LLM/RAG testing toolkit that brings software testing discipline to Retrieval-Augmented Generation pipelines. It provides automated **hallucination detection**, **faithfulness metrics**, **answer relevance scoring**, **context precision**, and **context recall** evaluation — all powered by an LLM-as-Judge architecture. Write quality tests for your AI responses as naturally as you write unit tests with pytest.
 
 ---
 
 ## Why RagaliQ?
 
-When you deploy a RAG (Retrieval-Augmented Generation) system, how do you know the answers are accurate? How do you catch hallucinations before your users do? How do you ensure your AI stays grounded in the retrieved documents?
+When you deploy a RAG system, how do you know the answers are accurate? How do you catch hallucinations before your users do? How do you ensure your retrieval pipeline returns the right documents?
 
-RagaliQ answers these questions with a structured evaluation framework that uses an LLM-as-Judge to assess response quality — just like you would test any other software system.
+Traditional keyword-matching approaches miss semantic errors. RagaliQ solves this with **LLM-as-Judge evaluation**: Claude (or OpenAI) assesses response quality with deep semantic understanding, scoring each response across multiple evaluation metrics. This is the same approach used in academic LLM benchmarking — now available as a developer-friendly testing framework.
 
 ---
 
-## Features
+## Key Features
 
-- **5 Built-in Evaluators** — faithfulness, relevance, hallucination, context precision, context recall
-- **LLM-as-Judge** — Claude evaluates response quality with semantic understanding, not keyword matching
-- **Pytest Plugin** — native fixtures and markers for RAG tests alongside your unit tests
-- **CLI** — run evaluations from the command line, generate test datasets from documents
-- **Rich Reports** — console, HTML, and JSON reports built for CI/CD pipelines
-- **GitHub Actions Integration** — automatic step summaries and PR annotations for failures
-- **Async-First** — concurrent evaluations with configurable parallelism
+| Capability | What It Does | How It Helps |
+|---|---|---|
+| **Hallucination Detection** | Identifies claims not supported by retrieved context | Catches fabricated facts before users see them |
+| **Faithfulness Metrics** | Multi-step claim extraction and verification against source documents | Ensures responses stay grounded in your data |
+| **Answer Relevance Scoring** | Evaluates whether the response actually answers the user's query | Prevents off-topic or evasive answers |
+| **Context Precision** | Measures whether retrieved documents are relevant to the query | Audits your vector database retrieval quality |
+| **Context Recall** | Verifies that context covers all expected facts | Validates your embedding similarity and retrieval coverage |
+| **Pytest Plugin** | Native fixtures, markers, and assert helpers | RAG tests run alongside your existing unit tests |
+| **CLI & CI/CD** | Command-line interface with GitHub Actions integration | Automated quality gates in your deployment pipeline |
+| **Async-First** | Concurrent evaluations with configurable parallelism | Fast evaluation even with large test datasets |
+| **Rich Reports** | Console, HTML, and JSON output formats | Actionable results for developers and stakeholders |
 
 ---
 
@@ -35,7 +38,7 @@ RagaliQ answers these questions with a structured evaluation framework that uses
 pip install ragaliq
 ```
 
-Set your Anthropic API key:
+Set your API key:
 
 ```bash
 export ANTHROPIC_API_KEY=your-key-here
@@ -68,7 +71,7 @@ print(f"Status:       {'PASSED' if result.passed else 'FAILED'}")
 
 ### Pytest Integration
 
-The pytest plugin loads automatically when RagaliQ is installed. No imports needed for fixtures.
+The pytest plugin loads automatically when RagaliQ is installed. No configuration needed.
 
 ```python
 # test_rag_quality.py
@@ -126,9 +129,11 @@ ragaliq list-evaluators
 
 ---
 
-## Evaluators
+## Evaluation Metrics
 
-| Name | Measures | Default Threshold |
+RagaliQ ships with five built-in evaluators for comprehensive RAG pipeline testing:
+
+| Evaluator | Measures | Default Threshold |
 |---|---|---|
 | `faithfulness` | Response grounded only in provided context | 0.7 |
 | `relevance` | Response actually answers the query | 0.7 |
@@ -137,6 +142,8 @@ ragaliq list-evaluators
 | `context_recall` | Context covers all expected facts (requires `expected_facts`) | 0.7 |
 
 ### Custom Evaluators
+
+Extend RagaliQ with your own evaluation metrics using the evaluator registry:
 
 ```python
 from ragaliq.evaluators import register_evaluator
@@ -169,7 +176,7 @@ class ConcisenessEvaluator(Evaluator):
 
 ## Dataset Formats
 
-RagaliQ accepts JSON, YAML, and CSV datasets. The JSON format is:
+RagaliQ accepts JSON, YAML, and CSV test datasets:
 
 ```json
 {
@@ -189,24 +196,10 @@ RagaliQ accepts JSON, YAML, and CSV datasets. The JSON format is:
 }
 ```
 
-Generate a dataset from your own documents:
+Generate a test dataset from your own documents:
 
 ```bash
 ragaliq generate ./docs/ --num 50 --output dataset.json
-```
-
-Or programmatically:
-
-```python
-import asyncio
-from ragaliq import TestCaseGenerator
-from ragaliq.judges import ClaudeJudge
-
-judge = ClaudeJudge()
-generator = TestCaseGenerator()
-test_cases = asyncio.run(
-    generator.generate_from_documents(documents=["..."], n=10, judge=judge)
-)
 ```
 
 ---
@@ -240,6 +233,34 @@ Via CLI:
 ragaliq run dataset.json --output html --output-file report.html
 ragaliq run dataset.json --output json --output-file report.json
 ```
+
+---
+
+## GitHub Actions Integration
+
+RagaliQ auto-detects GitHub Actions and enables:
+
+- **Step summaries** — Markdown results table in the Actions run UI
+- **PR annotations** — `::error::` annotations on failing test cases
+- **Step outputs** — `total`, `passed`, `failed`, `pass_rate` for downstream steps
+- **Clean logs** — Rich spinner disabled, plain text output
+
+```yaml
+# .github/workflows/ragaliq-ci.yml
+- name: Run RAG evaluations
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  run: ragaliq run dataset.json --output json --output-file report.json
+
+- name: Upload report
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: ragaliq-report
+    path: report.json
+```
+
+See `examples/ci_cd_example/ragaliq-ci.yml` for a complete workflow.
 
 ---
 
@@ -291,34 +312,6 @@ For complex multi-step or gold-standard judging flows, use
 
 ---
 
-## GitHub Actions Integration
-
-RagaliQ auto-detects GitHub Actions and enables:
-
-- **Step summaries** — Markdown results table in the Actions run UI
-- **PR annotations** — `::error::` annotations on failing test cases
-- **Step outputs** — `total`, `passed`, `failed`, `pass_rate` for downstream steps
-- **Clean logs** — Rich spinner disabled, plain text output
-
-```yaml
-# .github/workflows/ragaliq-ci.yml
-- name: Run evaluations
-  env:
-    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  run: ragaliq run dataset.json --output json --output-file report.json
-
-- name: Upload report
-  if: always()
-  uses: actions/upload-artifact@v4
-  with:
-    name: ragaliq-report
-    path: report.json
-```
-
-See `examples/ci_cd_example/ragaliq-ci.yml` for a complete workflow.
-
----
-
 ## Architecture
 
 ```
@@ -354,6 +347,22 @@ hatch run typecheck     # mypy
 - [Tutorial](docs/TUTORIAL.md) — Full walkthrough from install to CI/CD
 - [Examples](examples/) — Runnable scripts and pytest examples
 - [Architecture Decisions](.decisions/) — Design rationale
+- [Changelog](CHANGELOG.md) — Release history and updates
+
+---
+
+## Comparison with Alternatives
+
+| Feature | RagaliQ | RAGAS | DeepEval |
+|---|---|---|---|
+| Pytest-native integration | Yes | No | Partial |
+| LLM-as-Judge (Claude) | Yes | No | Yes |
+| CLI with dataset generation | Yes | No | Yes |
+| GitHub Actions integration | Yes | No | No |
+| Async-first architecture | Yes | Partial | No |
+| Custom evaluator registry | Yes | Yes | Yes |
+| HTML/JSON reporting | Yes | No | Yes |
+| Open source (MIT) | Yes | Yes | Partial |
 
 ---
 
@@ -361,7 +370,7 @@ hatch run typecheck     # mypy
 
 **RAG** (Retrieval-Augmented Generation) + **Quality** = **RagaliQ**
 
-Because quality matters when building AI systems that people rely on.
+Because answer correctness matters when building AI systems that people rely on. RagaliQ helps you audit your retrieval pipeline, detect hallucinations, and ship with confidence.
 
 ---
 
