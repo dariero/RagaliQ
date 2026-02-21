@@ -1,13 +1,11 @@
 # RagaliQ
 
-**RAG + Quality** - A Testing Framework for LLM and RAG Systems
+**RAG + Quality** — A Testing Framework for LLM and RAG Systems
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-RagaliQ brings software testing discipline to LLM and RAG systems. Write quality tests for your AI responses as naturally as you write unit tests.
-
-> **New to RagaliQ?** Check out [GETTING_STARTED.md](GETTING_STARTED.md) for a 5-minute quickstart.
+RagaliQ brings software testing discipline to LLM and RAG systems. Write quality tests for your AI responses as naturally as you write unit tests — using pytest, the CLI, or the Python API.
 
 ---
 
@@ -15,18 +13,19 @@ RagaliQ brings software testing discipline to LLM and RAG systems. Write quality
 
 When you deploy a RAG (Retrieval-Augmented Generation) system, how do you know the answers are accurate? How do you catch hallucinations before your users do? How do you ensure your AI stays grounded in the retrieved documents?
 
-RagaliQ answers these questions by providing a structured testing framework that evaluates LLM responses against multiple quality dimensions - just like you would test any other software system.
+RagaliQ answers these questions with a structured evaluation framework that uses an LLM-as-Judge to assess response quality — just like you would test any other software system.
 
 ---
 
 ## Features
 
-- **Multiple Evaluators**: Test for faithfulness, relevance, hallucination, context precision, and more
-- **LLM-as-Judge**: Uses Claude or GPT to intelligently assess response quality (not just keyword matching)
-- **Pytest Integration**: Native pytest plugin for seamless integration into existing test workflows
-- **Rich Reports**: Console, HTML, and JSON reports suitable for CI/CD pipelines
-- **Easy CLI**: Run tests from the command line with a single command
-- **Async-First**: Designed for performance with async LLM calls
+- **5 Built-in Evaluators** — faithfulness, relevance, hallucination, context precision, context recall
+- **LLM-as-Judge** — Claude evaluates response quality with semantic understanding, not keyword matching
+- **Pytest Plugin** — native fixtures and markers for RAG tests alongside your unit tests
+- **CLI** — run evaluations from the command line, generate test datasets from documents
+- **Rich Reports** — console, HTML, and JSON reports built for CI/CD pipelines
+- **GitHub Actions Integration** — automatic step summaries and PR annotations for failures
+- **Async-First** — concurrent evaluations with configurable parallelism
 
 ---
 
@@ -34,6 +33,12 @@ RagaliQ answers these questions by providing a structured testing framework that
 
 ```bash
 pip install ragaliq
+```
+
+Set your Anthropic API key:
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
 ```
 
 ---
@@ -45,100 +50,269 @@ pip install ragaliq
 ```python
 from ragaliq import RagaliQ, RAGTestCase
 
-# Initialize with Claude as judge
 tester = RagaliQ(judge="claude")
 
-# Create a test case
 test = RAGTestCase(
-    id="test_1",
+    id="test-1",
     name="Capital of France",
     query="What is the capital of France?",
     context=["France is a country in Western Europe. Its capital city is Paris."],
-    response="The capital of France is Paris, which is known for the Eiffel Tower."
+    response="The capital of France is Paris, known for the Eiffel Tower.",
 )
 
-# Run evaluation
 result = tester.evaluate(test)
-
 print(f"Faithfulness: {result.scores['faithfulness']:.2f}")
-print(f"Relevance: {result.scores['relevance']:.2f}")
-print(f"Status: {'PASSED' if result.passed else 'FAILED'}")
+print(f"Relevance:    {result.scores['relevance']:.2f}")
+print(f"Status:       {'PASSED' if result.passed else 'FAILED'}")
 ```
 
 ### Pytest Integration
 
+The pytest plugin loads automatically when RagaliQ is installed. No imports needed for fixtures.
+
 ```python
-# test_my_rag.py
+# test_rag_quality.py
 import pytest
-from ragaliq.pytest import rag_tester, assert_rag_quality
+from ragaliq import RAGTestCase
+from ragaliq.integrations.pytest_plugin import assert_rag_quality
 
-def test_factual_response(rag_tester):
-    query = "When was Python created?"
-    context = ["Python was created by Guido van Rossum and first released in 1991."]
-    response = "Python was created in 1991 by Guido van Rossum."
 
-    assert_rag_quality(
-        rag_tester,
-        query=query,
-        context=context,
-        response=response,
-        min_faithfulness=0.9,
-        min_relevance=0.8
+@pytest.mark.rag_test
+def test_faithful_answer(rag_tester):
+    test_case = RAGTestCase(
+        id="t1",
+        name="Capital of France",
+        query="What is the capital of France?",
+        context=["France is a country in Western Europe. Its capital city is Paris."],
+        response="The capital of France is Paris.",
     )
+    result = rag_tester.evaluate(test_case)
+    assert result.passed, f"Quality check failed: {result.scores}"
+
+
+@pytest.mark.rag_test
+def test_with_helper(ragaliq_judge):
+    test_case = RAGTestCase(
+        id="t2",
+        name="ML definition",
+        query="What is machine learning?",
+        context=["Machine learning is a subset of AI that enables systems to learn from data."],
+        response="Machine learning is an AI technique that allows systems to improve from data.",
+    )
+    assert_rag_quality(test_case, judge=ragaliq_judge)
 ```
 
-### CLI Usage
+Run with:
 
 ```bash
-# Run tests from a dataset file
-ragaliq run tests/qa_dataset.json --eval faithfulness --eval relevance
+ANTHROPIC_API_KEY=sk-ant-... pytest tests/ -v
+```
 
-# Generate test cases from documents
-ragaliq generate ./docs/ --count 50 --output tests.json
+### CLI
 
-# Quick single test
-ragaliq test \
-    --query "What is RAG?" \
-    --context "RAG combines retrieval with generation..." \
-    --response "RAG is a technique..."
+```bash
+# Run evaluations against a dataset
+ragaliq run dataset.json --evaluator faithfulness --evaluator relevance --threshold 0.8
+
+# Generate a test dataset from documents
+ragaliq generate ./docs/ --num 20 --output test_cases.json
+
+# Validate a dataset file without running evaluations
+ragaliq validate dataset.json
+
+# List all available evaluators
+ragaliq list-evaluators
 ```
 
 ---
 
-## Core Concepts
+## Evaluators
 
-### Test Cases
+| Name | Measures | Default Threshold |
+|---|---|---|
+| `faithfulness` | Response grounded only in provided context | 0.7 |
+| `relevance` | Response actually answers the query | 0.7 |
+| `hallucination` | Response free from unsupported claims | **0.8** |
+| `context_precision` | Retrieved documents are relevant to the query | 0.7 |
+| `context_recall` | Context covers all expected facts (requires `expected_facts`) | 0.7 |
 
-A test case in RagaliQ represents a single RAG interaction to evaluate:
+### Custom Evaluators
 
-| Field | Description |
-|-------|-------------|
-| `query` | The user question or input |
-| `context` | List of retrieved documents/chunks |
-| `response` | The LLM-generated response to evaluate |
-| `expected_answer` | Optional ground truth for comparison |
-| `expected_facts` | Optional list of facts that should appear |
+```python
+from ragaliq.evaluators import register_evaluator
+from ragaliq.core.evaluator import Evaluator, EvaluationResult
+from ragaliq.core.test_case import RAGTestCase
+from ragaliq.judges.base import LLMJudge
 
-### Evaluators
 
-Evaluators are the heart of RagaliQ. Each evaluator assesses a specific quality dimension:
+@register_evaluator("conciseness")
+class ConcisenessEvaluator(Evaluator):
+    name = "conciseness"
+    description = "Measures whether the response is appropriately concise"
+    threshold = 0.7
 
-| Evaluator | What It Measures |
-|-----------|------------------|
-| `faithfulness` | Is the response grounded only in the provided context? |
-| `relevance` | Does the response actually answer the question? |
-| `hallucination` | Does the response contain made-up information? |
-| `context_precision` | Are the retrieved documents relevant to the query? |
-| `context_recall` | Do retrieved documents cover all aspects of the answer? |
+    async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
+        result = await judge.evaluate_relevance(
+            query=test_case.query,
+            response=test_case.response,
+        )
+        return EvaluationResult(
+            evaluator_name=self.name,
+            score=result.score,
+            passed=self.is_passing(result.score),
+            reasoning=result.reasoning,
+            tokens_used=result.tokens_used,
+        )
+```
 
-### LLM-as-Judge
+---
 
-Rather than relying on keyword matching or hardcoded rules, RagaliQ uses an LLM (Claude or OpenAI) as a judge to assess response quality. This approach:
+## Dataset Formats
 
-- Understands semantic meaning, not just lexical similarity
-- Can reason about whether claims are supported by context
-- Provides human-readable explanations for its scores
-- Handles nuanced cases that rule-based systems miss
+RagaliQ accepts JSON, YAML, and CSV datasets. The JSON format is:
+
+```json
+{
+  "version": "1.0",
+  "test_cases": [
+    {
+      "id": "tc-1",
+      "name": "Capital query",
+      "query": "What is the capital of France?",
+      "context": ["France is a country in Western Europe. Its capital is Paris."],
+      "response": "The capital of France is Paris.",
+      "expected_answer": "Paris",
+      "expected_facts": ["capital is Paris"],
+      "tags": ["geography"]
+    }
+  ]
+}
+```
+
+Generate a dataset from your own documents:
+
+```bash
+ragaliq generate ./docs/ --num 50 --output dataset.json
+```
+
+Or programmatically:
+
+```python
+import asyncio
+from ragaliq import TestCaseGenerator
+from ragaliq.judges import ClaudeJudge
+
+judge = ClaudeJudge()
+generator = TestCaseGenerator()
+test_cases = asyncio.run(
+    generator.generate_from_documents(documents=["..."], n=10, judge=judge)
+)
+```
+
+---
+
+## Reports
+
+### Console
+
+```python
+from ragaliq.reports import ConsoleReporter
+ConsoleReporter(threshold=0.7).report(results)
+```
+
+### JSON
+
+```python
+from ragaliq.reports import JSONReporter
+json_str = JSONReporter(threshold=0.7).export(results)
+```
+
+### HTML
+
+```python
+from ragaliq.reports import HTMLReporter
+html_str = HTMLReporter(threshold=0.7).export(results)
+```
+
+Via CLI:
+
+```bash
+ragaliq run dataset.json --output html --output-file report.html
+ragaliq run dataset.json --output json --output-file report.json
+```
+
+---
+
+## Pytest Plugin Reference
+
+### Fixtures
+
+| Fixture | Scope | Description |
+|---|---|---|
+| `rag_tester` | function | Pre-configured `RagaliQ` runner using the session judge |
+| `ragaliq_judge` | session | Shared `LLMJudge` instance configured from CLI options |
+| `ragaliq_runner` | function | Alias for `rag_tester` |
+| `ragaliq_trace_collector` | session | Tracks token usage and cost across the session |
+
+### `assert_rag_quality` Helper
+
+```python
+from ragaliq.integrations.pytest_plugin import assert_rag_quality
+
+assert_rag_quality(
+    test_case,
+    judge=ragaliq_judge,        # optional — creates default ClaudeJudge if omitted
+    evaluators=["faithfulness"], # optional — defaults to ["faithfulness", "relevance"]
+    threshold=0.8,               # optional — defaults to 0.7
+)
+```
+
+Raises `AssertionError` with failing metric names and scores if any metric falls below the threshold.
+
+### Markers
+
+```python
+@pytest.mark.rag_test     # Mark as RAG quality test
+@pytest.mark.rag_slow     # Skip with: pytest -m "not rag_slow"
+```
+
+### CLI Options
+
+```bash
+pytest --ragaliq-judge claude \
+       --ragaliq-model claude-sonnet-4-20250514 \
+       --ragaliq-api-key sk-ant-... \
+       --ragaliq-cost-limit 5.00 \
+       --ragaliq-latency-ms 100
+```
+
+---
+
+## GitHub Actions Integration
+
+RagaliQ auto-detects GitHub Actions and enables:
+
+- **Step summaries** — Markdown results table in the Actions run UI
+- **PR annotations** — `::error::` annotations on failing test cases
+- **Step outputs** — `total`, `passed`, `failed`, `pass_rate` for downstream steps
+- **Clean logs** — Rich spinner disabled, plain text output
+
+```yaml
+# .github/workflows/ragaliq-ci.yml
+- name: Run evaluations
+  env:
+    ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  run: ragaliq run dataset.json --output json --output-file report.json
+
+- name: Upload report
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: ragaliq-report
+    path: report.json
+```
+
+See `examples/ci_cd_example/ragaliq-ci.yml` for a complete workflow.
 
 ---
 
@@ -146,110 +320,37 @@ Rather than relying on keyword matching or hardcoded rules, RagaliQ uses an LLM 
 
 ```
 src/ragaliq/
-    core/           # TestCase, Evaluator base, Runner
-    evaluators/     # Faithfulness, Relevance, Hallucination, etc.
-    judges/         # LLM judge implementations (Claude, OpenAI)
-    datasets/       # Test data loading and generation
-    reports/        # Console, HTML, JSON reporters
-    integrations/   # Pytest plugin, CI helpers
-    cli/            # Typer CLI commands
-```
-
----
-
-## Configuration
-
-### Environment Variables
-
-Set your API key for the LLM judge:
-
-```bash
-export ANTHROPIC_API_KEY=your-key-here
-# or
-export OPENAI_API_KEY=your-key-here
-```
-
-### Configuration File
-
-Create a `ragaliq.yaml` in your project root:
-
-```yaml
-judge: claude
-model: claude-opus-4-5-20251101
-evaluators:
-  - faithfulness
-  - relevance
-  - hallucination
-thresholds:
-  faithfulness: 0.8
-  relevance: 0.7
+├── core/           # RAGTestCase, Evaluator base, RagaliQ runner
+├── evaluators/     # Faithfulness, Relevance, Hallucination, ContextPrecision, ContextRecall
+├── judges/         # ClaudeJudge, LLMJudge ABC, JudgeConfig, TraceCollector
+├── datasets/       # DatasetLoader (JSON/YAML/CSV), TestCaseGenerator
+├── reports/        # ConsoleReporter, HTMLReporter, JSONReporter
+├── integrations/   # Pytest plugin, GitHub Actions helpers
+└── cli/            # Typer CLI (run, generate, validate, list-evaluators)
 ```
 
 ---
 
 ## Development
 
-### Setup
-
 ```bash
-# Clone the repository
 git clone https://github.com/dariero/RagaliQ.git
-cd ragaliq
+cd RagaliQ
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install in development mode
-pip install -e ".[dev]"
-```
-
-### Commands
-
-```bash
-make install        # Install in production mode
-make install-dev    # Install with dev dependencies
-make test           # Run tests with coverage
-make test-fast      # Run tests without coverage
-make lint           # Check code style with ruff
-make format         # Format code with ruff
-make typecheck      # Run mypy type checking
-make clean          # Remove build artifacts
+pip install hatch
+hatch run test          # pytest + coverage
+hatch run lint          # ruff check
+hatch run format        # ruff format + auto-fix
+hatch run typecheck     # mypy
 ```
 
 ---
 
-## Contributing
+## Documentation
 
-Contributions are welcome! Please follow these guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`make test`) and linting (`make lint`)
-5. Commit your changes with a descriptive message
-6. Push to your branch
-7. Open a Pull Request
-
-### Code Style
-
-- We use `ruff` for linting and formatting
-- Type hints are required for all public functions
-- Docstrings should follow Google style
-- Tests go in `tests/` mirroring the `src/` structure
-
----
-
-## Roadmap
-
-- [x] Core models (RAGTestCase, RAGTestResult, Evaluator)
-- [x] Claude judge integration (LLMJudge base + ClaudeJudge implementation)
-- [ ] Core evaluators (faithfulness, relevance, hallucination)
-- [ ] RAG-specific evaluators (context precision, context recall)
-- [ ] CLI with Typer
-- [ ] Pytest plugin
-- [ ] HTML/JSON reports
-- [ ] Dataset generation from documents
+- [Tutorial](docs/TUTORIAL.md) — Full walkthrough from install to CI/CD
+- [Examples](examples/) — Runnable scripts and pytest examples
+- [Architecture Decisions](.decisions/) — Design rationale
 
 ---
 
@@ -261,27 +362,6 @@ Because quality matters when building AI systems that people rely on.
 
 ---
 
-## Documentation & Resources
-
-**Getting Started:**
-- [Getting Started Guide](GETTING_STARTED.md) - Quick 5-minute setup and first test
-
-**Development:**
-- [Development Guidelines](CLAUDE.md) - Code style, design patterns, and project rules
-- [Project Plan](docs/PROJECT_PLAN.md) - Implementation roadmap and milestones
-- [Architecture Decision Records](.decisions/) - Design decisions and rationale
-
-**Operations & Automation:**
-- [GitHub Automation](.github/AUTOMATION.md) - PR metadata auto-filler and CI/CD integration
-
----
-
-## Author
-
-Created by Darie Ro
-
----
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](LICENSE) for details.
