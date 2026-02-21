@@ -99,8 +99,11 @@ class ContextRecallEvaluator(Evaluator):
         # Step 0: Validate required field
         if test_case.expected_facts is None:
             raise ValueError(
-                "ContextRecallEvaluator requires test_case.expected_facts to be set. "
-                "Provide a list of ground-truth facts that should be in the context."
+                f"context_recall requires 'expected_facts' in test case '{test_case.id}'. "
+                "Add a list of ground-truth facts that should be present in the context, e.g.:\n"
+                "  RAGTestCase(..., expected_facts=['Paris is the capital of France'])\n"
+                "If you don't have ground-truth facts, use 'context_precision' instead — "
+                "it evaluates retrieval quality without requiring expected answers."
             )
 
         # Handle empty facts list: vacuously complete

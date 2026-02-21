@@ -131,7 +131,7 @@ class TestJudgeTypeHandling:
         """OpenAI judge raises NotImplementedError."""
         runner = RagaliQ(judge="openai")
 
-        with pytest.raises(NotImplementedError, match="OpenAI judge not yet implemented"):
+        with pytest.raises(NotImplementedError, match="OpenAI judge is not yet available"):
             runner._init_judge()
 
     def test_invalid_judge_type_raises(self):
