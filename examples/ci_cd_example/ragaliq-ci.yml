@@ -1,0 +1,54 @@
+# Example GitHub Actions workflow for running RagaliQ evaluations.
+#
+# Copy this file to .github/workflows/ragaliq-ci.yml in your repository.
+# Requires an ANTHROPIC_API_KEY secret configured in your repository settings.
+#
+# What it does:
+#   1. Checks out code and installs RagaliQ
+#   2. Runs evaluations against your dataset
+#   3. Writes a Markdown step summary visible in the Actions run UI
+#   4. Creates annotations on pull-request diffs for failing test cases
+#   5. Uploads the JSON report as a workflow artifact
+
+name: RagaliQ Evaluation
+
+on:
+  pull_request:
+    paths:
+      - "datasets/**"
+      - "src/**"
+  workflow_dispatch:  # Allow manual runs
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install RagaliQ
+        run: pip install ragaliq
+
+      - name: Run evaluations
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          ragaliq run datasets/test_cases.json \
+            --output json \
+            --output-file report.json \
+            --threshold 0.7
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ragaliq-report
+          path: report.json
