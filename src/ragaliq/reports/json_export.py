@@ -63,7 +63,10 @@ class JSONReporter:
         """
         from ragaliq.core.test_case import EvalStatus
 
-        evaluator_names = sorted(results[0].scores.keys()) if results else []
+        all_keys: set[str] = set()
+        for r in results:
+            all_keys.update(r.scores.keys())
+        evaluator_names = sorted(all_keys)
 
         # Per-evaluator aggregate statistics
         ev_stats: dict[str, dict[str, Any]] = {}

@@ -74,7 +74,10 @@ class ConsoleReporter:
 
         evaluator_names: list[str] = []
         if results:
-            evaluator_names = sorted(results[0].scores.keys())
+            all_keys: set[str] = set()
+            for r in results:
+                all_keys.update(r.scores.keys())
+            evaluator_names = sorted(all_keys)
 
         for name in evaluator_names:
             table.add_column(name.replace("_", " ").title(), justify="center")
@@ -140,7 +143,10 @@ class ConsoleReporter:
 
         self._console.rule("[bold]Summary[/bold]")
 
-        evaluator_names = sorted(results[0].scores.keys())
+        all_keys: set[str] = set()
+        for r in results:
+            all_keys.update(r.scores.keys())
+        evaluator_names = sorted(all_keys)
         if evaluator_names:
             table = Table(show_header=True, show_lines=False, box=None, padding=(0, 1))
             table.add_column("Evaluator", style="bold cyan")

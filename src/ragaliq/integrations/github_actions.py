@@ -125,8 +125,11 @@ def format_summary_markdown(
     if not results:
         return "\n".join(lines)
 
-    # Collect evaluator names from the first result
-    evaluator_names = sorted(results[0].scores.keys()) if results[0].scores else []
+    # Collect evaluator names across all results (handles error envelopes with empty scores)
+    all_keys: set[str] = set()
+    for r in results:
+        all_keys.update(r.scores.keys())
+    evaluator_names = sorted(all_keys)
 
     # --- Results table ---
     header_cols = ["Test Case", "Status"] + evaluator_names
