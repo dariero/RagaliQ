@@ -70,6 +70,14 @@ def run(
     in_ci = is_ci()
     console = Console(no_color=in_ci, force_terminal=False) if in_ci else Console()
 
+    supported_judges = {"claude"}
+    if judge not in supported_judges:
+        typer.echo(
+            f"Error: unsupported judge '{judge}'. Supported: {', '.join(sorted(supported_judges))}",
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
     if output not in {"console", "json", "html"}:
         typer.echo(
             f"Error: unknown output format '{output}'. Supported: console, json, html",
@@ -169,26 +177,34 @@ def generate(
         f"\nRagaliQ Generate — {len(documents)} {doc_word} loaded, generating {n} test cases\n"
     )
 
-    if judge == "claude":
-        from ragaliq.judges import ClaudeJudge
-
-        judge_instance = ClaudeJudge()
-    else:
+    if judge != "claude":
         typer.echo(f"Error: unsupported judge '{judge}'. Supported: claude", err=True)
         raise typer.Exit(code=1)
 
+    try:
+        from ragaliq.judges import ClaudeJudge
+
+        judge_instance = ClaudeJudge()
+    except ValueError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
+
     generator = TestCaseGenerator()
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-        transient=True,
-    ) as progress:
-        progress.add_task("Generating test cases...", total=None)
-        test_cases = asyncio.run(
-            generator.generate_from_documents(documents=documents, n=n, judge=judge_instance)
-        )
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            progress.add_task("Generating test cases...", total=None)
+            test_cases = asyncio.run(
+                generator.generate_from_documents(documents=documents, n=n, judge=judge_instance)
+            )
+    except Exception as exc:
+        typer.echo(f"Error during generation: {exc}", err=True)
+        raise typer.Exit(code=1) from None
 
     dataset = DatasetSchema(
         test_cases=test_cases,
@@ -241,6 +257,11 @@ def _load_documents(docs_path: Path) -> list[str]:
         data = json.loads(docs_path.read_text(encoding="utf-8"))
         if isinstance(data, list):
             return [str(d).strip() for d in data if d]
+        typer.echo(
+            f"Error: {docs_path.name} contains a {type(data).__name__}, expected a JSON list of strings",
+            err=True,
+        )
+        return []
 
     if suffix in {".yaml", ".yml"}:
         import yaml
@@ -248,7 +269,16 @@ def _load_documents(docs_path: Path) -> list[str]:
         data = yaml.safe_load(docs_path.read_text(encoding="utf-8"))
         if isinstance(data, list):
             return [str(d).strip() for d in data if d]
+        typer.echo(
+            f"Error: {docs_path.name} contains a {type(data).__name__}, expected a YAML list of strings",
+            err=True,
+        )
+        return []
 
+    typer.echo(
+        f"Error: unsupported file format '{suffix}'. Supported: .txt, .json, .yaml, .yml",
+        err=True,
+    )
     return []
 
 

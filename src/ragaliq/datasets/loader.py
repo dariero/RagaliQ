@@ -149,6 +149,7 @@ class DatasetLoader:
             # Fallback to pipe-separated
             return [item.strip() for item in value.split("|") if item.strip()]
 
+        raw_facts = row.get("expected_facts", "").strip()
         return RAGTestCase(
             id=row["id"].strip(),
             name=row["name"].strip(),
@@ -156,7 +157,7 @@ class DatasetLoader:
             context=parse_list_field(row["context"]),
             response=row["response"].strip(),
             expected_answer=row.get("expected_answer", "").strip() or None,
-            expected_facts=parse_list_field(row.get("expected_facts", "")),
+            expected_facts=parse_list_field(raw_facts) if raw_facts else None,
             tags=parse_list_field(row.get("tags", "")),
         )
 
