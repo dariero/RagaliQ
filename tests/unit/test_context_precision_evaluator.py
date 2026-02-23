@@ -495,8 +495,10 @@ class TestContextPrecisionRawResponse:
         evaluator = ContextPrecisionEvaluator()
         result = await evaluator.evaluate(test_case, mock_judge)
 
+        from ragaliq.evaluators.context_precision import _DOC_PREVIEW_LENGTH
+
         stored_doc = result.raw_response["doc_scores"][0]["document"]
-        assert len(stored_doc) <= 200
+        assert len(stored_doc) <= _DOC_PREVIEW_LENGTH
 
 
 # =============================================================================

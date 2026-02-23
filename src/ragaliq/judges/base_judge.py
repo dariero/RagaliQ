@@ -13,6 +13,7 @@ Concrete judge classes (ClaudeJudge, OpenAIJudge) provide the transport.
 
 import asyncio
 import json
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -28,9 +29,16 @@ from ragaliq.judges.base import (
 )
 from ragaliq.judges.prompts.loader import get_prompt
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from ragaliq.judges.trace import TraceCollector
     from ragaliq.judges.transport import JudgeTransport
+
+
+_CHARS_PER_TOKEN_ESTIMATE = 4
+_DEFAULT_INPUT_TOKEN_WARN_THRESHOLD = 100_000
+_ERROR_PREVIEW_LENGTH = 200
 
 
 class BaseJudge(LLMJudge):
@@ -133,6 +141,19 @@ class BaseJudge(LLMJudge):
         success = False
         error_msg = None
 
+        # Warn if estimated input tokens exceed threshold
+        estimated_chars = len(system_prompt) + len(user_prompt)
+        estimated_tokens = estimated_chars // _CHARS_PER_TOKEN_ESTIMATE
+        if estimated_tokens > _DEFAULT_INPUT_TOKEN_WARN_THRESHOLD:
+            logger.warning(
+                "Large input detected for '%s': ~%d estimated tokens "
+                "(threshold: %d). This may exceed model context limits "
+                "or incur high costs.",
+                operation,
+                estimated_tokens,
+                _DEFAULT_INPUT_TOKEN_WARN_THRESHOLD,
+            )
+
         try:
             # Limit concurrent API calls to prevent rate limit bursts
             async with self._concurrency_limit:
@@ -214,7 +235,7 @@ class BaseJudge(LLMJudge):
             return result
         except json.JSONDecodeError as e:
             raise JudgeResponseError(
-                f"Failed to parse JSON response: {e}. Raw text: {text[:200]}"
+                f"Failed to parse JSON response: {e}. Raw text: {text[:_ERROR_PREVIEW_LENGTH]}"
             ) from e
 
     def _build_faithfulness_prompt(
@@ -326,6 +347,13 @@ class BaseJudge(LLMJudge):
             JudgeAPIError: If API call fails.
             JudgeResponseError: If response parsing fails.
         """
+        if not query or not query.strip() or not response or not response.strip():
+            return JudgeResult(
+                score=0.0,
+                reasoning="Empty query or response; relevance cannot be assessed.",
+                tokens_used=0,
+            )
+
         system_prompt, user_prompt = self._build_relevance_prompt(query, response)
         raw_response, tokens_used = await self._call_llm(
             system_prompt, user_prompt, operation="evaluate_relevance"

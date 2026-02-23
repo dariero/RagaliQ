@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from ragaliq.core.test_case import RAGTestCase
     from ragaliq.judges.base import LLMJudge
 
+_DOC_PREVIEW_LENGTH = 200
+
 
 @register_evaluator("context_precision")
 class ContextPrecisionEvaluator(Evaluator):
@@ -122,7 +124,7 @@ class ContextPrecisionEvaluator(Evaluator):
             doc_scores.append(
                 {
                     "rank": rank,
-                    "document": test_case.context[i][:200],  # Truncate for metadata readability
+                    "document": test_case.context[i][:_DOC_PREVIEW_LENGTH],
                     "score": result.score,
                     "reasoning": result.reasoning,
                 }
@@ -166,7 +168,7 @@ class ContextPrecisionEvaluator(Evaluator):
             return "No context documents to evaluate."
 
         score_pct = score * 100
-        high_relevance = sum(1 for d in doc_scores if d["score"] >= 0.7)
+        high_relevance = sum(1 for d in doc_scores if d["score"] >= self.threshold)
 
         if high_relevance == total:
             return (

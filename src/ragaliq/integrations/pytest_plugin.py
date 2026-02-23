@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from ragaliq.judges.base import LLMJudge
     from ragaliq.judges.trace import TraceCollector
 
+_HIGH_COST_WARNING_THRESHOLD = 10.0
+
 
 def pytest_addoption(parser: Any) -> None:
     """
@@ -100,7 +102,7 @@ def pytest_configure(config: Any) -> None:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         # ragaliq not installed - plugin entry point loaded but can't initialize
         # This is expected in non-editable installs or when running pytest --collect-only
         config._ragaliq_trace_collector = None
@@ -362,5 +364,5 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any)
     terminalreporter.write_line(f"Failures: {failures}")
 
     # Warn if approaching common budget limits
-    if total_cost > 10.0:
+    if total_cost > _HIGH_COST_WARNING_THRESHOLD:
         terminalreporter.write_line(f"WARNING: High cost detected (${total_cost:.2f})", red=True)

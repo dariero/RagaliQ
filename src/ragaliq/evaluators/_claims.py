@@ -41,6 +41,7 @@ class ClaimVerificationResult(BaseModel):
     verdicts: list[ClaimVerdict] = Field(default_factory=list)
     total_tokens: int = Field(default=0, ge=0)
     claims_empty: bool = False
+    context_empty: bool = False
 
     model_config = {"frozen": True, "extra": "forbid"}
 
@@ -65,6 +66,11 @@ async def verify_all_claims(
     Returns:
         ClaimVerificationResult with all claim details and verdicts.
     """
+    # Short-circuit: no context means all claims will be NOT_ENOUGH_INFO.
+    # Skip the extract_claims() LLM call entirely to save tokens.
+    if not context:
+        return ClaimVerificationResult(context_empty=True)
+
     # Step 1: Extract atomic claims
     claims_result = await judge.extract_claims(response)
     claims = claims_result.claims

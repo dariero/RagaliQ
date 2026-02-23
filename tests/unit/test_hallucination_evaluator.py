@@ -364,12 +364,14 @@ class TestHallucinationEvaluatorMetadata:
         mock_judge: MagicMock,
         grounded_test_case: RAGTestCase,
     ) -> None:
-        """Empty claims should produce clean metadata."""
+        """Empty claims should produce clean metadata with score 0.0."""
         mock_judge.extract_claims.return_value = ClaimsResult(claims=[])
 
         evaluator = HallucinationEvaluator()
         result = await evaluator.evaluate(grounded_test_case, mock_judge)
 
+        assert result.score == 0.0
+        assert result.passed is False
         assert result.raw_response["total_claims"] == 0
         assert result.raw_response["hallucination_count"] == 0
         assert result.raw_response["hallucinated_claims"] == []
@@ -457,19 +459,19 @@ class TestHallucinationEvaluatorEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
     @pytest.mark.asyncio
-    async def test_no_claims_returns_1_0(
+    async def test_no_claims_returns_0_0(
         self,
         mock_judge: MagicMock,
         grounded_test_case: RAGTestCase,
     ) -> None:
-        """No claims extracted should give score 1.0 (no hallucinations)."""
+        """No claims extracted should give score 0.0 (cannot assess)."""
         mock_judge.extract_claims.return_value = ClaimsResult(claims=[])
 
         evaluator = HallucinationEvaluator()
         result = await evaluator.evaluate(grounded_test_case, mock_judge)
 
-        assert result.score == 1.0
-        assert result.passed is True
+        assert result.score == 0.0
+        assert result.passed is False
         mock_judge.verify_claim.assert_not_called()
 
     @pytest.mark.asyncio
