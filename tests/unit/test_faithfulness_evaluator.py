@@ -3,7 +3,7 @@
 Tests follow the acceptance criteria from Issue #6:
 - All claims supported -> 1.0
 - Half supported -> 0.5
-- No claims -> 1.0 (vacuously faithful)
+- No claims -> 0.0 (cannot assess faithfulness)
 - All unsupported -> 0.0
 """
 
@@ -174,13 +174,13 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
         assert result.tokens_used == 75  # 40 + 20 + 15
 
     @pytest.mark.asyncio
-    async def test_no_claims_returns_1_0(
+    async def test_no_claims_returns_0_0(
         self,
         mock_judge: MagicMock,
         faithful_test_case: RAGTestCase,
     ) -> None:
-        """AC: No claims -> 1.0 (vacuously faithful)"""
-        # Arrange: empty response extracts no claims
+        """AC: No claims -> 0.0 (cannot assess faithfulness)"""
+        # Arrange: response extracts no claims
         mock_judge.extract_claims.return_value = ClaimsResult(claims=[], tokens_used=15)
 
         # Act
@@ -188,8 +188,8 @@ class TestFaithfulnessEvaluatorAcceptanceCriteria:
         result = await evaluator.evaluate(faithful_test_case, mock_judge)
 
         # Assert
-        assert result.score == 1.0
-        assert result.passed is True
+        assert result.score == 0.0
+        assert result.passed is False
         assert result.tokens_used == 15  # Only extraction tokens
         # verify_claim should never be called with no claims
         mock_judge.verify_claim.assert_not_called()

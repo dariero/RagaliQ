@@ -3,7 +3,7 @@
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EvalStatus(StrEnum):
@@ -32,9 +32,18 @@ class RAGTestCase(BaseModel):
 
     id: str = Field(..., description="Unique identifier for the test case")
     name: str = Field(..., description="Human-readable name")
-    query: str = Field(..., description="The user question or input")
+    query: str = Field(..., min_length=1, description="The user question or input")
     context: list[str] = Field(..., description="Retrieved documents/chunks")
-    response: str = Field(..., description="LLM response to evaluate")
+    response: str = Field(..., min_length=1, description="LLM response to evaluate")
+
+    @field_validator("query", "response", mode="before")
+    @classmethod
+    def _strip_whitespace(cls, v: str) -> str:
+        """Strip whitespace so whitespace-only strings fail min_length."""
+        if isinstance(v, str):
+            return v.strip()
+        return v
+
     expected_answer: str | None = Field(default=None, description="Ground truth answer")
     expected_facts: list[str] | None = Field(
         default=None, description="Facts that should be present"

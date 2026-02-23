@@ -8,7 +8,7 @@ Algorithm:
     1. Extract atomic claims from the response
     2. Verify each claim against the context (SUPPORTED/CONTRADICTED/NOT_ENOUGH_INFO)
     3. Score = supported_claims / total_claims
-    4. Empty claims = 1.0 (vacuously faithful)
+    4. Empty context or empty claims = 0.0 (cannot assess faithfulness)
 """
 
 from typing import TYPE_CHECKING
@@ -69,7 +69,7 @@ class FaithfulnessEvaluator(Evaluator):
         1. Extract claims from response via judge.extract_claims()
         2. Verify each claim via judge.verify_claim()
         3. Score = supported_claims / total_claims
-        4. Empty claims = 1.0 (vacuously faithful)
+        4. Empty context or empty claims = 0.0 (cannot assess)
 
         Args:
             test_case: The RAG test case containing response and context.
@@ -84,13 +84,31 @@ class FaithfulnessEvaluator(Evaluator):
         """
         verification = await verify_all_claims(test_case.response, test_case.context, judge)
 
-        # Handle empty claims edge case: vacuously faithful
+        # Handle empty context: faithfulness cannot be assessed without context
+        if verification.context_empty:
+            return EvaluationResult(
+                evaluator_name=self.name,
+                score=0.0,
+                passed=False,
+                reasoning="No context provided; faithfulness cannot be assessed.",
+                raw_response={
+                    "claims": [],
+                    "total_claims": 0,
+                    "supported_claims": 0,
+                },
+                tokens_used=0,
+            )
+
+        # Handle empty claims: no verifiable content in the response
         if verification.claims_empty:
             return EvaluationResult(
                 evaluator_name=self.name,
-                score=1.0,
-                passed=True,
-                reasoning="No claims to verify; response is vacuously faithful.",
+                score=0.0,
+                passed=False,
+                reasoning=(
+                    "No claims could be extracted from the response; "
+                    "faithfulness cannot be assessed."
+                ),
                 raw_response={
                     "claims": [],
                     "total_claims": 0,

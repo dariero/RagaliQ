@@ -10,7 +10,7 @@ Algorithm:
     2. Verify each claim against the context (SUPPORTED/CONTRADICTED/NOT_ENOUGH_INFO)
     3. Classify non-SUPPORTED claims as hallucinated
     4. Score = 1.0 - (hallucinated_claims / total_claims)
-    5. Empty claims = 1.0 (no hallucinations possible)
+    5. Empty context or empty claims = 0.0 (cannot assess hallucination)
 
 Distinction from FaithfulnessEvaluator:
     - Stricter default threshold (0.8 vs 0.7)
@@ -74,7 +74,7 @@ class HallucinationEvaluator(Evaluator):
         2. Verify each claim via judge.verify_claim()
         3. Classify non-SUPPORTED verdicts as hallucinated
         4. Score = 1.0 - (hallucinated / total)
-        5. Empty claims = 1.0 (no hallucinations)
+        5. Empty context or empty claims = 0.0 (cannot assess)
 
         Args:
             test_case: The RAG test case containing response and context.
@@ -89,13 +89,32 @@ class HallucinationEvaluator(Evaluator):
         """
         verification = await verify_all_claims(test_case.response, test_case.context, judge)
 
-        # Handle empty claims edge case: no claims means no hallucinations
+        # Handle empty context: hallucination cannot be assessed without context
+        if verification.context_empty:
+            return EvaluationResult(
+                evaluator_name=self.name,
+                score=0.0,
+                passed=False,
+                reasoning="No context provided; hallucination detection cannot be performed.",
+                raw_response={
+                    "claims": [],
+                    "total_claims": 0,
+                    "hallucinated_claims": [],
+                    "hallucination_count": 0,
+                },
+                tokens_used=0,
+            )
+
+        # Handle empty claims: no verifiable content in the response
         if verification.claims_empty:
             return EvaluationResult(
                 evaluator_name=self.name,
-                score=1.0,
-                passed=True,
-                reasoning="No claims to verify; no hallucinations detected.",
+                score=0.0,
+                passed=False,
+                reasoning=(
+                    "No claims could be extracted from the response; "
+                    "hallucination detection cannot be performed."
+                ),
                 raw_response={
                     "claims": [],
                     "total_claims": 0,
