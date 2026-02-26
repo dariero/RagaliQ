@@ -38,7 +38,10 @@ Extract branch and issue number. Abort if on main.
 ```bash
 BRANCH=$(git branch --show-current)
 ISSUE_NUMBER=$(echo "$BRANCH" | sed 's|.*/||' | grep -oE '^[0-9]+')
+COMMIT_TYPE=$(echo "$BRANCH" | grep -oE '^[^/]+')  # feat, fix, refactor, docs
 ```
+
+Map COMMIT_TYPE to the uppercase form using the **Commit Type Mapping** table in `.claude/CONSTANTS.md` (e.g. `feat` → `FEAT`, `fix` → `FIX`).
 
 Validate that ISSUE_NUMBER is non-empty:
 
@@ -103,7 +106,7 @@ Update board to "Done" via GraphQL (see `.claude/CONSTANTS.md` for IDs).
 
 ```bash
 git checkout main && git pull origin main
-git branch -d $BRANCH && git fetch --prune
+git branch -D $BRANCH && git fetch --prune
 ```
 
 ### 7. Report
