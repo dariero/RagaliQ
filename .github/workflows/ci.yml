@@ -15,9 +15,6 @@ concurrency:
 jobs:
   # ──────────────────────────────────────────────────────────────────────
   # Job 1: Lint — runs ruff on src/ and tests/
-  # Runs on Python 3.12 only (linting is not version-sensitive).
-  # Uses pip install directly — bypasses Hatch's virtualenv layer which
-  # is incompatible with virtualenv>=20.27 on fresh CI runners.
   # ──────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
@@ -27,7 +24,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install dev dependencies
@@ -47,7 +44,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install dev dependencies
@@ -57,24 +54,19 @@ jobs:
         run: mypy src/
 
   # ──────────────────────────────────────────────────────────────────────
-  # Job 3: Test — runs unit tests across the supported Python matrix.
+  # Job 3: Test — runs unit tests on Python 3.14 (the only supported version).
   # Only tests/unit/ runs here — integration tests need live API keys
   # and are gated to the release workflow where secrets are available.
   # ──────────────────────────────────────────────────────────────────────
   test:
-    name: Test (Python ${{ matrix.python-version }})
+    name: Test (Python 3.14)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false  # Let all matrix versions run even if one fails
-      matrix:
-        python-version: ["3.12", "3.13", "3.14"]
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14"
           cache: "pip"
 
       - name: Install dev dependencies
@@ -85,9 +77,7 @@ jobs:
         # --cov-report=xml produces coverage.xml for the Codecov upload below.
         run: pytest tests/unit/ --cov-report=xml
 
-      # Upload coverage only from the canonical version (3.12) to avoid duplicates.
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml

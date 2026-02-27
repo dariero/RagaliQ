@@ -3,7 +3,7 @@
 # Builds the wheel inside a dedicated layer so build tools don't end up
 # in the final image. Only the compiled .whl is passed to the runtime stage.
 # ──────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim AS builder
 
 WORKDIR /build
 
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir build \
 # Stage 2: runtime
 # Starts from a clean slim base — no build tools, no source, no cache.
 # ──────────────────────────────────────────────────────────────────────────────
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 LABEL org.opencontainers.image.title="RagaliQ" \
       org.opencontainers.image.description="LLM & RAG Evaluation Testing Framework" \
