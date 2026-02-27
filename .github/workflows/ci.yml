@@ -15,7 +15,9 @@ concurrency:
 jobs:
   # ──────────────────────────────────────────────────────────────────────
   # Job 1: Lint — runs ruff on src/ and tests/
-  # Runs on Python 3.12 only (linting is not version-sensitive)
+  # Runs on Python 3.12 only (linting is not version-sensitive).
+  # Uses pip install directly — bypasses Hatch's virtualenv layer which
+  # is incompatible with virtualenv>=20.27 on fresh CI runners.
   # ──────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
@@ -28,11 +30,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install Hatch
-        run: pip install hatch
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
 
       - name: Run ruff
-        run: hatch run lint
+        run: ruff check src/ tests/
 
   # ──────────────────────────────────────────────────────────────────────
   # Job 2: Type Check — runs mypy in strict mode
@@ -48,11 +50,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install Hatch
-        run: pip install hatch
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
 
       - name: Run mypy
-        run: hatch run typecheck
+        run: mypy src/
 
   # ──────────────────────────────────────────────────────────────────────
   # Job 3: Test — runs unit tests across the supported Python matrix.
@@ -75,13 +77,13 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
-      - name: Install Hatch
-        run: pip install hatch
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
 
       - name: Run unit tests
-        # Override test path to unit-only; addopts in pyproject.toml adds --cov automatically.
-        # --cov-report=xml produces coverage.xml for upload below.
-        run: hatch run pytest tests/unit/ --cov-report=xml
+        # addopts in pyproject.toml adds --cov=ragaliq automatically.
+        # --cov-report=xml produces coverage.xml for the Codecov upload below.
+        run: pytest tests/unit/ --cov-report=xml
 
       # Upload coverage only from the canonical version (3.12) to avoid duplicates.
       - name: Upload coverage to Codecov

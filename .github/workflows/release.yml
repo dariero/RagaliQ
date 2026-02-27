@@ -22,11 +22,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install Hatch
-        run: pip install hatch
+      - name: Install dev dependencies
+        run: pip install -e ".[dev]"
 
       - name: Run unit tests
-        run: hatch run pytest tests/unit/
+        run: pytest tests/unit/
 
       - name: Verify version tag matches pyproject.toml
         # Strips the leading 'v' from the tag (v0.2.0 → 0.2.0) and compares
