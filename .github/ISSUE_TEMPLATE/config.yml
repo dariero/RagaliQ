@@ -1,0 +1,12 @@
+# Disabling blank issues forces contributors to use a structured template,
+# which gives maintainers the context they need to act quickly.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Report a Security Vulnerability
+    url: https://github.com/dariero/RagaliQ/security/advisories/new
+    about: Please report security issues privately using GitHub's advisory system — not as a public issue.
+
+  - name: Question or Discussion
+    url: https://github.com/dariero/RagaliQ/discussions
+    about: Ask a question, share how you're using RagaliQ, or discuss ideas before filing an issue.

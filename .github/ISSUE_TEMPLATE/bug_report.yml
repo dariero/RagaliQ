@@ -1,0 +1,84 @@
+name: Bug Report
+description: File a bug report for RagaliQ
+title: "[BUG] "
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much detail as possible.
+        For **security vulnerabilities**, use [Report a vulnerability](https://github.com/dariero/RagaliQ/security/advisories/new) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: RagaliQ Version
+      placeholder: "e.g. 0.1.0  (run: pip show ragaliq)"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      placeholder: "e.g. 3.14.0  (run: python --version)"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: "e.g. macOS 15, Ubuntu 24.04, Windows 11"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: judge
+    attributes:
+      label: Judge in Use
+      options:
+        - Claude (ClaudeJudge)
+        - OpenAI (OpenAIJudge)
+        - N/A — not using a judge
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproduction
+      description: The smallest possible code snippet or CLI command that reproduces the issue.
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Full Error Traceback
+      description: Paste the complete traceback here. Do not truncate it.
+      render: python
