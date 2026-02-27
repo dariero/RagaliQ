@@ -77,7 +77,7 @@ ragaliq = "ragaliq.integrations.pytest_plugin"
 
 [project.urls]
 Homepage = "https://github.com/dariero/RagaliQ"
-Documentation = "https://github.com/dariero/RagaliQ/blob/main/docs/TUTORIAL.md"
+Documentation = "https://dariero.github.io/RagaliQ/"
 Repository = "https://github.com/dariero/RagaliQ"
 Issues = "https://github.com/dariero/RagaliQ/issues"
 Changelog = "https://github.com/dariero/RagaliQ/blob/main/CHANGELOG.md"
