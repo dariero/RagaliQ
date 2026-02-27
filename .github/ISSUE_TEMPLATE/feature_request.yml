@@ -1,0 +1,58 @@
+name: Feature Request
+description: Suggest a new evaluator, judge integration, or improvement
+title: "[FEAT] "
+labels: ["feat"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, please check the [GitHub Issues](https://github.com/dariero/RagaliQ/issues)
+        to see if it has already been proposed.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of RagaliQ does this relate to?
+      options:
+        - New evaluator metric
+        - Judge integration (new LLM provider)
+        - CLI command
+        - Report format
+        - Dataset loading / generation
+        - Pytest plugin
+        - Performance / async
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this solve? What are you unable to do today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature you'd like. If it's a new evaluator, describe what it measures and how.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you considered, and why you prefer this one.
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a pull request for this feature.
