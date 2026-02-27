@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR when a new commit is pushed.
+# This prevents wasted CI minutes on stale builds.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 1: Lint — runs ruff on src/ and tests/
+  # Runs on Python 3.12 only (linting is not version-sensitive)
+  # ──────────────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Hatch
+        run: pip install hatch
+
+      - name: Run ruff
+        run: hatch run lint
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 2: Type Check — runs mypy in strict mode
+  # ──────────────────────────────────────────────────────────────────────
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Hatch
+        run: pip install hatch
+
+      - name: Run mypy
+        run: hatch run typecheck
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 3: Test — runs unit tests across the supported Python matrix.
+  # Only tests/unit/ runs here — integration tests need live API keys
+  # and are gated to the release workflow where secrets are available.
+  # ──────────────────────────────────────────────────────────────────────
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Let all matrix versions run even if one fails
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install Hatch
+        run: pip install hatch
+
+      - name: Run unit tests
+        # Override test path to unit-only; addopts in pyproject.toml adds --cov automatically.
+        # --cov-report=xml produces coverage.xml for upload below.
+        run: hatch run pytest tests/unit/ --cov-report=xml
+
+      # Upload coverage only from the canonical version (3.12) to avoid duplicates.
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          # fail_ci_if_error: false keeps CI green even if Codecov is down.
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

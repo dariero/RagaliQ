@@ -1,0 +1,58 @@
+# Version control
+.git/
+.gitignore
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+.hatch/
+
+# Test and coverage
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Type checking and linting caches
+.mypy_cache/
+.ruff_cache/
+
+# Documentation
+docs/
+
+# Development tooling
+.claude/
+.cursor/
+.github/
+.decisions/
+scripts/
+examples/
+
+# Local environment / secrets
+.env*
+*.pem
+*credentials*
+*secret*
+.secrets/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Logs and reports
+*.log
+reports/

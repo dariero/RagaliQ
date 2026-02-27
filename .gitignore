@@ -90,3 +90,16 @@ Thumbs.db
 *.pem
 *credentials*
 *secret*
+
+# Hatch virtual environments
+.hatch/
+
+# Cursor IDE
+.cursor/
+.cursorignore
+
+# Claude Code (local session settings — not for public consumption)
+.claude/settings.local.json
+
+# Stale root-level package artifacts (use src/ layout only)
+ragaliq/__pycache__/
