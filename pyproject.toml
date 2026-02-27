@@ -56,6 +56,9 @@ dependencies = [
 
 [project.optional-dependencies]
 openai = ["openai>=2.15.0"]
+docs = [
+    "mkdocs-material>=9.5",
+]
 dev = [
     "pytest>=9.0",
     "pytest-asyncio>=0.25",

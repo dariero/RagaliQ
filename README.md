@@ -3,6 +3,8 @@
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://img.shields.io/pypi/v/ragaliq.svg)](https://pypi.org/project/ragaliq/)
+[![CI](https://github.com/dariero/RagaliQ/actions/workflows/ci.yml/badge.svg)](https://github.com/dariero/RagaliQ/actions/workflows/ci.yml)
+[![Docs](https://github.com/dariero/RagaliQ/actions/workflows/docs.yml/badge.svg)](https://dariero.github.io/RagaliQ/)
 
 **RagaliQ** (**RAG** + **Quality**) is an open-source LLM/RAG testing toolkit that brings software testing discipline to Retrieval-Augmented Generation pipelines. It provides automated **hallucination detection**, **faithfulness metrics**, **answer relevance scoring**, **context precision**, and **context recall** evaluation — all powered by an LLM-as-Judge architecture. Write quality tests for your AI responses as naturally as you write unit tests with pytest.
 
