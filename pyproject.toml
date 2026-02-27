@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "LLM & RAG evaluation testing framework — hallucination detection, faithfulness metrics, answer relevance scoring, and retrieval pipeline testing with pytest integration"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 authors = [
     { name = "Darie Ro" }
 ]
@@ -114,7 +114,7 @@ clean = [
 ]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
 
@@ -139,7 +139,7 @@ ignore = [
 known-first-party = ["ragaliq"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.12"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -156,7 +156,7 @@ asyncio_default_fixture_loop_scope = "function"
 addopts = "-v --cov=ragaliq --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["src/ragaliq"]
+source_pkgs = ["ragaliq"]
 branch = true
 
 [tool.coverage.report]

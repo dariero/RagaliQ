@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 from rich.console import Console
 from rich.table import Table
 
+from ragaliq.reports._utils import collect_evaluator_stats
+
 if TYPE_CHECKING:
     from ragaliq.core.test_case import RAGTestResult
 
@@ -72,12 +74,7 @@ class ConsoleReporter:
         table.add_column("Test Case", style="bold")
         table.add_column("Status", justify="center")
 
-        evaluator_names: list[str] = []
-        if results:
-            all_keys: set[str] = set()
-            for r in results:
-                all_keys.update(r.scores.keys())
-            evaluator_names = sorted(all_keys)
+        evaluator_names, _ = collect_evaluator_stats(results, self._threshold)
 
         for name in evaluator_names:
             table.add_column(name.replace("_", " ").title(), justify="center")
@@ -143,10 +140,7 @@ class ConsoleReporter:
 
         self._console.rule("[bold]Summary[/bold]")
 
-        all_keys: set[str] = set()
-        for r in results:
-            all_keys.update(r.scores.keys())
-        evaluator_names = sorted(all_keys)
+        evaluator_names, ev_stats = collect_evaluator_stats(results, self._threshold)
         if evaluator_names:
             table = Table(show_header=True, show_lines=False, box=None, padding=(0, 1))
             table.add_column("Evaluator", style="bold cyan")
@@ -154,17 +148,13 @@ class ConsoleReporter:
             table.add_column("Failed", justify="right")
             table.add_column("Avg Score", justify="right")
 
-            for name in evaluator_names:
-                scores = [r.scores[name] for r in results if name in r.scores]
-                ev_passed = sum(1 for s in scores if s >= self._threshold)
-                ev_failed = len(scores) - ev_passed
-                avg = sum(scores) / len(scores) if scores else 0.0
-                color = "green" if ev_failed == 0 else "red"
+            for stat in ev_stats:
+                color = "green" if stat["failed"] == 0 else "red"
                 table.add_row(
-                    name,
-                    f"[green]{ev_passed}[/green]",
-                    f"[red]{ev_failed}[/red]",
-                    f"[{color}]{avg:.2f}[/{color}]",
+                    stat["name"],
+                    f"[green]{stat['passed']}[/green]",
+                    f"[red]{stat['failed']}[/red]",
+                    f"[{color}]{stat['avg_score']:.2f}[/{color}]",
                 )
             self._console.print(table)
 

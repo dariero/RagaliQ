@@ -1,5 +1,7 @@
 """Dataset schemas for RagaliQ."""
 
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator
 
 from ragaliq.core.test_case import RAGTestCase
@@ -17,7 +19,7 @@ class DatasetSchema(BaseModel):
 
     version: str = Field(default="1.0", description="Dataset format version")
     test_cases: list[RAGTestCase] = Field(..., min_length=1, description="List of test cases")
-    metadata: dict[str, str] = Field(default_factory=dict, description="Dataset metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Dataset metadata")
 
     @field_validator("test_cases")
     @classmethod

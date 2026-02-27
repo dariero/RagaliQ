@@ -1,6 +1,7 @@
 """CLI entry point for RagaliQ."""
 
 from pathlib import Path
+from typing import Literal, cast
 
 import typer
 from rich.console import Console
@@ -96,7 +97,7 @@ def run(
     typer.echo(f"\nRagaliQ — {total} test case{'s' if total != 1 else ''} loaded\n")
 
     runner_obj = RagaliQ(
-        judge=judge,  # type: ignore[arg-type]
+        judge=cast(Literal["claude", "openai"], judge),
         evaluators=evaluator if evaluator else None,
         default_threshold=threshold,
         fail_fast=fail_fast,

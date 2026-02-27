@@ -11,7 +11,6 @@ Bootstrap safety: All ragaliq imports are deferred to avoid import
 errors if dependencies are missing.
 """
 
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 import pytest
@@ -102,7 +101,7 @@ def pytest_configure(config: Any) -> None:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
-    except ImportError, ModuleNotFoundError:
+    except (ImportError, ModuleNotFoundError):
         # ragaliq not installed - plugin entry point loaded but can't initialize
         # This is expected in non-editable installs or when running pytest --collect-only
         config._ragaliq_trace_collector = None
@@ -203,24 +202,6 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
             raise ValueError(f"Unknown judge type: {judge_type}")
 
 
-@pytest.fixture(scope="session")
-def judge_factory(ragaliq_judge: LLMJudge) -> Callable[[], LLMJudge]:
-    """
-    Factory that returns the session judge.
-
-    This is a convenience fixture for compatibility with tests
-    that expect a judge factory pattern.
-
-    Returns:
-        Callable that returns the session judge.
-    """
-
-    def _factory() -> LLMJudge:
-        return ragaliq_judge
-
-    return _factory
-
-
 @pytest.fixture
 def ragaliq_runner(ragaliq_judge: LLMJudge) -> RagaliQ:
     """
@@ -239,8 +220,8 @@ def rag_tester(ragaliq_judge: LLMJudge) -> RagaliQ:
     """
     Pre-configured RagaliQ runner — concise alias for ragaliq_runner.
 
-    Provides the same session judge and configuration as ragaliq_runner.
-    Prefer this fixture for brevity in test signatures.
+    Prefer this fixture for brevity in test signatures. Both fixtures
+    create independent RagaliQ instances sharing the session judge.
 
     Returns:
         RagaliQ instance ready for test evaluation.

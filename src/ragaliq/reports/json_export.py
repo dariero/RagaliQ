@@ -4,6 +4,8 @@ import datetime
 import json
 from typing import TYPE_CHECKING, Any
 
+from ragaliq.reports._utils import collect_evaluator_stats
+
 if TYPE_CHECKING:
     from ragaliq.core.test_case import RAGTestResult
 
@@ -63,22 +65,15 @@ class JSONReporter:
         """
         from ragaliq.core.test_case import EvalStatus
 
-        all_keys: set[str] = set()
-        for r in results:
-            all_keys.update(r.scores.keys())
-        evaluator_names = sorted(all_keys)
-
-        # Per-evaluator aggregate statistics
-        ev_stats: dict[str, dict[str, Any]] = {}
-        for name in evaluator_names:
-            scores = [r.scores[name] for r in results if name in r.scores]
-            ev_passed = sum(1 for s in scores if s >= self._threshold)
-            avg = sum(scores) / len(scores) if scores else 0.0
-            ev_stats[name] = {
-                "passed": ev_passed,
-                "failed": len(scores) - ev_passed,
-                "avg_score": round(avg, 4),
+        _, ev_rows = collect_evaluator_stats(results, self._threshold)
+        ev_stats: dict[str, dict[str, Any]] = {
+            row["name"]: {
+                "passed": row["passed"],
+                "failed": row["failed"],
+                "avg_score": round(row["avg_score"], 4),
             }
+            for row in ev_rows
+        }
 
         total = len(results)
         passed = sum(1 for r in results if r.passed)
