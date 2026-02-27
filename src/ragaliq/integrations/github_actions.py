@@ -9,7 +9,6 @@ degrade gracefully (return ``False`` or silently skip writes).
 from __future__ import annotations
 
 import os
-import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -171,13 +170,3 @@ def emit_ci_summary(
     set_output("pass_rate", f"{passed / total:.4f}" if total else "0.0000")
 
 
-def ci_print(message: str) -> None:
-    """Print a plain-text message suitable for CI log output.
-
-    Uses ``sys.stdout`` directly to avoid Rich markup processing.
-
-    Args:
-        message: Text to print.
-    """
-    sys.stdout.write(message + "\n")
-    sys.stdout.flush()

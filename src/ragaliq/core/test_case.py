@@ -44,6 +44,14 @@ class RAGTestCase(BaseModel):
             return v.strip()
         return v
 
+    @field_validator("context", mode="before")
+    @classmethod
+    def _filter_empty_context(cls, v: list[str]) -> list[str]:
+        """Strip whitespace from context entries and remove empty strings."""
+        if isinstance(v, list):
+            return [item.strip() for item in v if isinstance(item, str) and item.strip()]
+        return v
+
     expected_answer: str | None = Field(default=None, description="Ground truth answer")
     expected_facts: list[str] | None = Field(
         default=None, description="Facts that should be present"

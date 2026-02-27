@@ -4,6 +4,8 @@ import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ragaliq.reports._utils import collect_evaluator_stats
+
 if TYPE_CHECKING:
     from ragaliq.core.test_case import RAGTestResult
 
@@ -63,25 +65,7 @@ class HTMLReporter:
         """Prepare the template context from evaluation results."""
         from ragaliq.core.test_case import EvalStatus
 
-        all_keys: set[str] = set()
-        for r in results:
-            all_keys.update(r.scores.keys())
-        evaluator_names = sorted(all_keys)
-
-        # Per-evaluator aggregate stats
-        ev_rows = []
-        for name in evaluator_names:
-            scores = [r.scores[name] for r in results if name in r.scores]
-            ev_passed = sum(1 for s in scores if s >= self._threshold)
-            avg = sum(scores) / len(scores) if scores else 0.0
-            ev_rows.append(
-                {
-                    "name": name,
-                    "passed": ev_passed,
-                    "failed": len(scores) - ev_passed,
-                    "avg_score": avg,
-                }
-            )
+        evaluator_names, ev_rows = collect_evaluator_stats(results, self._threshold)
 
         # Per-result data with pre-processed scores and failure details
         processed: list[dict[str, Any]] = []
