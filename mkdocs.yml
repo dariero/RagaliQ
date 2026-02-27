@@ -1,0 +1,60 @@
+site_name: RagaliQ
+site_description: LLM & RAG Evaluation Testing Framework — hallucination detection, faithfulness metrics, and retrieval quality auditing with pytest integration
+site_url: https://dariero.github.io/RagaliQ/
+repo_url: https://github.com/dariero/RagaliQ
+repo_name: dariero/RagaliQ
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top        # Back-to-top button
+    - search.suggest
+    - search.highlight
+    - content.code.copy     # One-click copy button on all code blocks
+    - content.code.annotate # Inline code annotations
+
+nav:
+  - Home: index.md
+  - Tutorial: TUTORIAL.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition              # !!! note / !!! warning callout blocks
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences    # Nested code blocks, mermaid diagrams
+  - pymdownx.tabbed:
+      alternate_style: true # Modern tabbed code examples
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dariero/RagaliQ
+      name: GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/ragaliq/
+      name: PyPI
