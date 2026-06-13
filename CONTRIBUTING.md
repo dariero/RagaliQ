@@ -34,13 +34,11 @@ Run them together:
 hatch run check
 ```
 
-> **Known issue — `mypy` can hang locally on macOS + Python 3.14.** With mypy
-> 1.19.x on CPython 3.14, `hatch run typecheck` may hang while following imports
-> into `pydantic` (the process blocks with near-zero CPU). This is
-> environment-specific: the CI **Type Check** job (Linux, Python 3.14) runs the
-> identical `mypy src/` and is the authoritative type gate. If you hit the hang
-> locally, rely on CI for type-checking (or run mypy inside the Linux CI image);
-> `ruff` and `pytest` are unaffected. Tracked in #78.
+> **Dependencies are locked** in `pylock.toml` (PEP 751, cross-platform). After
+> changing dependencies in `pyproject.toml`, regenerate it with:
+> `uv pip compile pyproject.toml --extra dev --universal --generate-hashes -o pylock.toml`.
+> A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
+> so the lock must be `--universal`. CI installs strictly from this lock via uv.
 
 ## Code Standards
 
