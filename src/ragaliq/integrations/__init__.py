@@ -1,5 +1,3 @@
-# Integrations package (pytest plugin, GitHub Actions helpers, etc.)
-
 from ragaliq.integrations.github_actions import (
     create_annotations,
     emit_ci_summary,

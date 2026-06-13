@@ -47,13 +47,11 @@ class DatasetLoader:
         """
         file_path = Path(path)
 
-        # Check file exists
         if not file_path.exists():
             raise DatasetLoadError(
                 f"Dataset file not found: {file_path}\nChecked path: {file_path.absolute()}"
             )
 
-        # Auto-detect format
         suffix = file_path.suffix.lower()
         try:
             if suffix == ".json":
@@ -106,7 +104,6 @@ class DatasetLoader:
             if reader.fieldnames is None:
                 raise DatasetLoadError(f"CSV file {path.name} has no header row")
 
-            # Validate required columns
             required = {"id", "name", "query", "context", "response"}
             missing = required - set(reader.fieldnames)
             if missing:
@@ -143,10 +140,8 @@ class DatasetLoader:
             if not value or value.strip() == "":
                 return []
             value = value.strip()
-            # Try JSON array first
             if value.startswith("["):
                 return cast(list[str], json.loads(value))
-            # Fallback to pipe-separated
             return [item.strip() for item in value.split("|") if item.strip()]
 
         raw_facts = row.get("expected_facts", "").strip()

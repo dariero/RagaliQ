@@ -65,15 +65,12 @@ class TestCaseGenerator:
         if n < 1:
             raise ValueError("n must be at least 1")
 
-        # Step 1: Generate n questions from all documents
         questions_result = await judge.generate_questions(documents, n)
-        questions = questions_result.questions[:n]  # Trim if LLM over-generated
+        questions = questions_result.questions[:n]  # trim if the judge over-generated
 
-        # Step 2: Generate an answer for each question in parallel
         answer_tasks = [judge.generate_answer(question=q, context=documents) for q in questions]
         answer_results = await asyncio.gather(*answer_tasks)
 
-        # Step 3: Assemble RAGTestCase objects
         return [
             RAGTestCase(
                 id=str(uuid.uuid4()),

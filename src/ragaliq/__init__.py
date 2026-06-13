@@ -14,21 +14,17 @@ from ragaliq.reports.json_export import JSONReporter
 __version__ = "0.2.0"
 
 __all__ = [
-    # Core
     "RagaliQ",
     "RAGTestCase",
     "RAGTestResult",
     "EvalStatus",
     "Evaluator",
     "EvaluationResult",
-    # Judges
     "ClaudeJudge",
     "LLMJudge",
     "JudgeConfig",
-    # Datasets
     "DatasetLoader",
     "TestCaseGenerator",
-    # Reports
     "ConsoleReporter",
     "HTMLReporter",
     "JSONReporter",
