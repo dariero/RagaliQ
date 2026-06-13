@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import threading
+import time
 from typing import Any, Literal
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -69,7 +70,6 @@ class RagaliQ:
         self._judge_config = judge_config
         self._api_key = api_key
 
-        # Handle pre-configured judge instance vs judge type string
         if isinstance(judge, LLMJudge):
             self._judge: LLMJudge | None = judge
             self.judge_type: Literal["claude", "openai"] | None = None
@@ -141,8 +141,6 @@ class RagaliQ:
         Returns:
             RAGTestResult with all metric scores.
         """
-        import time
-
         start_time = time.perf_counter()
 
         await self._ensure_initialized()
@@ -156,7 +154,6 @@ class RagaliQ:
         all_passed = True
         has_error = False
 
-        # Run all evaluators in parallel
         judge = self._judge
         assert judge is not None  # guaranteed by _ensure_initialized()
 
@@ -166,12 +163,10 @@ class RagaliQ:
                 result = await evaluator.evaluate(test_case, judge)
                 return evaluator.name, result
             except Exception as exc:
-                # If fail_fast is enabled, propagate exceptions immediately for debugging
                 if self.fail_fast:
                     logger.error("Evaluator '%s' failed (fail_fast=True)", evaluator.name)
                     raise
 
-                # Otherwise, convert to error envelope for robust batch processing
                 logger.exception("Evaluator '%s' failed", evaluator.name)
                 error_result = EvaluationResult(
                     evaluator_name=evaluator.name,
@@ -187,7 +182,6 @@ class RagaliQ:
         eval_tasks = [_run_evaluator(ev) for ev in self._evaluators]
         results = await asyncio.gather(*eval_tasks)
 
-        # Collect results
         for evaluator_name, result in results:
             scores[evaluator_name] = result.score
             details[evaluator_name] = {
@@ -238,8 +232,6 @@ class RagaliQ:
             notebooks, or async test functions). Use evaluate_async() instead
             in those contexts.
         """
-        import asyncio
-
         return asyncio.run(self.evaluate_async(test_case))
 
     async def evaluate_batch_async(
@@ -255,8 +247,6 @@ class RagaliQ:
         Returns:
             List of RAGTestResults in the same order.
         """
-        import asyncio
-
         concurrency = max_concurrency if max_concurrency is not None else self.max_concurrency
         semaphore = asyncio.Semaphore(concurrency)
 
@@ -265,14 +255,12 @@ class RagaliQ:
                 try:
                     return await self.evaluate_async(tc)
                 except Exception as exc:
-                    # If fail_fast is enabled, propagate exceptions immediately for debugging
                     if self.fail_fast:
                         logger.error(
                             "Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id
                         )
                         raise
 
-                    # Otherwise, convert to error envelope for robust batch processing
                     logger.exception("Batch evaluation failed for test case '%s'", tc.id)
                     return RAGTestResult(
                         test_case=tc,
@@ -301,6 +289,4 @@ class RagaliQ:
             within a running event loop. Use evaluate_batch_async() instead
             in async contexts (FastAPI, Jupyter, async test functions).
         """
-        import asyncio
-
         return asyncio.run(self.evaluate_batch_async(test_cases))

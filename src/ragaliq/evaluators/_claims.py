@@ -1,9 +1,7 @@
-"""
-Shared claim verification pipeline for claim-based evaluators.
+"""Shared claim verification pipeline (extract → verify → aggregate).
 
-This module extracts the common extract→verify→aggregate pattern used by
-FaithfulnessEvaluator and HallucinationEvaluator, eliminating duplication
-and providing a single place to maintain the claim verification flow.
+Factored out of FaithfulnessEvaluator and HallucinationEvaluator so the
+claim-based flow lives in one place.
 """
 
 import asyncio
@@ -28,14 +26,7 @@ class ClaimDetail(BaseModel):
 
 
 class ClaimVerificationResult(BaseModel):
-    """Result of verifying all claims extracted from a response.
-
-    Attributes:
-        claim_details: Per-claim verification results.
-        verdicts: Raw ClaimVerdict objects for further analysis.
-        total_tokens: Total tokens consumed across extraction and verification.
-        claims_empty: True if no claims were extracted (vacuous case).
-    """
+    """Aggregated result of extracting and verifying a response's claims."""
 
     claim_details: list[ClaimDetail] = Field(default_factory=list)
     verdicts: list[ClaimVerdict] = Field(default_factory=list)
@@ -51,53 +42,33 @@ async def verify_all_claims(
     context: list[str],
     judge: LLMJudge,
 ) -> ClaimVerificationResult:
-    """Extract claims from a response and verify each against the context.
+    """Extract atomic claims from `response` and verify each against `context`.
 
-    Implements the shared pipeline:
-    1. Extract atomic claims via judge.extract_claims()
-    2. Verify each claim in parallel via judge.verify_claim()
-    3. Collect results with token tracking
-
-    Args:
-        response: The RAG system's generated response.
-        context: List of context documents to verify against.
-        judge: The LLM judge instance.
+    Returns early (without an LLM call) when context is empty, and after
+    extraction when no claims are found.
 
     Returns:
-        ClaimVerificationResult with all claim details and verdicts.
+        ClaimVerificationResult with per-claim details, verdicts, and token total.
     """
-    # Short-circuit: no context means all claims will be NOT_ENOUGH_INFO.
-    # Skip the extract_claims() LLM call entirely to save tokens.
+    # No context ⇒ every claim is NOT_ENOUGH_INFO; skip the extract call to save tokens.
     if not context:
         return ClaimVerificationResult(context_empty=True)
 
-    # Step 1: Extract atomic claims
     claims_result = await judge.extract_claims(response)
     claims = claims_result.claims
     total_tokens = claims_result.tokens_used
 
-    # Handle empty claims (vacuous case)
     if not claims:
-        return ClaimVerificationResult(
-            claims_empty=True,
-            total_tokens=total_tokens,
-        )
+        return ClaimVerificationResult(claims_empty=True, total_tokens=total_tokens)
 
-    # Step 2: Verify each claim in parallel
     verification_tasks = [judge.verify_claim(claim, context) for claim in claims]
     verdicts = await asyncio.gather(*verification_tasks)
 
-    # Step 3: Build detailed results
-    claim_details: list[ClaimDetail] = []
-    for i, verdict in enumerate(verdicts):
-        total_tokens += verdict.tokens_used
-        claim_details.append(
-            ClaimDetail(
-                claim=claims[i],
-                verdict=verdict.verdict,
-                evidence=verdict.evidence,
-            )
-        )
+    claim_details = [
+        ClaimDetail(claim=claims[i], verdict=verdict.verdict, evidence=verdict.evidence)
+        for i, verdict in enumerate(verdicts)
+    ]
+    total_tokens += sum(verdict.tokens_used for verdict in verdicts)
 
     return ClaimVerificationResult(
         claim_details=claim_details,

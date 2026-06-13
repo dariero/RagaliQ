@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Judge prompts now include few-shot examples by default, which may shift evaluation scores relative to 0.1.0. (#77)
 - **Raised minimum dependency versions** to their latest releases: `anthropic>=0.109`, `pydantic>=2.13`, `typer>=0.26`, and `rich>=15` (a major bump). Downstream consumers must meet these higher floors. (#84)
-- `mypy>=2.1` is now required for development (resolves a type-checking hang under Python 3.14); dependencies are pinned in a cross-platform `pylock.toml`. (#84)
+- `mypy>=2.1` and `pytest>=9.1` are now the development floors (mypy resolves a type-checking hang under Python 3.14); dependencies are pinned in a cross-platform `pylock.toml`. (#84)
 
 ### Fixed
 

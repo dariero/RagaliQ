@@ -1,14 +1,10 @@
-"""
-Faithfulness evaluator for RagaliQ.
-
-This module implements claim-level faithfulness evaluation, measuring whether
-an LLM response is grounded only in the provided context without hallucinations.
+"""Faithfulness evaluator: is the response grounded only in the context?
 
 Algorithm:
-    1. Extract atomic claims from the response
-    2. Verify each claim against the context (SUPPORTED/CONTRADICTED/NOT_ENOUGH_INFO)
-    3. Score = supported_claims / total_claims
-    4. Empty context or empty claims = 0.0 (cannot assess faithfulness)
+    1. Extract atomic claims from the response.
+    2. Verify each claim against the context (SUPPORTED/CONTRADICTED/NOT_ENOUGH_INFO).
+    3. Score = supported_claims / total_claims.
+    4. Empty context or no claims = 0.0 (cannot assess faithfulness).
 """
 
 from typing import TYPE_CHECKING
@@ -24,34 +20,11 @@ if TYPE_CHECKING:
 
 @register_evaluator("faithfulness")
 class FaithfulnessEvaluator(Evaluator):
-    """
-    Evaluator that measures response faithfulness to context.
+    """Measures whether every claim in the response is supported by the context.
 
-    Faithfulness means every claim in the response is supported by the context.
-    A faithful response does not hallucinate or add information beyond what
-    the context provides.
-
-    This evaluator uses claim-level decomposition:
-    1. Extract atomic claims from the response
-    2. Verify each claim against the context
-    3. Calculate score as ratio of supported claims
-
-    Attributes:
-        name: "faithfulness" - unique identifier for this evaluator.
-        description: Human-readable description of what is evaluated.
-        threshold: Minimum score to pass (default 0.7).
-
-    Example:
-        evaluator = FaithfulnessEvaluator(threshold=0.8)
-        result = await evaluator.evaluate(test_case, judge)
-
-        if result.passed:
-            print(f"Response is faithful: {result.score:.2f}")
-        else:
-            # Inspect which claims failed
-            for claim in result.raw_response["claims"]:
-                if claim["verdict"] != "SUPPORTED":
-                    print(f"Unsupported: {claim['claim']}")
+    A faithful response adds no information beyond what the context provides. The
+    score is the ratio of supported claims; see the module docstring for the
+    claim-level algorithm.
     """
 
     name: str = "faithfulness"
@@ -62,73 +35,29 @@ class FaithfulnessEvaluator(Evaluator):
         test_case: RAGTestCase,
         judge: LLMJudge,
     ) -> EvaluationResult:
-        """
-        Evaluate faithfulness of the response to the context.
-
-        Implements the claim-based faithfulness algorithm:
-        1. Extract claims from response via judge.extract_claims()
-        2. Verify each claim via judge.verify_claim()
-        3. Score = supported_claims / total_claims
-        4. Empty context or empty claims = 0.0 (cannot assess)
-
-        Args:
-            test_case: The RAG test case containing response and context.
-            judge: The LLM judge instance for claim extraction and verification.
-
-        Returns:
-            EvaluationResult with:
-                - score: Ratio of supported claims (0.0 to 1.0)
-                - passed: Whether score meets threshold
-                - reasoning: Human-readable explanation
-                - raw_response: Detailed claim-level metadata
-        """
+        """Score faithfulness as the fraction of response claims supported by context."""
         verification = await verify_all_claims(test_case.response, test_case.context, judge)
 
-        # Handle empty context: faithfulness cannot be assessed without context
         if verification.context_empty:
-            return EvaluationResult(
-                evaluator_name=self.name,
-                score=0.0,
-                passed=False,
-                reasoning="No context provided; faithfulness cannot be assessed.",
-                raw_response={
-                    "claims": [],
-                    "total_claims": 0,
-                    "supported_claims": 0,
-                },
-                tokens_used=0,
+            return self._empty_result(
+                "No context provided; faithfulness cannot be assessed.", tokens_used=0
             )
-
-        # Handle empty claims: no verifiable content in the response
         if verification.claims_empty:
-            return EvaluationResult(
-                evaluator_name=self.name,
-                score=0.0,
-                passed=False,
-                reasoning=(
-                    "No claims could be extracted from the response; "
-                    "faithfulness cannot be assessed."
-                ),
-                raw_response={
-                    "claims": [],
-                    "total_claims": 0,
-                    "supported_claims": 0,
-                },
+            return self._empty_result(
+                "No claims could be extracted from the response; "
+                "faithfulness cannot be assessed.",
                 tokens_used=verification.total_tokens,
             )
 
-        # Count supported claims
         supported_count = sum(1 for d in verification.claim_details if d.verdict == "SUPPORTED")
         total_claims = len(verification.claim_details)
         score = supported_count / total_claims
-
-        reasoning = self._build_reasoning(supported_count, total_claims)
 
         return EvaluationResult(
             evaluator_name=self.name,
             score=score,
             passed=self.is_passing(score),
-            reasoning=reasoning,
+            reasoning=self._build_reasoning(supported_count, total_claims),
             raw_response={
                 "claims": [d.model_dump() for d in verification.claim_details],
                 "total_claims": total_claims,
@@ -137,29 +66,30 @@ class FaithfulnessEvaluator(Evaluator):
             tokens_used=verification.total_tokens,
         )
 
+    def _empty_result(self, reasoning: str, tokens_used: int) -> EvaluationResult:
+        """Build a failing 0.0 result for cases where faithfulness can't be assessed."""
+        return EvaluationResult(
+            evaluator_name=self.name,
+            score=0.0,
+            passed=False,
+            reasoning=reasoning,
+            raw_response={"claims": [], "total_claims": 0, "supported_claims": 0},
+            tokens_used=tokens_used,
+        )
+
     def _build_reasoning(self, supported: int, total: int) -> str:
-        """
-        Build human-readable reasoning for the faithfulness score.
-
-        Args:
-            supported: Number of supported claims.
-            total: Total number of claims.
-
-        Returns:
-            Reasoning string explaining the score calculation.
-        """
+        """Summarize the supported/total claim ratio in human-readable form."""
         if total == 0:
             return "No claims to verify."
 
-        unsupported = total - supported
-        score_pct = (supported / total) * 100
-
         if supported == total:
             return f"All {total} claims are supported by the context."
-        elif supported == 0:
+        if supported == 0:
             return f"None of the {total} claims are supported by the context."
-        else:
-            return (
-                f"{supported} of {total} claims are supported ({score_pct:.0f}%). "
-                f"{unsupported} claim(s) not grounded in context."
-            )
+
+        unsupported = total - supported
+        score_pct = (supported / total) * 100
+        return (
+            f"{supported} of {total} claims are supported ({score_pct:.0f}%). "
+            f"{unsupported} claim(s) not grounded in context."
+        )

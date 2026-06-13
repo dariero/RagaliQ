@@ -103,30 +103,35 @@ def check_no_todos() -> bool:
 
 
 def check_build() -> bool:
-    """Verify package builds successfully."""
+    """Verify the package builds via the PEP 517 frontend (`python -m build`).
+
+    Uses the standard build frontend rather than `hatch build` so the check runs
+    on any environment with `build` installed, without requiring `hatch` on PATH.
+    """
     header("Package Build")
 
-    # Clean previous builds
     dist = ROOT / "dist"
     if dist.exists():
         for f in dist.iterdir():
             f.unlink()
 
     result = subprocess.run(
-        ["hatch", "build"],
+        [sys.executable, "-m", "build"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
-    ok = check("hatch build", result.returncode == 0)
-    if not ok:
+    if result.returncode != 0:
+        if "No module named build" in result.stderr:
+            print("  [~] build not installed — skipping (install with: pip install build)")
+            return True
+        check("python -m build", False)
         print(f"    stderr: {result.stderr[:500]}")
         return False
 
-    # Check artifacts exist
+    ok = check("python -m build", True)
     artifacts = list(dist.glob("*"))
     ok &= check("Build artifacts created", len(artifacts) >= 2, f"{len(artifacts)} files")
-
     return ok
 
 

@@ -60,7 +60,7 @@ docs = [
     "mkdocs-material>=9.7",
 ]
 dev = [
-    "pytest>=9.0",
+    "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
     "ruff>=0.15",
@@ -86,8 +86,12 @@ Changelog = "https://github.com/dariero/RagaliQ/blob/main/CHANGELOG.md"
 packages = ["src/ragaliq"]
 
 [tool.hatch.envs.default]
+# uv is the installer engine for local hatch envs (matches CI's uv-based sync
+# and keeps pip out of the local toolchain). See CONTRIBUTING.md for the lock
+# generation workflow; CI installs from pylock.toml directly via uv.
+installer = "uv"
 dependencies = [
-    "pytest>=9.0",
+    "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
     "ruff>=0.15",
