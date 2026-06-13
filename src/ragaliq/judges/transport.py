@@ -18,6 +18,8 @@ from typing import Protocol
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
 
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL
+
 
 class TransportResponse(BaseModel):
     """
@@ -73,7 +75,7 @@ class JudgeTransport(Protocol):
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "claude-sonnet-4-6",
+        model: str = DEFAULT_JUDGE_MODEL,
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> TransportResponse:
@@ -117,7 +119,7 @@ class ClaudeTransport:
         self,
         system_prompt: str,
         user_prompt: str,
-        model: str = "claude-sonnet-4-6",
+        model: str = DEFAULT_JUDGE_MODEL,
         temperature: float = 0.0,
         max_tokens: int = 1024,
     ) -> TransportResponse:

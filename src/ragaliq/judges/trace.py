@@ -10,6 +10,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL
+
 
 class JudgeTrace(BaseModel):
     """
@@ -44,8 +46,8 @@ class JudgeTrace(BaseModel):
 # Per-model pricing: (input_cost_per_million, output_cost_per_million) in USD.
 # Source: Anthropic pricing page. Override via TraceCollector(model_pricing=...).
 _DEFAULT_MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-6": (3.0, 15.0),
-    "claude-opus-4-8": (5.0, 25.0),
+    DEFAULT_JUDGE_MODEL: (3.0, 15.0),
+    GOLD_STANDARD_JUDGE_MODEL: (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 

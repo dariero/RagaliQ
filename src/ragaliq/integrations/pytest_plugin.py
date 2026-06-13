@@ -143,7 +143,7 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
     """
     import asyncio
 
-    from ragaliq.judges import ClaudeJudge, JudgeConfig
+    from ragaliq.judges import DEFAULT_JUDGE_MODEL, ClaudeJudge, JudgeConfig
     from ragaliq.judges.transport import JudgeTransport, TransportResponse
 
     judge_type = request.config.getoption("--ragaliq-judge")
@@ -178,7 +178,7 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                         self,
                         system_prompt: str,
                         user_prompt: str,
-                        model: str = "claude-sonnet-4-6",
+                        model: str = DEFAULT_JUDGE_MODEL,
                         temperature: float = 0.0,
                         max_tokens: int = 1024,
                     ) -> TransportResponse:
