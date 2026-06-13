@@ -9,7 +9,7 @@ Thank you for your interest in contributing! RagaliQ is an open-source LLM/RAG e
 
 ## Development Setup
 
-**Requirements:** Python 3.12+, [Hatch](https://hatch.pypa.io/)
+**Requirements:** Python 3.14+, [Hatch](https://hatch.pypa.io/)
 
 ```bash
 git clone https://github.com/dariero/RagaliQ.git
@@ -33,6 +33,14 @@ Run them together:
 ```bash
 hatch run check
 ```
+
+> **Known issue — `mypy` can hang locally on macOS + Python 3.14.** With mypy
+> 1.19.x on CPython 3.14, `hatch run typecheck` may hang while following imports
+> into `pydantic` (the process blocks with near-zero CPU). This is
+> environment-specific: the CI **Type Check** job (Linux, Python 3.14) runs the
+> identical `mypy src/` and is the authoritative type gate. If you hit the hang
+> locally, rely on CI for type-checking (or run mypy inside the Linux CI image);
+> `ruff` and `pytest` are unaffected. Tracked in #78.
 
 ## Code Standards
 
