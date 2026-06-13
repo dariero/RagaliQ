@@ -45,7 +45,7 @@ async def main():
     # Initialize RagaliQ
     tester = RagaliQ(
         evaluators=["faithfulness", "relevance"],
-        threshold=0.7
+        default_threshold=0.7
     )
 
     # Evaluate
@@ -53,8 +53,8 @@ async def main():
 
     # Check results
     print(f"Status: {result.status}")
-    for eval_result in result.evaluations:
-        print(f"  {eval_result.evaluator}: {eval_result.score:.2f}")
+    for metric, score in result.scores.items():
+        print(f"  {metric}: {score:.2f}")
 
 asyncio.run(main())
 ```
@@ -77,16 +77,18 @@ Status: passed
 Create a test dataset file:
 
 ```json
-// tests.json
-[
-  {
-    "id": "1",
-    "name": "Capital Question",
-    "query": "What is the capital of France?",
-    "context": ["Paris is the capital of France."],
-    "response": "The capital of France is Paris."
-  }
-]
+{
+  "version": "1.0",
+  "test_cases": [
+    {
+      "id": "1",
+      "name": "Capital Question",
+      "query": "What is the capital of France?",
+      "context": ["Paris is the capital of France."],
+      "response": "The capital of France is Paris."
+    }
+  ]
+}
 ```
 
 Run evaluation:
@@ -104,7 +106,7 @@ from ragaliq import RAGTestCase
 from ragaliq.integrations.pytest_plugin import assert_rag_quality
 
 @pytest.mark.rag_test
-def test_factual_response(rag_tester):
+def test_factual_response(ragaliq_judge):
     test_case = RAGTestCase(
         id="1",
         name="Test",
@@ -112,7 +114,7 @@ def test_factual_response(rag_tester):
         context=["Python is a programming language created in 1991."],
         response="Python is a programming language."
     )
-    assert_rag_quality(rag_tester, test_case)
+    assert_rag_quality(test_case, judge=ragaliq_judge)
 ```
 
 Run tests:
@@ -144,5 +146,5 @@ Default pass threshold is **0.7**.
 ## Next Steps
 
 - [Full README](README.md) - Complete feature documentation
-- [CLI Reference](README.md#cli-usage) - All command options
+- [CLI Reference](README.md#cli) - All command options
 - [Pytest Integration](README.md#pytest-integration) - Testing patterns
