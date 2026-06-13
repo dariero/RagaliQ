@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ragaliq"
-version = "0.1.0"
+version = "0.2.0"
 description = "LLM & RAG evaluation testing framework — hallucination detection, faithfulness metrics, answer relevance scoring, and retrieval pipeline testing with pytest integration"
 readme = "README.md"
 license = "MIT"

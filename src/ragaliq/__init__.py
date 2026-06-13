@@ -11,7 +11,7 @@ from ragaliq.reports.console import ConsoleReporter
 from ragaliq.reports.html import HTMLReporter
 from ragaliq.reports.json_export import JSONReporter
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Core
