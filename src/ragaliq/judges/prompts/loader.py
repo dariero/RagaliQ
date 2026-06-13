@@ -110,6 +110,27 @@ class PromptTemplate(BaseModel):
 
         return "\n".join(lines)
 
+    def build_system_prompt(self, max_examples: int | None = None) -> str:
+        """
+        Build the full system prompt, appending few-shot examples if present.
+
+        Combines the base ``system_prompt`` with the formatted few-shot
+        examples so the judge receives worked examples alongside its role and
+        scoring criteria. Returns the base system prompt unchanged when the
+        template defines no examples.
+
+        Args:
+            max_examples: Maximum number of examples to include (all if None).
+
+        Returns:
+            System prompt text, with an "Examples:" section appended when the
+            template defines examples.
+        """
+        examples_text = self.get_examples_text(max_examples)
+        if not examples_text:
+            return self.system_prompt
+        return f"{self.system_prompt}\n\n{examples_text}"
+
 
 def _get_prompts_dir() -> Path:
     """Get the directory containing prompt template YAML files."""

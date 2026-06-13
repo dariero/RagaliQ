@@ -256,7 +256,7 @@ class BaseJudge(LLMJudge):
         template = get_prompt("faithfulness")
         formatted_context = template.format_context(context)
         user_prompt = template.format_user_prompt(context=formatted_context, response=response)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
     def _build_relevance_prompt(
         self,
@@ -275,7 +275,7 @@ class BaseJudge(LLMJudge):
         """
         template = get_prompt("relevance")
         user_prompt = template.format_user_prompt(query=query, response=response)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
     async def evaluate_faithfulness(
         self,
@@ -399,7 +399,7 @@ class BaseJudge(LLMJudge):
         template = get_prompt("extract_claims")
         user_prompt = template.format_user_prompt(response=response)
         raw_response, tokens_used = await self._call_llm(
-            template.system_prompt, user_prompt, operation="extract_claims"
+            template.build_system_prompt(), user_prompt, operation="extract_claims"
         )
         parsed = self._parse_json_response(raw_response)
 
@@ -433,7 +433,7 @@ class BaseJudge(LLMJudge):
         template = get_prompt("generate_questions")
         formatted_docs = template.format_context(documents)
         user_prompt = template.format_user_prompt(n=n, documents=formatted_docs)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
     def _build_generate_answer_prompt(
         self,
@@ -453,7 +453,7 @@ class BaseJudge(LLMJudge):
         template = get_prompt("generate_answer")
         formatted_context = template.format_context(context)
         user_prompt = template.format_user_prompt(context=formatted_context, question=question)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
     async def generate_questions(
         self,
@@ -559,7 +559,7 @@ class BaseJudge(LLMJudge):
             context=formatted_context,
         )
         raw_response, tokens_used = await self._call_llm(
-            template.system_prompt, user_prompt, operation="verify_claim"
+            template.build_system_prompt(), user_prompt, operation="verify_claim"
         )
         parsed = self._parse_json_response(raw_response)
 
