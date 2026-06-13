@@ -102,35 +102,40 @@ def check_no_todos() -> bool:
     return ok
 
 
-def check_build() -> bool:
-    """Verify package builds successfully."""
+def check_build() -> bool | None:
+    """Verify the package builds via the PEP 517 frontend (`python -m build`).
+
+    Uses the standard build frontend rather than `hatch build` so the check runs
+    on any environment with `build` installed, without requiring `hatch` on PATH.
+    """
     header("Package Build")
 
-    # Clean previous builds
     dist = ROOT / "dist"
     if dist.exists():
         for f in dist.iterdir():
             f.unlink()
 
     result = subprocess.run(
-        ["hatch", "build"],
+        [sys.executable, "-m", "build"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
-    ok = check("hatch build", result.returncode == 0)
-    if not ok:
+    if result.returncode != 0:
+        if "No module named build" in result.stderr:
+            print("  [~] build not installed — skipping (install with: pip install build)")
+            return None
+        check("python -m build", False)
         print(f"    stderr: {result.stderr[:500]}")
         return False
 
-    # Check artifacts exist
+    ok = check("python -m build", True)
     artifacts = list(dist.glob("*"))
     ok &= check("Build artifacts created", len(artifacts) >= 2, f"{len(artifacts)} files")
-
     return ok
 
 
-def check_twine() -> bool:
+def check_twine() -> bool | None:
     """Verify twine check passes on built artifacts."""
     header("Twine Check")
 
@@ -151,7 +156,7 @@ def check_twine() -> bool:
         # twine may not be installed — that's acceptable in dev
         if "No module named" in result.stderr:
             print("  [~] twine not installed — skipping (install with: pip install twine)")
-            return True
+            return None
         check("twine check", False, result.stdout.strip())
         return False
 
@@ -193,7 +198,7 @@ def main() -> None:
     print("RagaliQ Release Verification")
     print(f"Root: {ROOT}")
 
-    results = [
+    results: list[bool | None] = [
         check_version_consistency(),
         check_required_files(),
         check_no_todos(),
@@ -203,14 +208,23 @@ def main() -> None:
     ]
 
     header("RESULT")
-    passed = sum(results)
     total = len(results)
-    if all(results):
-        print(f"  All {total} checks passed. Ready to release!")
-        sys.exit(0)
-    else:
-        print(f"  {passed}/{total} checks passed. Fix failures before releasing.")
+    passed = sum(1 for r in results if r is True)
+    failed = sum(1 for r in results if r is False)
+    skipped = sum(1 for r in results if r is None)
+
+    if failed:
+        print(f"  {passed}/{total} passed, {failed} failed, {skipped} skipped. "
+              "Fix failures before releasing.")
         sys.exit(1)
+    if skipped:
+        # A skipped check (missing build/twine) is NOT verified. Surface it loudly
+        # so a skip can never masquerade as a green "ready to release" gate.
+        print(f"  {passed}/{total} passed, {skipped} skipped (NOT verified). "
+              "Install the missing tools to fully verify before releasing.")
+        sys.exit(0)
+    print(f"  All {total} checks passed. Ready to release!")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

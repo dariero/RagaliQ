@@ -314,7 +314,7 @@ pytest --ragaliq-judge claude \
 ```
 
 For complex multi-step or gold-standard judging flows, use
-`--ragaliq-model claude-opus-4-6`.
+`--ragaliq-model claude-opus-4-8`.
 
 ---
 

@@ -9,7 +9,7 @@ Thank you for your interest in contributing! RagaliQ is an open-source LLM/RAG e
 
 ## Development Setup
 
-**Requirements:** Python 3.12+, [Hatch](https://hatch.pypa.io/)
+**Requirements:** Python 3.14+, [Hatch](https://hatch.pypa.io/)
 
 ```bash
 git clone https://github.com/dariero/RagaliQ.git
@@ -33,6 +33,12 @@ Run them together:
 ```bash
 hatch run check
 ```
+
+> **Dependencies are locked** in `pylock.toml` (PEP 751, cross-platform). After
+> changing dependencies in `pyproject.toml`, regenerate it with:
+> `uv pip compile pyproject.toml --extra dev --universal --generate-hashes -o pylock.toml`.
+> A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
+> so the lock must be `--universal`. CI installs strictly from this lock via uv.
 
 ## Code Standards
 

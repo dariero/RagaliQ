@@ -24,22 +24,7 @@ class PromptExample(BaseModel):
 
 
 class PromptTemplate(BaseModel):
-    """
-    A prompt template for LLM judge operations.
-
-    Prompt templates define the structure of prompts sent to LLM judges,
-    including system prompts, user message templates, output format
-    specifications, and few-shot examples.
-
-    Attributes:
-        name: Unique identifier for the template.
-        version: Template version for tracking changes.
-        description: Human-readable description of the template's purpose.
-        system_prompt: The system message defining the LLM's role.
-        user_template: Template string for user messages with {placeholders}.
-        output_format: Specification for expected output structure.
-        examples: Few-shot examples for the template.
-    """
+    """A judge prompt template: system prompt, user template, output format, examples."""
 
     name: str = Field(..., description="Template identifier")
     version: str = Field(default="1.0", description="Template version")
@@ -52,22 +37,14 @@ class PromptTemplate(BaseModel):
     model_config = {"extra": "forbid"}
 
     def format_user_prompt(self, **kwargs: Any) -> str:
-        """
-        Format the user template with provided variables.
+        """Format the user template, escaping braces in values to block format-string injection.
 
-        Values are sanitized to escape curly braces, preventing Python
-        format string injection (e.g., ``{__class__}`` in user content).
-
-        Args:
-            **kwargs: Variables to substitute in the template.
-
-        Returns:
-            Formatted user prompt string.
+        Escaping prevents constructs like ``{__class__}`` in user content from
+        being interpreted by ``str.format``.
 
         Raises:
             KeyError: If a required template variable is missing.
         """
-        # Escape curly braces in values to prevent format string injection
         sanitized = {
             k: v.replace("{", "{{").replace("}", "}}") if isinstance(v, str) else v
             for k, v in kwargs.items()
@@ -75,27 +52,11 @@ class PromptTemplate(BaseModel):
         return self.user_template.format(**sanitized)
 
     def format_context(self, context: list[str]) -> str:
-        """
-        Format a list of context documents for insertion into prompts.
-
-        Args:
-            context: List of context document strings.
-
-        Returns:
-            Formatted context string with document separators.
-        """
+        """Join context documents into one string with numbered `Document N:` separators."""
         return "\n\n---\n\n".join(f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context))
 
     def get_examples_text(self, max_examples: int | None = None) -> str:
-        """
-        Format few-shot examples as text for inclusion in prompts.
-
-        Args:
-            max_examples: Maximum number of examples to include.
-
-        Returns:
-            Formatted examples string.
-        """
+        """Render up to `max_examples` few-shot examples as prompt text ("" if none)."""
         examples = self.examples[:max_examples] if max_examples else self.examples
 
         if not examples:
@@ -110,6 +71,19 @@ class PromptTemplate(BaseModel):
 
         return "\n".join(lines)
 
+    def build_system_prompt(self, max_examples: int | None = None) -> str:
+        """Return the system prompt with a few-shot "Examples:" section appended when present.
+
+        Falls back to the bare ``system_prompt`` when the template has no examples.
+
+        Args:
+            max_examples: Cap on examples to include (all if None).
+        """
+        examples_text = self.get_examples_text(max_examples)
+        if not examples_text:
+            return self.system_prompt
+        return f"{self.system_prompt}\n\n{examples_text}"
+
 
 def _get_prompts_dir() -> Path:
     """Get the directory containing prompt template YAML files."""
@@ -118,17 +92,10 @@ def _get_prompts_dir() -> Path:
 
 @lru_cache(maxsize=32)
 def _load_template_file(name: str) -> dict[str, Any]:
-    """
-    Load and parse a YAML template file.
-
-    Args:
-        name: Template name (without .yaml extension).
-
-    Returns:
-        Parsed YAML content as dictionary.
+    """Load and parse `<name>.yaml` from the prompts directory (cached).
 
     Raises:
-        FileNotFoundError: If template file doesn't exist.
+        FileNotFoundError: If the template file doesn't exist.
         yaml.YAMLError: If YAML parsing fails.
     """
     prompts_dir = _get_prompts_dir()
@@ -152,40 +119,17 @@ def _load_template_file(name: str) -> dict[str, Any]:
 
 
 def get_prompt(name: str) -> PromptTemplate:
-    """
-    Load a prompt template by name.
-
-    Args:
-        name: Template name (e.g., 'faithfulness', 'relevance').
-
-    Returns:
-        PromptTemplate object with loaded template data.
+    """Load and validate the prompt template named `name` (e.g. 'faithfulness').
 
     Raises:
-        FileNotFoundError: If template doesn't exist.
-        ValidationError: If template structure is invalid.
-
-    Example:
-        >>> template = get_prompt("faithfulness")
-        >>> prompt = template.format_user_prompt(
-        ...     context="Document 1:\\nParis is in France.",
-        ...     response="Paris is the capital of France."
-        ... )
+        FileNotFoundError: If the template doesn't exist.
+        ValidationError: If the template structure is invalid.
     """
     data = _load_template_file(name)
     return PromptTemplate.model_validate(data)
 
 
 def list_prompts() -> list[str]:
-    """
-    List all available prompt template names.
-
-    Returns:
-        List of template names (without .yaml extension).
-
-    Example:
-        >>> list_prompts()
-        ['extract_claims', 'faithfulness', 'relevance', 'verify_claim']
-    """
+    """Return the sorted names of all available prompt templates (without `.yaml`)."""
     prompts_dir = _get_prompts_dir()
     return sorted(f.stem for f in prompts_dir.glob("*.yaml") if f.is_file())

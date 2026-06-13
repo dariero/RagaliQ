@@ -6,79 +6,94 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel in-progress runs for the same branch/PR when a new commit is pushed.
-# This prevents wasted CI minutes on stale builds.
+# Cancel superseded in-progress runs for the same branch/PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# CI installs from the committed PEP 751 pylock.toml via uv (deterministic,
+# cached). hatch dep sync is avoided: its locked sync exits non-zero on a fresh
+# environment, while uv consumes the same lockfile reliably.
 jobs:
-  # ──────────────────────────────────────────────────────────────────────
-  # Job 1: Lint — runs ruff on src/ and tests/
-  # ──────────────────────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.14"
-          cache: "pip"
 
-      - name: Install dev dependencies
-        run: pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pylock.toml"
+
+      - name: Install locked dependencies + project
+        run: |
+          uv venv --python 3.14
+          uv pip sync pylock.toml
+          uv pip install -e . --no-deps
 
       - name: Run ruff
-        run: ruff check src/ tests/
+        run: .venv/bin/ruff check src/ tests/
 
-  # ──────────────────────────────────────────────────────────────────────
-  # Job 2: Type Check — runs mypy in strict mode
-  # ──────────────────────────────────────────────────────────────────────
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
           python-version: "3.14"
-          cache: "pip"
 
-      - name: Install dev dependencies
-        run: pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pylock.toml"
+
+      - name: Install locked dependencies + project
+        run: |
+          uv venv --python 3.14
+          uv pip sync pylock.toml
+          uv pip install -e . --no-deps
 
       - name: Run mypy
-        run: mypy src/
+        run: .venv/bin/mypy src/
 
-  # ──────────────────────────────────────────────────────────────────────
-  # Job 3: Test — runs unit tests on Python 3.14 (the only supported version).
-  # Only tests/unit/ runs here — integration tests need live API keys
-  # and are gated to the release workflow where secrets are available.
-  # ──────────────────────────────────────────────────────────────────────
+  # Only unit tests run in CI; integration tests need live API keys.
   test:
-    name: Test (Python 3.14)
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.14"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.3
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6.2.0
         with:
-          python-version: "3.14"
-          cache: "pip"
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dev dependencies
-        run: pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pylock.toml"
+
+      - name: Install locked dependencies + project
+        run: |
+          uv venv --python ${{ matrix.python-version }}
+          uv pip sync pylock.toml
+          uv pip install -e . --no-deps
 
       - name: Run unit tests
-        # addopts in pyproject.toml adds --cov=ragaliq automatically.
-        # --cov-report=xml produces coverage.xml for the Codecov upload below.
-        run: pytest tests/unit/ --cov-report=xml
+        # --cov-report=xml writes coverage.xml for the Codecov upload below.
+        run: .venv/bin/pytest tests/unit/ --cov-report=xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7.0.0
         with:
           files: ./coverage.xml
           # fail_ci_if_error: false keeps CI green even if Codecov is down.

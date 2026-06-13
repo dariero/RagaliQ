@@ -59,6 +59,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Lockfiles — pylock.toml (PEP 751, cross-platform) is the canonical, committed
+# lock consumed by CI. uv's proprietary uv.lock is a local byproduct of uv
+# commands; ignore it so the two formats can't drift or be committed by mistake.
+uv.lock
+
 # IDE
 .idea/
 .vscode/

@@ -95,15 +95,13 @@ def pytest_configure(config: Any) -> None:
         "rag_slow: Mark RAG test as slow-running (useful for -m 'not rag_slow' skipping)",
     )
 
-    # Initialize trace collector on config for session-wide tracking
-    # Try to import - if ragaliq not installed, skip (plugin loads but is inactive)
+    # Best effort: if ragaliq isn't importable, the plugin loads but stays inactive
+    # (e.g. non-editable installs, pytest --collect-only).
     try:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
     except (ImportError, ModuleNotFoundError):
-        # ragaliq not installed - plugin entry point loaded but can't initialize
-        # This is expected in non-editable installs or when running pytest --collect-only
         config._ragaliq_trace_collector = None
 
 
@@ -143,7 +141,7 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
     """
     import asyncio
 
-    from ragaliq.judges import ClaudeJudge, JudgeConfig
+    from ragaliq.judges import DEFAULT_JUDGE_MODEL, ClaudeJudge, JudgeConfig
     from ragaliq.judges.transport import JudgeTransport, TransportResponse
 
     judge_type = request.config.getoption("--ragaliq-judge")
@@ -151,7 +149,6 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
     api_key = request.config.getoption("--ragaliq-api-key")
     latency_ms = request.config.getoption("--ragaliq-latency-ms")
 
-    # Build config if model override provided
     config = None
     if model:
         config = JudgeConfig(model=model)
@@ -164,7 +161,6 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                 trace_collector=ragaliq_trace_collector,
             )
 
-            # Wrap transport with latency injection if configured
             if latency_ms > 0:
 
                 class LatencyInjectionTransport:
@@ -178,7 +174,7 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                         self,
                         system_prompt: str,
                         user_prompt: str,
-                        model: str = "claude-sonnet-4-6",
+                        model: str = DEFAULT_JUDGE_MODEL,
                         temperature: float = 0.0,
                         max_tokens: int = 1024,
                     ) -> TransportResponse:
@@ -295,7 +291,6 @@ def pytest_runtest_makereport(item: Any, call: Any) -> None:
     if call.when != "call":
         return
 
-    # Check cost limit
     cost_limit = item.config.getoption("--ragaliq-cost-limit")
     if cost_limit is None:
         return
@@ -327,23 +322,19 @@ def pytest_terminal_summary(terminalreporter: Any, exitstatus: int, config: Any)
     if collector is None or len(collector.traces) == 0:
         return
 
-    # Write summary header
     terminalreporter.write_sep("=", "RagaliQ Summary", bold=True)
 
-    # Calculate statistics
     total_calls = len(collector.traces)
     total_tokens = collector.total_tokens
     total_cost = collector.total_cost_estimate
     total_latency_sec = collector.total_latency_ms / 1000
     failures = collector.failure_count
 
-    # Write statistics
     terminalreporter.write_line(f"Total LLM calls: {total_calls}")
     terminalreporter.write_line(f"Total tokens: {total_tokens:,}")
     terminalreporter.write_line(f"Total cost estimate: ${total_cost:.4f}")
     terminalreporter.write_line(f"Total latency: {total_latency_sec:.1f}s")
     terminalreporter.write_line(f"Failures: {failures}")
 
-    # Warn if approaching common budget limits
     if total_cost > _HIGH_COST_WARNING_THRESHOLD:
         terminalreporter.write_line(f"WARNING: High cost detected (${total_cost:.2f})", red=True)

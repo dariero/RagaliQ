@@ -11,18 +11,7 @@ if TYPE_CHECKING:
 
 
 class EvaluationResult(BaseModel):
-    """
-    Result of a single evaluation metric.
-
-    Attributes:
-        evaluator_name: Name of the evaluator that produced this result.
-        score: Numeric score from 0.0 to 1.0.
-        passed: Whether the score meets the threshold.
-        reasoning: Human-readable explanation of the score.
-        raw_response: Raw response from the LLM judge for debugging.
-        tokens_used: Total tokens consumed by this evaluation.
-        error: Error message if evaluation failed. Non-None indicates failure.
-    """
+    """Result of a single evaluation metric. A non-None `error` indicates failure."""
 
     evaluator_name: str = Field(..., description="Name of the evaluator")
     score: float = Field(..., ge=0.0, le=1.0, description="Score from 0 to 1")
@@ -82,7 +71,7 @@ class Evaluator(ABC):
         Returns:
             EvaluationResult with score and reasoning.
         """
-        pass
+        ...
 
     def is_passing(self, score: float) -> bool:
         """Check if a score meets the threshold."""

@@ -1,17 +1,12 @@
-"""
-Context precision evaluator for RagaliQ.
+"""Context precision evaluator: are the retrieved documents relevant to the query?
 
-This module implements context precision evaluation, measuring whether the
-retrieved documents are relevant to the user's query. It tests retrieval
-quality rather than response quality.
-
-Algorithm:
-    1. Score each context document's relevance to the query via judge
-    2. Apply weighted precision: higher-ranked documents weighted more
-    3. Score = sum(relevance_i / rank_i) / sum(1 / rank_i)
-    4. Empty context = 1.0 (vacuously precise — no irrelevant docs retrieved)
+Tests retrieval quality (not response quality) with rank-weighted precision:
+    Score = sum(relevance_i / rank_i) / sum(1 / rank_i)
+where rank_i is the 1-based position of document i. Empty context = 1.0
+(vacuously precise).
 """
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
@@ -26,39 +21,11 @@ _DOC_PREVIEW_LENGTH = 200
 
 @register_evaluator("context_precision")
 class ContextPrecisionEvaluator(Evaluator):
-    """
-    Evaluator that measures the precision of retrieved context documents.
+    """Measures whether retrieved documents are relevant to the query.
 
-    Context precision assesses whether the documents retrieved by the RAG
-    system are actually relevant to the user's query. Higher-ranked documents
-    are weighted more heavily, reflecting the importance of retrieval ordering.
-
-    This evaluator tests retrieval quality, not response quality. It uses
-    the judge's evaluate_relevance method on each document individually,
-    treating each document as the "response" to assess its relevance to
-    the query.
-
-    The weighted precision formula:
-        Score = sum(relevance_i / rank_i) / sum(1 / rank_i)
-
-    where rank_i is the 1-based position of document i, and relevance_i
-    is the judge's relevance score for that document.
-
-    Attributes:
-        name: "context_precision" - unique identifier for this evaluator.
-        description: Human-readable description of what is evaluated.
-        threshold: Minimum score to pass (default 0.7).
-
-    Example:
-        evaluator = ContextPrecisionEvaluator(threshold=0.8)
-        result = await evaluator.evaluate(test_case, judge)
-
-        if result.passed:
-            print(f"Context is precise: {result.score:.2f}")
-        else:
-            # Inspect per-document scores
-            for doc in result.raw_response["doc_scores"]:
-                print(f"Doc {doc['rank']}: {doc['score']:.2f}")
+    Scores each document with the judge's `evaluate_relevance()` (treating the
+    document as the "response") and combines the scores with rank-based
+    weighting, so irrelevant high-ranked documents are penalized more.
     """
 
     name: str = "context_precision"
@@ -69,26 +36,7 @@ class ContextPrecisionEvaluator(Evaluator):
         test_case: RAGTestCase,
         judge: LLMJudge,
     ) -> EvaluationResult:
-        """
-        Evaluate the precision of retrieved context documents.
-
-        Implements the weighted precision algorithm:
-        1. Score each document's relevance via judge.evaluate_relevance()
-        2. Apply rank-based weighting (1/rank)
-        3. Compute weighted average
-
-        Args:
-            test_case: The RAG test case containing query and context.
-            judge: The LLM judge instance for relevance scoring.
-
-        Returns:
-            EvaluationResult with:
-                - score: Weighted precision score (0.0 to 1.0)
-                - passed: Whether score meets threshold
-                - reasoning: Human-readable explanation
-                - raw_response: Per-document scores and metadata
-        """
-        # Handle empty context: no docs means vacuously precise
+        """Score retrieved-document relevance as a rank-weighted precision average."""
         if not test_case.context:
             return EvaluationResult(
                 evaluator_name=self.name,
@@ -103,47 +51,35 @@ class ContextPrecisionEvaluator(Evaluator):
                 tokens_used=0,
             )
 
-        # Step 1: Score each document's relevance to the query (in parallel)
-        import asyncio
-
-        # Score all documents concurrently (errors propagate)
         scoring_tasks = [
             judge.evaluate_relevance(query=test_case.query, response=doc)
             for doc in test_case.context
         ]
         results = await asyncio.gather(*scoring_tasks)
 
-        # Process results
         doc_scores: list[dict[str, Any]] = []
         total_tokens = 0
-
         for i, result in enumerate(results):
             total_tokens += result.tokens_used
-
-            rank = i + 1  # 1-based rank
             doc_scores.append(
                 {
-                    "rank": rank,
+                    "rank": i + 1,
                     "document": test_case.context[i][:_DOC_PREVIEW_LENGTH],
                     "score": result.score,
                     "reasoning": result.reasoning,
                 }
             )
 
-        # Step 2: Calculate weighted precision
-        # Score = sum(relevance_i / rank_i) / sum(1 / rank_i)
+        # Rank-weighted precision: sum(score / rank) / sum(1 / rank).
         weighted_sum = sum(d["score"] / d["rank"] for d in doc_scores)
         weight_total = sum(1.0 / d["rank"] for d in doc_scores)
         score = weighted_sum / weight_total
-
-        # Step 3: Build reasoning
-        reasoning = self._build_reasoning(doc_scores, score)
 
         return EvaluationResult(
             evaluator_name=self.name,
             score=score,
             passed=self.is_passing(score),
-            reasoning=reasoning,
+            reasoning=self._build_reasoning(doc_scores, score),
             raw_response={
                 "doc_scores": doc_scores,
                 "total_docs": len(doc_scores),
@@ -153,16 +89,7 @@ class ContextPrecisionEvaluator(Evaluator):
         )
 
     def _build_reasoning(self, doc_scores: list[dict[str, Any]], score: float) -> str:
-        """
-        Build human-readable reasoning for the context precision score.
-
-        Args:
-            doc_scores: Per-document score details.
-            score: The final weighted precision score.
-
-        Returns:
-            Reasoning string explaining the context precision result.
-        """
+        """Summarize how many retrieved documents were relevant to the query."""
         total = len(doc_scores)
         if total == 0:
             return "No context documents to evaluate."
@@ -175,14 +102,13 @@ class ContextPrecisionEvaluator(Evaluator):
                 f"All {total} retrieved documents are relevant to the query "
                 f"({score_pct:.0f}% weighted precision)."
             )
-        elif high_relevance == 0:
+        if high_relevance == 0:
             return (
                 f"None of the {total} retrieved documents are relevant to the query "
                 f"({score_pct:.0f}% weighted precision)."
             )
-        else:
-            return (
-                f"{high_relevance} of {total} retrieved documents are relevant "
-                f"({score_pct:.0f}% weighted precision). "
-                f"Higher-ranked documents are weighted more heavily."
-            )
+        return (
+            f"{high_relevance} of {total} retrieved documents are relevant "
+            f"({score_pct:.0f}% weighted precision). "
+            f"Higher-ranked documents are weighted more heavily."
+        )

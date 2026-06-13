@@ -130,7 +130,6 @@ def format_summary_markdown(
         all_keys.update(r.scores.keys())
     evaluator_names = sorted(all_keys)
 
-    # --- Results table ---
     header_cols = ["Test Case", "Status"] + evaluator_names
     lines.append("| " + " | ".join(header_cols) + " |")
     lines.append("| " + " | ".join("---" for _ in header_cols) + " |")
@@ -141,7 +140,7 @@ def format_summary_markdown(
         row = [r.test_case.name, status, *score_cells]
         lines.append("| " + " | ".join(row) + " |")
 
-    lines.append("")  # trailing newline
+    lines.append("")
     return "\n".join(lines)
 
 
@@ -161,7 +160,6 @@ def emit_ci_summary(
     write_step_summary(format_summary_markdown(results, threshold=threshold))
     create_annotations(results, threshold=threshold)
 
-    # Set outputs for downstream steps
     total = len(results)
     passed = sum(1 for r in results if r.passed)
     set_output("total", str(total))

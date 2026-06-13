@@ -10,23 +10,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL
+
 
 class JudgeTrace(BaseModel):
-    """
-    Structured record of a single LLM API call.
+    """Structured record of one LLM API call.
 
-    Captures timing, token usage, and success/failure status without
-    leaking raw chain-of-thought reasoning (which may contain PII).
-
-    Attributes:
-        timestamp: When the call was made (UTC).
-        operation: Name of the judge method called.
-        model: LLM model identifier used.
-        input_tokens: Tokens in the prompt.
-        output_tokens: Tokens in the response.
-        latency_ms: Time from request to response in milliseconds.
-        success: Whether the call succeeded.
-        error: Error message if call failed, None otherwise.
+    Captures timing, token usage, and success/failure — deliberately not the raw
+    chain-of-thought reasoning, which may contain PII.
     """
 
     timestamp: datetime = Field(..., description="Call timestamp (UTC)")
@@ -44,8 +35,8 @@ class JudgeTrace(BaseModel):
 # Per-model pricing: (input_cost_per_million, output_cost_per_million) in USD.
 # Source: Anthropic pricing page. Override via TraceCollector(model_pricing=...).
 _DEFAULT_MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-6": (3.0, 15.0),
-    "claude-opus-4-6": (5.0, 25.0),
+    DEFAULT_JUDGE_MODEL: (3.0, 15.0),
+    GOLD_STANDARD_JUDGE_MODEL: (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 
@@ -54,64 +45,31 @@ _FALLBACK_PRICING: tuple[float, float] = (3.0, 15.0)
 
 
 class TraceCollector:
-    """
-    Session-scoped collector for judge traces.
+    """Session-scoped collector of judge traces with aggregate stats.
 
-    Accumulates traces from multiple API calls and provides aggregate
-    statistics for debugging and cost estimation.
-
-    Example:
-        collector = TraceCollector()
-
-        # During evaluation, traces are added
-        trace = JudgeTrace(
-            timestamp=datetime.now(timezone.utc),
-            operation="evaluate_faithfulness",
-            model="claude-sonnet-4-6",
-            input_tokens=100,
-            output_tokens=50,
-            latency_ms=2100,
-            success=True,
-        )
-        collector.add(trace)
-
-        # After evaluation, inspect statistics
-        print(f"Total cost: ${collector.total_cost_estimate:.4f}")
-        print(f"Total latency: {collector.total_latency_ms}ms")
-
-        # Custom pricing for a specific model
-        collector = TraceCollector(model_pricing={
-            "my-custom-model": (1.0, 5.0),
-        })
+    Accumulates traces across API calls and exposes token, latency, and rough
+    cost totals for debugging and cost estimation.
     """
 
     def __init__(
         self,
         model_pricing: dict[str, tuple[float, float]] | None = None,
     ) -> None:
-        """
-        Initialize empty trace collector.
+        """Initialize an empty collector.
 
         Args:
-            model_pricing: Optional per-model pricing overrides. Each entry
-                maps a model identifier to (input_cost_per_million,
-                output_cost_per_million) in USD. Merged with built-in defaults;
-                user entries take precedence.
+            model_pricing: Optional per-model (input, output) USD-per-million
+                overrides, merged over the built-in defaults (user wins).
         """
         self.traces: list[JudgeTrace] = []
         self._lock = threading.Lock()
         self._pricing = {**_DEFAULT_MODEL_PRICING, **(model_pricing or {})}
 
     def add(self, trace: JudgeTrace) -> None:
-        """
-        Add a trace to the collection.
+        """Record a trace (thread-safe).
 
-        Thread-safe: uses a lock to prevent corruption when multiple
-        threads emit traces concurrently (e.g. pytest-xdist workers
-        sharing a session-scoped collector).
-
-        Args:
-            trace: The JudgeTrace to record.
+        The lock guards concurrent emitters, e.g. pytest-xdist workers sharing a
+        session-scoped collector.
         """
         with self._lock:
             self.traces.append(trace)
@@ -148,15 +106,10 @@ class TraceCollector:
 
     @property
     def total_cost_estimate(self) -> float:
-        """
-        Rough cost estimate in USD based on per-model token pricing.
+        """Rough USD cost estimate from per-model token pricing.
 
-        Looks up each trace's model in the pricing table. Falls back to
-        Sonnet 4 pricing for unknown models. Override pricing via the
-        ``model_pricing`` constructor parameter.
-
-        Note: This is a rough estimate. Actual costs may vary by provider
-        pricing tiers, caching discounts, and batch API usage.
+        Unknown models fall back to Sonnet pricing. Ignores pricing tiers,
+        caching discounts, and batch API usage, so treat it as approximate.
         """
         total = 0.0
         for trace in self.traces:
@@ -166,24 +119,11 @@ class TraceCollector:
         return total
 
     def get_by_operation(self, operation: str) -> list[JudgeTrace]:
-        """
-        Get all traces for a specific operation.
-
-        Args:
-            operation: Operation name to filter by.
-
-        Returns:
-            List of traces matching the operation.
-        """
+        """Return all traces for the given operation."""
         return [t for t in self.traces if t.operation == operation]
 
     def get_failures(self) -> list[JudgeTrace]:
-        """
-        Get all failed traces.
-
-        Returns:
-            List of traces where success=False.
-        """
+        """Return all traces where `success` is False."""
         return [t for t in self.traces if not t.success]
 
     def clear(self) -> None:
@@ -192,7 +132,6 @@ class TraceCollector:
             self.traces.clear()
 
     def __repr__(self) -> str:
-        """String representation with summary statistics."""
         return (
             f"TraceCollector("
             f"calls={len(self.traces)}, "

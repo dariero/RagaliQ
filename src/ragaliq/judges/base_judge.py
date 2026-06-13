@@ -1,19 +1,14 @@
-"""
-Base judge implementation with shared logic.
+"""Base judge implementation shared by concrete providers.
 
-This module provides BaseJudge, which implements the LLMJudge interface
-using a transport layer for API calls. It handles:
-- Prompt building (using prompt templates)
-- JSON response parsing
-- Score clamping to [0.0, 1.0]
-- Concurrency limiting to prevent API rate limit bursts
-
-Concrete judge classes (ClaudeJudge, OpenAIJudge) provide the transport.
+`BaseJudge` implements the `LLMJudge` interface — prompt building, JSON parsing,
+score clamping, and concurrency limiting — and delegates the actual API call to a
+pluggable transport. Concrete classes (ClaudeJudge, OpenAIJudge) supply transport.
 """
 
 import asyncio
 import json
 import logging
+import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -42,20 +37,14 @@ _ERROR_PREVIEW_LENGTH = 200
 
 
 class BaseJudge(LLMJudge):
-    """
-    Base LLM judge implementation with transport abstraction.
+    """LLM judge that implements all shared logic over a pluggable transport.
 
-    BaseJudge implements all the prompt building, JSON parsing, and
-    score clamping logic. It delegates actual API calls to a transport
-    layer, making it easy to support multiple LLM providers.
-
-    Subclasses only need to provide a transport instance.
+    Subclasses only need to supply a transport instance.
 
     Example:
         class ClaudeJudge(BaseJudge):
-            def __init__(self, api_key: str, config: JudgeConfig | None = None):
-                transport = ClaudeTransport(api_key)
-                super().__init__(transport, config)
+            def __init__(self, api_key, config=None):
+                super().__init__(ClaudeTransport(api_key), config)
     """
 
     def __init__(
@@ -66,16 +55,14 @@ class BaseJudge(LLMJudge):
         trace_collector: TraceCollector | None = None,
         max_concurrency: int = 20,
     ) -> None:
-        """
-        Initialize base judge with transport.
+        """Initialize with a transport, optional config, and optional trace collector.
 
         Args:
             transport: Transport layer for API calls.
             config: Judge configuration. Uses defaults if not provided.
             trace_collector: Optional trace collector for observability.
-            max_concurrency: Maximum concurrent API calls allowed. Prevents
-                rate limit bursts when evaluators have many claims/docs.
-                Default: 20.
+            max_concurrency: Cap on concurrent API calls, to avoid rate-limit
+                bursts when evaluators fan out over many claims/docs.
         """
         super().__init__(config)
         self._transport = transport
@@ -84,66 +71,30 @@ class BaseJudge(LLMJudge):
 
     @property
     def transport(self) -> JudgeTransport:
-        """
-        Get the current transport layer.
-
-        Returns:
-            The transport instance used for API calls.
-        """
+        """The transport instance used for API calls."""
         return self._transport
 
     def wrap_transport(self, wrapper: JudgeTransport) -> None:
-        """
-        Replace the transport layer with a wrapper.
-
-        This is the official API for wrapping the transport with middleware
-        (e.g., latency injection, retry logic, caching).
+        """Replace the transport, e.g. to add middleware (latency, retry, caching).
 
         Args:
-            wrapper: New transport instance that wraps or replaces the current one.
-
-        Example:
-            # Wrap with latency injection
-            class LatencyWrapper:
-                def __init__(self, inner, delay_ms):
-                    self._inner = inner
-                    self._delay_ms = delay_ms
-
-                async def send(self, ...):
-                    await asyncio.sleep(self._delay_ms / 1000)
-                    return await self._inner.send(...)
-
-            judge.wrap_transport(LatencyWrapper(judge.transport, 100))
+            wrapper: New transport that wraps or replaces the current one.
         """
         self._transport = wrapper
 
     async def _call_llm(
         self, system_prompt: str, user_prompt: str, operation: str = "llm_call"
     ) -> tuple[str, int]:
-        """
-        Make an LLM call via the transport layer with tracing.
-
-        Args:
-            system_prompt: System message defining the LLM's role.
-            user_prompt: User message with the task.
-            operation: Name of the operation for trace logging.
+        """Call the transport once, emitting a trace (on success or failure) if configured.
 
         Returns:
             Tuple of (response_text, tokens_used).
-
-        Raises:
-            JudgeAPIError: If the API call fails.
-            JudgeResponseError: If the response cannot be processed.
         """
-        import time
-
         start_time = time.perf_counter()
         success = False
         error_msg = None
 
-        # Warn if estimated input tokens exceed threshold
-        estimated_chars = len(system_prompt) + len(user_prompt)
-        estimated_tokens = estimated_chars // _CHARS_PER_TOKEN_ESTIMATE
+        estimated_tokens = (len(system_prompt) + len(user_prompt)) // _CHARS_PER_TOKEN_ESTIMATE
         if estimated_tokens > _DEFAULT_INPUT_TOKEN_WARN_THRESHOLD:
             logger.warning(
                 "Large input detected for '%s': ~%d estimated tokens "
@@ -155,7 +106,7 @@ class BaseJudge(LLMJudge):
             )
 
         try:
-            # Limit concurrent API calls to prevent rate limit bursts
+            # Bound concurrent API calls to avoid rate-limit bursts.
             async with self._concurrency_limit:
                 response = await self._transport.send(
                     system_prompt=system_prompt,
@@ -166,7 +117,6 @@ class BaseJudge(LLMJudge):
                 )
             tokens_used = response.input_tokens + response.output_tokens
             success = True
-
             return response.text, tokens_used
 
         except Exception as exc:
@@ -174,58 +124,43 @@ class BaseJudge(LLMJudge):
             raise
 
         finally:
-            # Emit trace if collector is configured
             if self._trace_collector is not None:
                 from ragaliq.judges.trace import JudgeTrace
 
                 latency_ms = int((time.perf_counter() - start_time) * 1000)
-
-                # Use response data if available, else defaults
+                # The response's model may differ from the configured one.
                 if success:
-                    # Record actual model from response (may differ from config)
                     input_tokens = response.input_tokens
                     output_tokens = response.output_tokens
                     actual_model = response.model
                 else:
-                    # No response on failure, use config model and zero tokens
                     input_tokens = 0
                     output_tokens = 0
                     actual_model = self.config.model
 
-                trace = JudgeTrace(
-                    timestamp=datetime.now(UTC),
-                    operation=operation,
-                    model=actual_model,
-                    input_tokens=input_tokens,
-                    output_tokens=output_tokens,
-                    latency_ms=latency_ms,
-                    success=success,
-                    error=error_msg,
+                self._trace_collector.add(
+                    JudgeTrace(
+                        timestamp=datetime.now(UTC),
+                        operation=operation,
+                        model=actual_model,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        latency_ms=latency_ms,
+                        success=success,
+                        error=error_msg,
+                    )
                 )
-                self._trace_collector.add(trace)
 
     def _parse_json_response(self, text: str) -> dict[str, Any]:
-        """
-        Parse JSON from LLM response.
-
-        Handles cases where the LLM wraps JSON in markdown code blocks.
-
-        Args:
-            text: Raw response text from LLM.
-
-        Returns:
-            Parsed JSON as dictionary.
+        """Parse JSON from an LLM response, unwrapping a markdown code fence if present.
 
         Raises:
             JudgeResponseError: If JSON parsing fails.
         """
-        # Strip markdown code blocks if present
         cleaned = text.strip()
         if cleaned.startswith("```"):
-            # Remove opening fence (with optional language tag)
             lines = cleaned.split("\n")
-            lines = lines[1:]  # Remove ```json or ```
-            # Remove closing fence
+            lines = lines[1:]  # drop the opening ```json / ``` fence
             if lines and lines[-1].strip() == "```":
                 lines = lines[:-1]
             cleaned = "\n".join(lines)
@@ -238,66 +173,63 @@ class BaseJudge(LLMJudge):
                 f"Failed to parse JSON response: {e}. Raw text: {text[:_ERROR_PREVIEW_LENGTH]}"
             ) from e
 
-    def _build_faithfulness_prompt(
-        self,
-        response: str,
-        context: list[str],
-    ) -> tuple[str, str]:
-        """
-        Build prompts for faithfulness evaluation.
+    def _parse_score(self, parsed: dict[str, Any]) -> float:
+        """Extract the 'score' field, coerce to float, and clamp to [0.0, 1.0].
 
-        Args:
-            response: The RAG response to evaluate.
-            context: Context documents used for generation.
-
-        Returns:
-            Tuple of (system_prompt, user_prompt).
+        Raises:
+            JudgeResponseError: If 'score' is missing or not numeric.
         """
+        if "score" not in parsed:
+            raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
+        try:
+            score = float(parsed["score"])
+        except (ValueError, TypeError) as e:
+            raise JudgeResponseError(f"Invalid score value: {parsed['score']!r}") from e
+        return max(0.0, min(1.0, score))
+
+    def _parse_string_list(self, parsed: dict[str, Any], key: str) -> list[str]:
+        """Extract `key` as a list of non-empty strings, rejecting non-list values.
+
+        Raises:
+            JudgeResponseError: If the field is present but not a list.
+        """
+        value = parsed.get(key, [])
+        if not isinstance(value, list):
+            raise JudgeResponseError(
+                f"Expected {key!r} to be a list, got {type(value).__name__}: {parsed}"
+            )
+        return [str(item) for item in value if item]
+
+    def _build_faithfulness_prompt(self, response: str, context: list[str]) -> tuple[str, str]:
+        """Build (system, user) prompts for faithfulness evaluation."""
         template = get_prompt("faithfulness")
         formatted_context = template.format_context(context)
         user_prompt = template.format_user_prompt(context=formatted_context, response=response)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
-    def _build_relevance_prompt(
-        self,
-        query: str,
-        response: str,
-    ) -> tuple[str, str]:
-        """
-        Build prompts for relevance evaluation.
-
-        Args:
-            query: The user's original query.
-            response: The RAG response to evaluate.
-
-        Returns:
-            Tuple of (system_prompt, user_prompt).
-        """
+    def _build_relevance_prompt(self, query: str, response: str) -> tuple[str, str]:
+        """Build (system, user) prompts for relevance evaluation."""
         template = get_prompt("relevance")
         user_prompt = template.format_user_prompt(query=query, response=response)
-        return template.system_prompt, user_prompt
+        return template.build_system_prompt(), user_prompt
 
-    async def evaluate_faithfulness(
-        self,
-        response: str,
-        context: list[str],
-    ) -> JudgeResult:
-        """
-        Evaluate if the response is faithful to the provided context.
+    def _build_generate_questions_prompt(self, documents: list[str], n: int) -> tuple[str, str]:
+        """Build (system, user) prompts for question generation."""
+        template = get_prompt("generate_questions")
+        formatted_docs = template.format_context(documents)
+        user_prompt = template.format_user_prompt(n=n, documents=formatted_docs)
+        return template.build_system_prompt(), user_prompt
 
-        Args:
-            response: The RAG system's generated response.
-            context: List of context documents used for generation.
+    def _build_generate_answer_prompt(self, question: str, context: list[str]) -> tuple[str, str]:
+        """Build (system, user) prompts for answer generation."""
+        template = get_prompt("generate_answer")
+        formatted_context = template.format_context(context)
+        user_prompt = template.format_user_prompt(context=formatted_context, question=question)
+        return template.build_system_prompt(), user_prompt
 
-        Returns:
-            JudgeResult with faithfulness score (0.0-1.0) and reasoning.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
+    async def evaluate_faithfulness(self, response: str, context: list[str]) -> JudgeResult:
+        """Score how faithful the response is to the context (0.0 if no context)."""
         if not context:
-            # Edge case: no context means any claim is unsupported
             return JudgeResult(
                 score=0.0,
                 reasoning="No context provided; faithfulness cannot be assessed.",
@@ -309,44 +241,14 @@ class BaseJudge(LLMJudge):
             system_prompt, user_prompt, operation="evaluate_faithfulness"
         )
         parsed = self._parse_json_response(raw_response)
-
-        # Validate required fields
-        if "score" not in parsed:
-            raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
-
-        try:
-            score = float(parsed["score"])
-        except (ValueError, TypeError) as e:
-            raise JudgeResponseError(f"Invalid score value: {parsed['score']!r}") from e
-
-        # Clamp score to valid range (defensive)
-        score = max(0.0, min(1.0, score))
-
         return JudgeResult(
-            score=score,
+            score=self._parse_score(parsed),
             reasoning=parsed.get("reasoning", ""),
             tokens_used=tokens_used,
         )
 
-    async def evaluate_relevance(
-        self,
-        query: str,
-        response: str,
-    ) -> JudgeResult:
-        """
-        Evaluate if the response is relevant to the query.
-
-        Args:
-            query: The user's original query.
-            response: The RAG system's generated response.
-
-        Returns:
-            JudgeResult with relevance score (0.0-1.0) and reasoning.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
+    async def evaluate_relevance(self, query: str, response: str) -> JudgeResult:
+        """Score how relevant the response is to the query (0.0 if either is empty)."""
         if not query or not query.strip() or not response or not response.strip():
             return JudgeResult(
                 score=0.0,
@@ -359,121 +261,28 @@ class BaseJudge(LLMJudge):
             system_prompt, user_prompt, operation="evaluate_relevance"
         )
         parsed = self._parse_json_response(raw_response)
-
-        # Validate required fields
-        if "score" not in parsed:
-            raise JudgeResponseError(f"Response missing 'score' field: {parsed}")
-
-        try:
-            score = float(parsed["score"])
-        except (ValueError, TypeError) as e:
-            raise JudgeResponseError(f"Invalid score value: {parsed['score']!r}") from e
-
-        # Clamp score to valid range (defensive)
-        score = max(0.0, min(1.0, score))
-
         return JudgeResult(
-            score=score,
+            score=self._parse_score(parsed),
             reasoning=parsed.get("reasoning", ""),
             tokens_used=tokens_used,
         )
 
     async def extract_claims(self, response: str) -> ClaimsResult:
-        """
-        Extract atomic claims from a response for verification.
-
-        Args:
-            response: The RAG system's generated response.
-
-        Returns:
-            ClaimsResult containing list of extracted claim strings.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
-        # Handle empty response edge case
+        """Extract atomic claims from a response (empty for blank input)."""
         if not response or not response.strip():
             return ClaimsResult(claims=[], tokens_used=0)
 
         template = get_prompt("extract_claims")
         user_prompt = template.format_user_prompt(response=response)
         raw_response, tokens_used = await self._call_llm(
-            template.system_prompt, user_prompt, operation="extract_claims"
+            template.build_system_prompt(), user_prompt, operation="extract_claims"
         )
         parsed = self._parse_json_response(raw_response)
-
-        # Validate and extract claims list
-        claims = parsed.get("claims", [])
-        if not isinstance(claims, list):
-            raise JudgeResponseError(
-                f"Expected 'claims' to be a list, got {type(claims).__name__}: {parsed}"
-            )
-
-        # Filter out any non-string items (defensive)
-        claims = [str(c) for c in claims if c]
-
+        claims = self._parse_string_list(parsed, "claims")
         return ClaimsResult(claims=claims, tokens_used=tokens_used)
 
-    def _build_generate_questions_prompt(
-        self,
-        documents: list[str],
-        n: int,
-    ) -> tuple[str, str]:
-        """
-        Build prompts for question generation.
-
-        Args:
-            documents: Source documents to generate questions from.
-            n: Number of questions to generate.
-
-        Returns:
-            Tuple of (system_prompt, user_prompt).
-        """
-        template = get_prompt("generate_questions")
-        formatted_docs = template.format_context(documents)
-        user_prompt = template.format_user_prompt(n=n, documents=formatted_docs)
-        return template.system_prompt, user_prompt
-
-    def _build_generate_answer_prompt(
-        self,
-        question: str,
-        context: list[str],
-    ) -> tuple[str, str]:
-        """
-        Build prompts for answer generation.
-
-        Args:
-            question: The question to answer.
-            context: Context documents to answer from.
-
-        Returns:
-            Tuple of (system_prompt, user_prompt).
-        """
-        template = get_prompt("generate_answer")
-        formatted_context = template.format_context(context)
-        user_prompt = template.format_user_prompt(context=formatted_context, question=question)
-        return template.system_prompt, user_prompt
-
-    async def generate_questions(
-        self,
-        documents: list[str],
-        n: int,
-    ) -> GeneratedQuestionsResult:
-        """
-        Generate questions grounded in the provided documents.
-
-        Args:
-            documents: Source documents to generate questions from.
-            n: Number of questions to generate.
-
-        Returns:
-            GeneratedQuestionsResult containing the list of questions.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
+    async def generate_questions(self, documents: list[str], n: int) -> GeneratedQuestionsResult:
+        """Generate questions grounded in the documents (empty if no documents)."""
         if not documents:
             return GeneratedQuestionsResult(questions=[], tokens_used=0)
 
@@ -482,35 +291,11 @@ class BaseJudge(LLMJudge):
             system_prompt, user_prompt, operation="generate_questions"
         )
         parsed = self._parse_json_response(raw_response)
-
-        questions = parsed.get("questions", [])
-        if not isinstance(questions, list):
-            raise JudgeResponseError(
-                f"Expected 'questions' to be a list, got {type(questions).__name__}: {parsed}"
-            )
-
-        questions = [str(q) for q in questions if q]
+        questions = self._parse_string_list(parsed, "questions")
         return GeneratedQuestionsResult(questions=questions, tokens_used=tokens_used)
 
-    async def generate_answer(
-        self,
-        question: str,
-        context: list[str],
-    ) -> GeneratedAnswerResult:
-        """
-        Generate an answer to a question using only the provided context.
-
-        Args:
-            question: The question to answer.
-            context: List of context documents to answer from.
-
-        Returns:
-            GeneratedAnswerResult containing the generated answer.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
+    async def generate_answer(self, question: str, context: list[str]) -> GeneratedAnswerResult:
+        """Generate an answer from the context only (empty if no context)."""
         if not context:
             return GeneratedAnswerResult(answer="", tokens_used=0)
 
@@ -519,33 +304,13 @@ class BaseJudge(LLMJudge):
             system_prompt, user_prompt, operation="generate_answer"
         )
         parsed = self._parse_json_response(raw_response)
-
         answer = parsed.get("answer", "")
         if not isinstance(answer, str):
             answer = str(answer)
-
         return GeneratedAnswerResult(answer=answer, tokens_used=tokens_used)
 
-    async def verify_claim(
-        self,
-        claim: str,
-        context: list[str],
-    ) -> ClaimVerdict:
-        """
-        Verify if a single claim is supported by the context.
-
-        Args:
-            claim: The atomic claim to verify.
-            context: List of context documents to check against.
-
-        Returns:
-            ClaimVerdict with verdict and supporting evidence.
-
-        Raises:
-            JudgeAPIError: If API call fails.
-            JudgeResponseError: If response parsing fails.
-        """
-        # Handle empty context edge case
+    async def verify_claim(self, claim: str, context: list[str]) -> ClaimVerdict:
+        """Verify a single claim against context (NOT_ENOUGH_INFO if no context)."""
         if not context:
             return ClaimVerdict(
                 verdict="NOT_ENOUGH_INFO",
@@ -554,16 +319,12 @@ class BaseJudge(LLMJudge):
 
         template = get_prompt("verify_claim")
         formatted_context = template.format_context(context)
-        user_prompt = template.format_user_prompt(
-            claim=claim,
-            context=formatted_context,
-        )
+        user_prompt = template.format_user_prompt(claim=claim, context=formatted_context)
         raw_response, tokens_used = await self._call_llm(
-            template.system_prompt, user_prompt, operation="verify_claim"
+            template.build_system_prompt(), user_prompt, operation="verify_claim"
         )
         parsed = self._parse_json_response(raw_response)
 
-        # Validate verdict field
         verdict = parsed.get("verdict", "").upper()
         valid_verdicts = {"SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"}
         if verdict not in valid_verdicts:

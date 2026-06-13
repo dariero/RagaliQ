@@ -136,7 +136,6 @@ def run(
             path.write_text(HTMLReporter(threshold=threshold).export(results), encoding="utf-8")
             typer.echo(f"HTML report written to {path}")
 
-    # GitHub Actions: write step summary + failure annotations
     if is_github_actions():
         from ragaliq.integrations.github_actions import emit_ci_summary
 
