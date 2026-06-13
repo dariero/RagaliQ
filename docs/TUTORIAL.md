@@ -581,7 +581,7 @@ config = JudgeConfig(
 tester = RagaliQ(judge="claude", judge_config=config)
 
 # For complex multi-step or gold-standard judging
-gold_config = JudgeConfig(model="claude-opus-4-6", temperature=0.0)
+gold_config = JudgeConfig(model="claude-opus-4-8", temperature=0.0)
 
 # Via pre-configured ClaudeJudge (gives access to trace_collector)
 from ragaliq.judges.trace import TraceCollector

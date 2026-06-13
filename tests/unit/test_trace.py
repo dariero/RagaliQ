@@ -83,7 +83,7 @@ class TestTraceModelAccuracy:
                 text='{"score": 0.9}',
                 input_tokens=100,
                 output_tokens=50,
-                model="claude-opus-4-6",  # Different from config!
+                model="claude-opus-4-8",  # Different from config!
             )
         )
 
@@ -100,7 +100,7 @@ class TestTraceModelAccuracy:
 
         # Trace should record opus (what we got), not sonnet (what we asked for)
         assert len(collector.traces) == 1
-        assert collector.traces[0].model == "claude-opus-4-6"
+        assert collector.traces[0].model == "claude-opus-4-8"
         assert collector.traces[0].model != config.model
 
     @pytest.mark.asyncio
