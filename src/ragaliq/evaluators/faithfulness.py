@@ -68,6 +68,8 @@ class FaithfulnessEvaluator(Evaluator):
 
     def _empty_result(self, reasoning: str, tokens_used: int) -> EvaluationResult:
         """Build a failing 0.0 result for cases where faithfulness can't be assessed."""
+        # Intentionally per-evaluator, not shared: the Evaluator pattern keeps each
+        # metric a self-contained class, and the raw_response shape is metric-specific.
         return EvaluationResult(
             evaluator_name=self.name,
             score=0.0,
