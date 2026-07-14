@@ -30,8 +30,8 @@ jobs:
           python-version: "3.14"
           cache: "pip"
 
-      - name: Install MkDocs Material
-        run: pip install "mkdocs-material>=9.5"
+      - name: Install docs dependencies
+        run: pip install ".[docs]"
 
       - name: Build site
         # --strict turns warnings into errors so broken links don't ship silently.

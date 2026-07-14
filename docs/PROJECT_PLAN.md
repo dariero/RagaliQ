@@ -37,7 +37,7 @@ class Evaluator(ABC):
     name: str
     description: str
     threshold: float = 0.7
-    
+
     @abstractmethod
     async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
         pass

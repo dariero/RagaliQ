@@ -71,7 +71,7 @@ async def main() -> None:
     # Inspect per-fact details
     print("Fact Coverage Details:")
     for i, fact in enumerate(result.raw_response["fact_coverage"]):
-        print(f"  Fact {i+1}: {fact['fact']}")
+        print(f"  Fact {i + 1}: {fact['fact']}")
         print(f"    Verdict: {fact['verdict']}")
         print(f"    Evidence: {fact['evidence'][:100]}...")
         print()

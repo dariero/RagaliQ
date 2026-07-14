@@ -44,8 +44,7 @@ class FaithfulnessEvaluator(Evaluator):
             )
         if verification.claims_empty:
             return self._empty_result(
-                "No claims could be extracted from the response; "
-                "faithfulness cannot be assessed.",
+                "No claims could be extracted from the response; faithfulness cannot be assessed.",
                 tokens_used=verification.total_tokens,
             )
 

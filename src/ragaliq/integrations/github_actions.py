@@ -166,5 +166,3 @@ def emit_ci_summary(
     set_output("passed", str(passed))
     set_output("failed", str(total - passed))
     set_output("pass_rate", f"{passed / total:.4f}" if total else "0.0000")
-
-
