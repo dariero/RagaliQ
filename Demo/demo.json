@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "description": "RagaliQ live demo - one honest answer, one with a made-up fact",
+    "domain": "demo"
+  },
+  "test_cases": [
+    {
+      "id": "honest",
+      "name": "Honest answer (should PASS / green)",
+      "query": "What is the capital of France?",
+      "context": [
+        "France is a country in Western Europe. Its capital city is Paris."
+      ],
+      "response": "The capital of France is Paris."
+    },
+    {
+      "id": "hallucination",
+      "name": "Answer with a made-up fact (should FAIL / red)",
+      "query": "What is the capital of France?",
+      "context": [
+        "France is a country in Western Europe. Its capital city is Paris."
+      ],
+      "response": "The capital of France is Paris, a city of 90 million people that was founded by Napoleon in 1620."
+    }
+  ]
+}

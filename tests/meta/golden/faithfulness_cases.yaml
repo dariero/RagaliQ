@@ -1,0 +1,53 @@
+# Case-level golden set for end-to-end faithfulness scoring.
+#
+# Unlike claim_verdicts.yaml (which labels the judge's atomic decision), this set
+# labels the FaithfulnessEvaluator's emitted score on a full (query, context,
+# response) tuple. Because claim extraction count varies slightly run to run, the
+# human label is a BAND, not an exact value. The meta-eval asserts the score lands
+# inside the band and reports MAE against the band midpoint as a continuous signal.
+
+cases:
+  - id: fully_faithful
+    query: "What is the capital of France?"
+    context:
+      - "France is a country in Western Europe."
+      - "The capital city of France is Paris."
+    response: "The capital of France is Paris."
+    expected_band: [0.9, 1.0]
+    note: "Single claim, fully grounded."
+
+  - id: one_hallucinated_of_two
+    query: "Tell me about Paris."
+    context:
+      - "Paris is the capital of France."
+      - "Paris sits on the Seine river."
+    response: "Paris is the capital of France and was founded by Julius Caesar in 50 BC."
+    expected_band: [0.4, 0.7]
+    note: "One supported claim (capital), one fabricated (founding) — roughly half."
+
+  - id: fully_hallucinated
+    query: "What is the boiling point of water?"
+    context:
+      - "Water is a chemical compound with the formula H2O."
+    response: "Water boils at 350 degrees and is primarily composed of helium."
+    expected_band: [0.0, 0.25]
+    note: "No claim is supported by the context."
+
+  - id: faithful_multi_claim
+    query: "Describe the solar system's inner planets."
+    context:
+      - "Mercury is the closest planet to the Sun."
+      - "Venus is the hottest planet due to its dense atmosphere."
+      - "Earth is the third planet from the Sun."
+    response: "Mercury is closest to the Sun, Venus is the hottest planet, and Earth is third from the Sun."
+    expected_band: [0.9, 1.0]
+    note: "Three claims, all grounded."
+
+  - id: mostly_faithful_one_drift
+    query: "What do we know about the pancreas?"
+    context:
+      - "The pancreas is an organ behind the stomach."
+      - "It plays a role in digestion."
+    response: "The pancreas sits behind the stomach, aids digestion, and is the largest organ in the body."
+    expected_band: [0.55, 0.8]
+    note: "Two grounded claims, one unsupported ('largest organ')."
