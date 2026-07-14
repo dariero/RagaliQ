@@ -35,7 +35,6 @@ from pathlib import Path
 
 from ragaliq import RagaliQ, RAGTestCase
 
-
 # ---------------------------------------------------------------------------
 # Sample test cases reused across sections
 # ---------------------------------------------------------------------------
@@ -94,6 +93,7 @@ RECALL_CASE = RAGTestCase(
 # Section 1: Single Evaluation
 # ---------------------------------------------------------------------------
 
+
 def section_single() -> None:
     """Single evaluation — the simplest usage pattern."""
     print("\n" + "=" * 60)
@@ -124,6 +124,7 @@ def section_single() -> None:
 # ---------------------------------------------------------------------------
 # Section 2: Batch Evaluation
 # ---------------------------------------------------------------------------
+
 
 def section_batch() -> None:
     """Batch evaluation — efficient parallel processing."""
@@ -169,13 +170,14 @@ def section_batch() -> None:
 # Section 3: Custom Evaluators
 # ---------------------------------------------------------------------------
 
+
 def section_custom_evaluator() -> None:
     """Custom evaluators — extending the built-in set."""
     print("\n" + "=" * 60)
     print("SECTION 3: Custom Evaluator")
     print("=" * 60)
 
-    from ragaliq.core.evaluator import Evaluator, EvaluationResult
+    from ragaliq.core.evaluator import EvaluationResult, Evaluator
     from ragaliq.evaluators import register_evaluator
     from ragaliq.judges.base import LLMJudge
 
@@ -187,9 +189,7 @@ def section_custom_evaluator() -> None:
         description = "Measures whether the response is brief and to the point"
         threshold = 0.6
 
-        async def evaluate(
-            self, test_case: RAGTestCase, judge: LLMJudge
-        ) -> EvaluationResult:
+        async def evaluate(self, test_case: RAGTestCase, judge: LLMJudge) -> EvaluationResult:
             """Evaluate conciseness by scoring relevance of a summary question."""
             query = f"Is this a concise and direct answer to: {test_case.query}"
             result = await judge.evaluate_relevance(
@@ -212,7 +212,7 @@ def section_custom_evaluator() -> None:
         default_threshold=0.65,
     )
 
-    print(f"\nEvaluating with custom 'conciseness' evaluator...")
+    print("\nEvaluating with custom 'conciseness' evaluator...")
     result = tester.evaluate(FAITHFUL_CASE)
 
     print(f"\nStatus: {result.status}")
@@ -224,6 +224,7 @@ def section_custom_evaluator() -> None:
 # ---------------------------------------------------------------------------
 # Section 4: Context Recall (requires expected_facts)
 # ---------------------------------------------------------------------------
+
 
 def section_context_recall() -> None:
     """Context recall — evaluates retrieval completeness."""
@@ -258,6 +259,7 @@ def section_context_recall() -> None:
 # Section 5: Dataset Loading
 # ---------------------------------------------------------------------------
 
+
 def section_dataset() -> None:
     """Dataset loading from JSON file."""
     print("\n" + "=" * 60)
@@ -290,9 +292,7 @@ def section_dataset() -> None:
         ],
     }
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         json.dump(dataset_data, f, indent=2)
         dataset_path = Path(f.name)
 
@@ -322,6 +322,7 @@ def section_dataset() -> None:
 # Section 6: Reports
 # ---------------------------------------------------------------------------
 
+
 def section_reports() -> None:
     """All three report formats — console, JSON, HTML."""
     print("\n" + "=" * 60)
@@ -340,7 +341,6 @@ def section_reports() -> None:
 
     # --- JSON Report ---
     print("\n--- JSON Report (summary only) ---")
-    from ragaliq.reports import JSONReporter
 
     json_str = JSONReporter(threshold=0.7).export(results)
     doc = json.loads(json_str)
@@ -353,18 +353,14 @@ def section_reports() -> None:
         print(f"  {ev_name}: passed={stats['passed']}, avg={stats['avg_score']:.2f}")
 
     # Write to file
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".json", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
         f.write(json_str)
         json_path = Path(f.name)
     print(f"\nJSON report written to: {json_path}")
 
     # --- HTML Report ---
     html_str = HTMLReporter(threshold=0.7).export(results)
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".html", delete=False, encoding="utf-8"
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
         f.write(html_str)
         html_path = Path(f.name)
     print(f"HTML report written to: {html_path}")
@@ -377,6 +373,7 @@ def section_reports() -> None:
 # ---------------------------------------------------------------------------
 # Section 7: Observability (TraceCollector)
 # ---------------------------------------------------------------------------
+
 
 def section_observability() -> None:
     """TraceCollector — per-call timing and token tracking."""
@@ -398,7 +395,7 @@ def section_observability() -> None:
     print("\nEvaluating two test cases...")
     tester.evaluate_batch([FAITHFUL_CASE, RELEVANT_CASE])
 
-    print(f"\nTrace summary:")
+    print("\nTrace summary:")
     print(f"  Total API calls:    {len(collector.traces)}")
     print(f"  Total tokens:       {collector.total_tokens}")
     print(f"  Input tokens:       {collector.total_input_tokens}")
@@ -421,6 +418,7 @@ def section_observability() -> None:
 # ---------------------------------------------------------------------------
 # Section 8: Test Case Generation
 # ---------------------------------------------------------------------------
+
 
 def section_generate() -> None:
     """TestCaseGenerator — generate test cases from documents."""

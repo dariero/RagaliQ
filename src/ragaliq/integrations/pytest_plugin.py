@@ -101,7 +101,7 @@ def pytest_configure(config: Any) -> None:
         from ragaliq.judges.trace import TraceCollector
 
         config._ragaliq_trace_collector = TraceCollector()
-    except (ImportError, ModuleNotFoundError):
+    except ImportError, ModuleNotFoundError:
         config._ragaliq_trace_collector = None
 
 

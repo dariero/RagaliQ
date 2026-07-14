@@ -60,7 +60,9 @@ def check_version_consistency() -> bool:
             break
 
     ok = True
-    ok &= check("pyproject.toml version found", pyproject_version is not None, str(pyproject_version))
+    ok &= check(
+        "pyproject.toml version found", pyproject_version is not None, str(pyproject_version)
+    )
     ok &= check("__init__.py version found", init_version is not None, str(init_version))
     ok &= check(
         "Versions match",
@@ -214,14 +216,18 @@ def main() -> None:
     skipped = sum(1 for r in results if r is None)
 
     if failed:
-        print(f"  {passed}/{total} passed, {failed} failed, {skipped} skipped. "
-              "Fix failures before releasing.")
+        print(
+            f"  {passed}/{total} passed, {failed} failed, {skipped} skipped. "
+            "Fix failures before releasing."
+        )
         sys.exit(1)
     if skipped:
         # A skipped check (missing build/twine) is NOT verified. Surface it loudly
         # so a skip can never masquerade as a green "ready to release" gate.
-        print(f"  {passed}/{total} passed, {skipped} skipped (NOT verified). "
-              "Install the missing tools to fully verify before releasing.")
+        print(
+            f"  {passed}/{total} passed, {skipped} skipped (NOT verified). "
+            "Install the missing tools to fully verify before releasing."
+        )
         sys.exit(0)
     print(f"  All {total} checks passed. Ready to release!")
     sys.exit(0)

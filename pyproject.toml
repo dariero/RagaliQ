@@ -45,7 +45,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "anthropic>=0.109",
+    "anthropic>=0.116",
     "pydantic>=2.13",
     "typer>=0.26",
     "rich>=15",
@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=2.41"]
+openai = ["openai>=2.45"]
 docs = [
     "mkdocs-material>=9.7",
 ]
@@ -64,7 +64,7 @@ dev = [
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
     "ruff>=0.15",
-    "mypy>=2.1",
+    "mypy>=2.3",
     "pre-commit>=4.6",
     "types-PyYAML>=6.0",
 ]
@@ -95,7 +95,7 @@ dependencies = [
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
     "ruff>=0.15",
-    "mypy>=2.1",
+    "mypy>=2.3",
     "pre-commit>=4.6",
     "types-PyYAML>=6.0",
     "build",

@@ -7,10 +7,10 @@ Infers labels, milestone, and other fields from branch name and commits.
 import re
 import subprocess
 import sys
-from typing import Dict, List
+from typing import Any
 
 
-def run_git_command(cmd: List[str]) -> str:
+def run_git_command(cmd: list[str]) -> str:
     """Run a git command and return output."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result.stdout.strip()
@@ -21,27 +21,25 @@ def get_current_branch() -> str:
     return run_git_command(["git", "branch", "--show-current"])
 
 
-def get_commits_since_main() -> List[str]:
+def get_commits_since_main() -> list[str]:
     """Get commit messages since branching from main."""
     commits = run_git_command(["git", "log", "main..HEAD", "--oneline"])
     return commits.split("\n") if commits else []
 
 
-def get_changed_files() -> List[str]:
+def get_changed_files() -> list[str]:
     """Get list of changed files since main."""
     files = run_git_command(["git", "diff", "main...HEAD", "--name-only"])
     return files.split("\n") if files else []
 
 
-def infer_labels(branch: str, commits: List[str], files: List[str]) -> List[str]:
+def infer_labels(branch: str, commits: list[str], files: list[str]) -> list[str]:
     """
     Infer 2-3 labels from branch name, commits, and changed files.
 
     Type labels (pick 1): feat, bug, refactor, chore, docs, research
     Scope labels (pick 0-2): judge, evaluator, core, cli, dataset, report, pytest, async, infra, testing
     """
-    labels = set()
-
     # Combine all text for analysis
     text = f"{branch} {' '.join(commits)} {' '.join(files)}".lower()
 
@@ -86,7 +84,7 @@ def infer_labels(branch: str, commits: List[str], files: List[str]) -> List[str]
     return result or ["feat"]  # Default to feat if nothing matches
 
 
-def infer_milestone(branch: str, commits: List[str]) -> str:
+def infer_milestone(branch: str, commits: list[str]) -> str:
     """
     Infer milestone from task scope.
 
@@ -109,14 +107,14 @@ def infer_milestone(branch: str, commits: List[str]) -> str:
     return "phase-1-foundation"  # Default to phase 1
 
 
-def generate_pr_metadata() -> Dict[str, any]:
+def generate_pr_metadata() -> dict[str, Any]:
     """Generate complete PR metadata."""
     branch = get_current_branch()
     commits = get_commits_since_main()
     files = get_changed_files()
 
     # Extract issue number from branch (e.g., feat/12-add-judge -> 12)
-    issue_match = re.search(r'\d+', branch)
+    issue_match = re.search(r"\d+", branch)
     issue_number = int(issue_match.group()) if issue_match else None
 
     metadata = {
@@ -131,7 +129,7 @@ def generate_pr_metadata() -> Dict[str, any]:
     return metadata
 
 
-def format_gh_pr_flags(metadata: Dict[str, any]) -> List[str]:
+def format_gh_pr_flags(metadata: dict[str, Any]) -> list[str]:
     """Convert metadata to gh pr create flags."""
     flags = []
 
@@ -155,6 +153,7 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--json":
         # Output JSON for programmatic use
         import json
+
         metadata = generate_pr_metadata()
         print(json.dumps(metadata, indent=2))
     elif len(sys.argv) > 1 and sys.argv[1] == "--gh-flags":
@@ -167,14 +166,18 @@ def main():
         metadata = generate_pr_metadata()
         print("\n🏷️  PR Metadata (auto-generated)\n")
         print(f"Branch:    {metadata['branch']}")
-        print(f"Issue:     #{metadata['issue_number']}" if metadata['issue_number'] else "Issue:     N/A")
+        print(
+            f"Issue:     #{metadata['issue_number']}"
+            if metadata["issue_number"]
+            else "Issue:     N/A"
+        )
         print(f"Assignees: {', '.join(metadata['assignees'])}")
         print(f"Labels:    {', '.join(metadata['labels'])}")
         print(f"Project:   {metadata['project']}")
         print(f"Milestone: {metadata['milestone']}")
         print("\n" + "─" * 50)
         print("\nTo use with gh pr create:")
-        print(f"  gh pr create $(python .github/pr_metadata.py --gh-flags)")
+        print("  gh pr create $(python .github/pr_metadata.py --gh-flags)")
 
 
 if __name__ == "__main__":
