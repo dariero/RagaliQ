@@ -1,0 +1,112 @@
+# Golden claim-verdict set for judge meta-evaluation.
+#
+# Each item is an ATOMIC claim + context, labelled by a human with the verdict
+# the judge SHOULD return. Atomic = a single verifiable fact, so the human label
+# is unambiguous (this mirrors what extract_claims() is meant to produce).
+#
+# `expected` is the human ground truth. The meta-eval measures how often the live
+# judge (verify_claim) agrees with these labels. `note` records the human rationale
+# so the label provenance is auditable — that is what makes this a golden set and
+# not just more test data.
+#
+# Verdicts: SUPPORTED | CONTRADICTED | NOT_ENOUGH_INFO
+
+items:
+  - id: sup_explicit
+    claim: "Paris is the capital of France."
+    context:
+      - "France is a country in Western Europe. Its capital city is Paris."
+    expected: SUPPORTED
+    note: "Context states the fact verbatim."
+
+  - id: sup_paraphrase
+    claim: "Water boils at 100 degrees Celsius at sea level."
+    context:
+      - "At standard atmospheric pressure, the boiling point of water is 100 C."
+    expected: SUPPORTED
+    note: "Supported via paraphrase; 'sea level' == 'standard atmospheric pressure'."
+
+  - id: sup_multi_doc
+    claim: "The Amazon River is in South America."
+    context:
+      - "The Nile is the longest river in Africa."
+      - "The Amazon River flows through South America and is the largest by discharge."
+    expected: SUPPORTED
+    note: "Support lives in the second document; tests multi-chunk handling."
+
+  - id: sup_inference
+    claim: "A hexagon has more sides than a square."
+    context:
+      - "A square has four sides. A hexagon has six sides."
+    expected: SUPPORTED
+    note: "Requires trivial comparison (6 > 4) directly entailed by context."
+
+  - id: con_numeric
+    claim: "Paris has a population of 5 million people."
+    context:
+      - "Paris is the capital of France. The city proper has about 2.1 million residents."
+    expected: CONTRADICTED
+    note: "Context gives 2.1M, claim says 5M — direct numeric contradiction."
+
+  - id: con_negation
+    claim: "The Pacific is the smallest ocean."
+    context:
+      - "The Pacific Ocean is the largest and deepest of Earth's oceans."
+    expected: CONTRADICTED
+    note: "Largest vs smallest — explicit contradiction."
+
+  - id: con_attribute
+    claim: "Mercury is the hottest planet in the solar system."
+    context:
+      - "Although Mercury is closest to the Sun, Venus is the hottest planet due to its dense atmosphere."
+    expected: CONTRADICTED
+    note: "Context explicitly assigns 'hottest' to Venus, not Mercury."
+
+  - id: nei_topic_present_fact_absent
+    claim: "The Eiffel Tower was completed in 1889."
+    context:
+      - "Paris landmarks include the Eiffel Tower, the Louvre, and Notre-Dame."
+    expected: NOT_ENOUGH_INFO
+    note: "Eiffel Tower is mentioned but no construction date is given."
+
+  - id: nei_distractor
+    claim: "Photosynthesis converts light into chemical energy."
+    context:
+      - "The 2018 budget allocated funds to road maintenance and public transport."
+    expected: NOT_ENOUGH_INFO
+    note: "Context is unrelated; neither supports nor contradicts."
+
+  - id: nei_adjacent_but_silent
+    claim: "Insulin is produced in the pancreas."
+    context:
+      - "The pancreas is an organ located behind the stomach in the abdomen."
+    expected: NOT_ENOUGH_INFO
+    note: "Context describes the pancreas's location but says nothing about insulin."
+
+  - id: sup_definitional
+    claim: "A triangle has three sides."
+    context:
+      - "A triangle is a polygon defined by three edges and three vertices."
+    expected: SUPPORTED
+    note: "Direct definitional support; 'edges' == 'sides'."
+
+  - id: con_date
+    claim: "World War II ended in 1939."
+    context:
+      - "World War II began in 1939 and ended in 1945."
+    expected: CONTRADICTED
+    note: "1939 is the start; context states the end as 1945."
+
+  - id: nei_partial_entity
+    claim: "Ada Lovelace wrote the first computer program."
+    context:
+      - "Ada Lovelace worked with Charles Babbage on the Analytical Engine."
+    expected: NOT_ENOUGH_INFO
+    note: "Association is present but the specific 'first program' claim is not stated."
+
+  - id: sup_units
+    claim: "There are 1000 metres in a kilometre."
+    context:
+      - "The kilometre is a unit of length equal to one thousand metres."
+    expected: SUPPORTED
+    note: "Exact numeric support via wording ('one thousand')."
