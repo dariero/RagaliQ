@@ -275,33 +275,50 @@ ragaliq/
 
 ---
 
-## Dependencies
+## Dependencies and the provider seam
 
-*Note: For current dependency versions, see `pyproject.toml` as the single source of truth.*
+`pyproject.toml` is the single source of truth for versions. This section
+deliberately does **not** restate them: a copy here drifted to seven wrong
+floors and a dependency that never existed (`httpx`), which is exactly the
+duplicated-fact problem the consistency checks in `scripts/verify_release.py`
+now guard against elsewhere.
 
-```toml
-[project]
-dependencies = [
-    "anthropic>=0.40.0",
-    "openai>=1.50.0",
-    "pydantic>=2.0",
-    "typer>=0.12.0",
-    "rich>=13.0",
-    "jinja2>=3.1",
-    "pyyaml>=6.0",
-    "httpx>=0.27",
-    "tenacity>=8.0",
-]
+What is worth describing here is the shape the dependencies serve.
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "pytest-cov>=4.0",
-    "ruff>=0.4",
-    "mypy>=1.10",
-]
-```
+### The transport seam
+
+Provider access is isolated behind one structural type, so swapping or adding
+a provider does not touch judging logic. See
+[`ADR-000-judge-transport-protocol.md`](../.decisions/ADR-000-judge-transport-protocol.md).
+
+- **`JudgeTransport`** (`judges/transport.py`) is a `Protocol`, not a base
+  class. Anything with a matching `send()` satisfies it — no registration, no
+  inheritance.
+- **`ClaudeTransport`** implements it by wrapping `AsyncAnthropic`. It owns
+  provider HTTP calls, retries and token counting, and nothing else.
+- **`BaseJudge`** depends on the protocol rather than any concrete transport.
+  Prompt building, response parsing and score clamping live there, so they are
+  written once and shared by every provider.
+
+Because the dependency points at a structural type, adding a second provider
+is additive: an `OpenAITransport` with a matching `send()` requires no change
+to `BaseJudge`. That is what preserves cross-provider optionality — not a
+declared extra. Tracked in #114.
+
+### Direct runtime dependencies, by role
+
+| Package | Role |
+|---|---|
+| `anthropic` | the only provider SDK currently wired, used solely by `ClaudeTransport` |
+| `pydantic` | every data structure; strict validation at the boundaries |
+| `tenacity` | retry policy around transport calls |
+| `typer` | CLI |
+| `rich` | terminal rendering |
+| `jinja2` | HTML report templates |
+| `pyyaml` | dataset and prompt loading |
+
+`httpx` is **not** a RagaliQ dependency. It appears in `pylock.toml` only as
+anthropic's transitive pull, and is imported nowhere in the project.
 
 ---
 
