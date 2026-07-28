@@ -45,6 +45,26 @@ hatch run check
 > A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
 > so the lock must be `--universal`. CI installs strictly from this lock via uv.
 
+## Keeping pre-commit revs current
+
+Dependabot has no ecosystem that reaches `.pre-commit-config.yaml`. Run
+**`pre-commit autoupdate` quarterly** and review the diff before staging;
+`git checkout -- .pre-commit-config.yaml` reverts it.
+
+> **ruff lives in three places and they move together:** the `dev` extra floor
+> in `pyproject.toml`, the `rev:` in `.pre-commit-config.yaml`, and the pin in
+> `pylock.toml`. `autoupdate` moves only the second. Left split, the pre-commit
+> hook and `hatch run lint` format the same tree differently.
+>
+> A split does not even need `autoupdate`: the floor is a `>=`, so a fresh
+> `hatch env` resolve alone pulls a newer ruff than the pinned hook. Run
+> `python scripts/verify_release.py --consistency-only` after any of the three
+> changes — `check_ruff_atom` fails if they disagree.
+
+The `additional_dependencies` under `mirrors-mypy` are a further copy of the
+runtime floors. If they lag, mypy types against a different version than the
+code imports.
+
 ## Code Standards
 
 - **Type hints** are required on all public functions and methods.

@@ -11,6 +11,28 @@
 - Use `ruff` for linting and formatting -- no manual style overrides
 </constraints>
 
+## Dependency Policy
+
+**Floors move for a reason, never because something newer exists.**
+
+A `>=` floor in `pyproject.toml` is a support claim: the oldest version the code
+is known to work with. Raise it only when
+
+1. a feature the code now uses requires it, or
+2. support for older versions is being deliberately dropped.
+
+"A newer release exists" is not a reason. Dependabot proposes lock and pin
+updates; it is not wired to floors.
+
+**A floor bump with no lock regeneration changes nothing about what CI runs.**
+CI installs with `uv pip sync pylock.toml` then `uv pip install -e . --no-deps`,
+so the floors are never resolved — the lock is the only thing exercised. Bump a
+floor without regenerating, and the PR is green and inert.
+
+Regenerate one package at a time and diff the lock before committing; see
+CONTRIBUTING.md. `scripts/verify_release.py --consistency-only` asserts the
+floors, the pins and the lock still agree.
+
 ## Design Decisions (MUST follow in all new code)
 
 1. **Evaluator Pattern**: Each metric MUST be a separate Evaluator class with `evaluate()` method. DO NOT refactor to alternative patterns without explicit approval.
