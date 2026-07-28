@@ -1,9 +1,13 @@
 name: Docs
 
 # Deploys the MkDocs site to GitHub Pages on every push to main.
-# Also triggerable manually via the Actions tab.
+# Also builds (without deploying) on pull requests: mkdocs runs --strict, so a
+# broken link fails the build. Without the pull_request trigger that check only
+# ran after merge, which is how #120 landed green and broke main until #126.
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -13,10 +17,15 @@ permissions:
   pages: write
   id-token: write
 
-# Do NOT cancel in-progress deployments — a partial deploy leaves the site broken.
+# Deployments share one group and are never cancelled — a partial deploy leaves
+# the site broken. PR builds get their own per-ref group so they neither queue
+# behind a deploy nor block one, and superseded PR builds are cancellable.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: >-
+    ${{ github.event_name == 'pull_request'
+        && format('docs-pr-{0}', github.ref)
+        || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -37,7 +46,10 @@ jobs:
         # --strict turns warnings into errors so broken links don't ship silently.
         run: mkdocs build --strict
 
+      # Only the deploying runs need an artifact; on a PR the --strict build
+      # above is the whole point.
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: site/
@@ -45,6 +57,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
