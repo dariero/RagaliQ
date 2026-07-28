@@ -1,0 +1,27 @@
+{
+  "model": "claude-sonnet-4-6",
+  "n": 14,
+  "accuracy": 1.0,
+  "cohen_kappa": 1.0,
+  "macro_f1": 1.0,
+  "per_class": {
+    "SUPPORTED": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 6
+    },
+    "CONTRADICTED": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 4
+    },
+    "NOT_ENOUGH_INFO": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 4
+    }
+  }
+}

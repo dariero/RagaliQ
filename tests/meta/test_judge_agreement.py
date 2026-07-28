@@ -30,15 +30,23 @@ from tests.meta.meta_metrics import (
     write_snapshot,
 )
 
-# Absolute floors for the very first run (no baseline yet). Conservative: a
-# usable three-way judge should clear these comfortably. Tighten as you learn
-# your judge's real numbers.
+# Absolute floors. Measured 2026-07-28 against claude-sonnet-4-6 over three
+# consecutive runs (see issue #89): accuracy, kappa and macro-F1 were all
+# exactly 1.000 every run, with zero disagreements across all 14 claims. The
+# floors below are therefore cleared with full headroom and are kept
+# deliberately loose — they catch a judge that breaks, not one that drifts.
 MIN_ACCURACY = 0.70
 MIN_KAPPA = 0.50  # 'moderate' agreement beyond chance
 MIN_MACRO_F1 = 0.65
 
 # How much macro-F1 may drop versus a pinned baseline before it's a regression.
-MACRO_F1_DRIFT_TOLERANCE = 0.10
+# Derived, not chosen: observed_spread over the three runs was 0.000, so
+# round(max(2 * 0.000, 0.05), 2) = 0.05.
+#
+# Caveat: with n=14 a single misclassification moves accuracy by 1/14 = 0.071,
+# so this tolerance sits below the metric's own resolution. The fix is more
+# golden claims, not a tighter constant — tracked in issue #90.
+MACRO_F1_DRIFT_TOLERANCE = 0.05
 
 pytestmark = pytest.mark.meta
 
