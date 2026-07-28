@@ -27,14 +27,6 @@ if TYPE_CHECKING:
     from ragaliq.judges.base import LLMJudge
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    """Register the `meta` marker for live judge-quality benchmarks."""
-    config.addinivalue_line(
-        "markers",
-        "meta: live judge meta-evaluation against the golden set (needs ANTHROPIC_API_KEY)",
-    )
-
-
 @pytest.fixture
 def golden_claims() -> list[GoldenClaim]:
     """The human-labelled claim-verdict golden set."""
@@ -49,11 +41,20 @@ def golden_cases() -> list[GoldenCase]:
 
 @pytest.fixture
 def live_judge() -> LLMJudge:
-    """A real ClaudeJudge. Skips the test cleanly if no API key is configured."""
+    """A real ClaudeJudge.
+
+    Skips when the paid tier was not requested. Fails — deliberately, not
+    skips — when it *was* requested but cannot run, so that "the gate could
+    not return a verdict" is never reported as success.
+    """
     if os.getenv("RAGALIQ_RUN_META") != "1":
         pytest.skip("set RAGALIQ_RUN_META=1 to enable paid meta-evaluation")
     if not os.getenv("ANTHROPIC_API_KEY"):
-        pytest.skip("ANTHROPIC_API_KEY not set; skipping live meta-evaluation")
+        pytest.fail(
+            "RAGALIQ_RUN_META=1 was set but ANTHROPIC_API_KEY is missing. "
+            "The gate cannot return a verdict, so it must not report success.",
+            pytrace=False,
+        )
     from ragaliq.judges.claude import ClaudeJudge
 
     return ClaudeJudge()
