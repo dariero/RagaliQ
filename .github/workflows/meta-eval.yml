@@ -1,0 +1,103 @@
+name: Meta Evaluation
+
+# Live judge-quality benchmark. This job makes real, paid Anthropic API calls,
+# so it is deliberately NOT wired to push or pull_request — per-PR would bill
+# every push. Weekly plus manual dispatch only.
+#
+# What it gates: the agreement floors and the pinned macro-F1 baseline in
+# tests/meta/baselines/judge_agreement_baseline.json (see issue #89). A red run
+# means judge quality moved, not that the build broke.
+on:
+  schedule:
+    # 06:00 UTC every Monday.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# Never run two paid evaluations at once.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  meta-eval:
+    name: Judge agreement vs golden set
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: actions/setup-python@v6.3.0
+        with:
+          python-version: "3.14"
+
+      - uses: astral-sh/setup-uv@v8.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pylock.toml"
+
+      # Same install path as ci.yml: the gate must measure the locked
+      # dependency set, not a floating resolution.
+      - name: Install locked dependencies + project
+        run: |
+          uv venv --python 3.14
+          uv pip sync pylock.toml
+          uv pip install -e . --no-deps
+
+      - name: Run meta evaluation
+        env:
+          RAGALIQ_RUN_META: "1"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: .venv/bin/pytest tests/meta/ -m meta --no-cov -v -s
+
+      # Runs on failure too — a regression is exactly when the numbers matter.
+      - name: Write agreement numbers to step summary
+        if: always()
+        run: |
+          SNAPSHOT=tests/meta/baselines/judge_agreement_latest.json
+
+          if [ ! -f "$SNAPSHOT" ]; then
+            echo "### Meta evaluation" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No snapshot produced — the run failed before judging completed." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          .venv/bin/python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          import os
+
+          snap = json.load(open("tests/meta/baselines/judge_agreement_latest.json"))
+          base = None
+          if os.path.exists("tests/meta/baselines/judge_agreement_baseline.json"):
+              base = json.load(open("tests/meta/baselines/judge_agreement_baseline.json"))
+
+          print("### Meta evaluation")
+          print()
+          print(f"Model `{snap['model']}` — n={snap['n']}")
+          print()
+          print("| Metric | This run | Baseline | Delta |")
+          print("|--------|----------|----------|-------|")
+          for key, label in (
+              ("accuracy", "accuracy"),
+              ("cohen_kappa", "Cohen's kappa"),
+              ("macro_f1", "macro-F1"),
+          ):
+              cur = snap[key]
+              if base is None:
+                  print(f"| {label} | {cur:.4f} | — | — |")
+              else:
+                  ref = base[key]
+                  print(f"| {label} | {cur:.4f} | {ref:.4f} | {cur - ref:+.4f} |")
+
+          print()
+          print("| Class | P | R | F1 | support |")
+          print("|-------|---|---|-----|---------|")
+          for name, m in snap["per_class"].items():
+              print(
+                  f"| {name} | {m['precision']:.2f} | {m['recall']:.2f} "
+                  f"| {m['f1']:.2f} | {m['support']} |"
+              )
+          PY
