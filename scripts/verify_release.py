@@ -239,9 +239,7 @@ def check_python_atom() -> bool:
         for c in proj.get("classifiers", [])
         if re.fullmatch(r"Programming Language :: Python :: \d+\.\d+", c)
     ]
-    sites.append(
-        ("pyproject classifier", _two_part(versioned[0]) if len(versioned) == 1 else None)
-    )
+    sites.append(("pyproject classifier", _two_part(versioned[0]) if len(versioned) == 1 else None))
 
     target = str(tool.get("ruff", {}).get("target-version", ""))
     m = re.fullmatch(r"py(\d)(\d+)", target)
