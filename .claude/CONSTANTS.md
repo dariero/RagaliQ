@@ -41,6 +41,7 @@ Format: `<prefix>/<issue>-<description>`
 | `[FIX]` | `fix/` |
 | `[REFACTOR]` | `refactor/` |
 | `[DOCS]` | `docs/` |
+| `[CHORE]` | `chore/` |
 | (none) | `feat/` |
 
 ## Commit Type Mapping
@@ -53,6 +54,7 @@ Inferred from branch prefix — used by `/ship` when building `[TYPE #N]` commit
 | `fix/`        | `FIX`       |
 | `refactor/`   | `REFACTOR`  |
 | `docs/`       | `DOCS`      |
+| `chore/`      | `CHORE`     |
 | (none)        | `FEAT`      |
 
 ## Issue Type Defaults
