@@ -157,7 +157,7 @@ plugins = ["pydantic.mypy"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "-v --cov=ragaliq --cov-report=term-missing -m 'not meta'"
+addopts = "-v --strict-markers --cov=ragaliq --cov-report=term-missing -m 'not meta'"
 markers = [
     "meta: paid live judge-quality evaluation; requires explicit opt-in",
 ]
