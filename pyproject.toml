@@ -45,7 +45,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "anthropic>=0.116",
+    "anthropic>=0.120",
     "pydantic>=2.13",
     "typer>=0.26",
     "rich>=15",
