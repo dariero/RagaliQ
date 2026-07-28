@@ -3,11 +3,15 @@
 
 Checks all acceptance criteria before publishing a release:
   1. Version consistency across pyproject.toml and __init__.py
-  2. Required files exist (LICENSE, README.md, CHANGELOG.md)
-  3. No TODOs/FIXMEs in source code
-  4. Package builds successfully
-  5. twine check passes on built artifacts
-  6. Top-level imports work
+  2. Python version agrees across every site that declares it
+  3. ruff floor, pre-commit rev and lock pin agree on major.minor
+  4. The hatch default env references the dev extra rather than copying it
+  5. Every declared dependency appears in pylock.toml (reported, not enforced)
+  6. Required files exist (LICENSE, README.md, CHANGELOG.md)
+  7. No TODOs/FIXMEs in source code
+  8. Package builds successfully
+  9. twine check passes on built artifacts
+ 10. Top-level imports work
 
 Usage:
     python scripts/verify_release.py
@@ -17,6 +21,7 @@ import importlib
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -196,12 +201,177 @@ def check_imports() -> bool:
         return False
 
 
+def _pyproject() -> dict:
+    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def _pylock() -> dict:
+    return tomllib.loads((ROOT / "pylock.toml").read_text(encoding="utf-8"))
+
+
+def _two_part(text: str) -> str | None:
+    """Pull a bare `major.minor` out of any of the forms these files use."""
+    m = re.search(r"(\d+\.\d+)", text)
+    return m.group(1) if m else None
+
+
+def _dist_name(spec: str) -> str:
+    return re.split(r"[<>=!~\[;\s]", spec, maxsplit=1)[0].strip().lower().replace("_", "-")
+
+
+def check_python_atom() -> bool:
+    """Every declaration of the Python version agrees.
+
+    The same fact is stored in pyproject (x4), the Dockerfile (x2), the
+    workflows and pylock.toml. ci.yml's `${{ matrix.python-version }}` is
+    derived from the matrix list, so it is not an independent site.
+    """
+    header("Python version atom")
+    data = _pyproject()
+    proj = data["project"]
+    tool = data.get("tool", {})
+    sites: list[tuple[str, str | None]] = []
+
+    sites.append(("pyproject requires-python", _two_part(proj.get("requires-python", ""))))
+
+    versioned = [
+        c
+        for c in proj.get("classifiers", [])
+        if re.fullmatch(r"Programming Language :: Python :: \d+\.\d+", c)
+    ]
+    sites.append(
+        ("pyproject classifier", _two_part(versioned[0]) if len(versioned) == 1 else None)
+    )
+
+    target = str(tool.get("ruff", {}).get("target-version", ""))
+    m = re.fullmatch(r"py(\d)(\d+)", target)
+    sites.append(("ruff target-version", f"{m.group(1)}.{m.group(2)}" if m else None))
+
+    sites.append(
+        ("mypy python_version", _two_part(str(tool.get("mypy", {}).get("python_version", ""))))
+    )
+
+    for i, line in enumerate((ROOT / "Dockerfile").read_text(encoding="utf-8").splitlines(), 1):
+        if line.startswith("FROM python:"):
+            sites.append((f"Dockerfile:{i}", _two_part(line)))
+
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for i, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+            if "python-version" not in line or "${{" in line:
+                continue
+            if (ver := _two_part(line)) is not None:
+                sites.append((f"{wf.name}:{i}", ver))
+
+    sites.append(("pylock requires-python", _two_part(str(_pylock().get("requires-python", "")))))
+
+    values = {v for _, v in sites}
+    ok = len(values) == 1 and None not in values
+    for label, value in sites:
+        print(f"      {label}: {value if value is not None else 'UNPARSEABLE'}")
+    return check(
+        f"Python atom agrees across {len(sites)} sites",
+        ok,
+        f"{values.pop() if ok else sorted(str(v) for v in values)}",
+    )
+
+
+def check_ruff_atom() -> bool:
+    """The ruff floor, the pre-commit rev and the lock pin agree on major.minor.
+
+    A split leaves the pre-commit hook and `hatch run lint` formatting the tree
+    differently. The hatch env no longer duplicates the floor (it uses
+    `features = ["dev"]`), so this is three sites, not four.
+    """
+    header("ruff version atom")
+    data = _pyproject()
+    sites: list[tuple[str, str | None]] = []
+
+    for spec in data["project"]["optional-dependencies"]["dev"]:
+        if _dist_name(spec) == "ruff":
+            sites.append(("dev extra floor", _two_part(spec)))
+
+    for spec in data["tool"]["hatch"]["envs"]["default"].get("dependencies", []):
+        if _dist_name(spec) == "ruff":
+            sites.append(("hatch env floor (should not exist)", _two_part(spec)))
+
+    text = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    if m := re.search(r"ruff-pre-commit\s*\n\s*rev:\s*v?([\d.]+)", text):
+        sites.append(("pre-commit rev", _two_part(m.group(1))))
+
+    for pkg in _pylock().get("packages", []):
+        if pkg["name"].lower() == "ruff":
+            sites.append(("pylock pin", _two_part(pkg.get("version", ""))))
+
+    values = {v for _, v in sites}
+    ok = len(sites) >= 3 and len(values) == 1 and None not in values
+    for label, value in sites:
+        print(f"      {label}: {value}")
+    return check(
+        f"ruff atom agrees across {len(sites)} sites",
+        ok,
+        f"{values.pop() if ok else sorted(str(v) for v in values)}",
+    )
+
+
+def check_dev_lists() -> bool:
+    """The hatch default env references the dev extra rather than copying it.
+
+    Two copies of the tool list means the local gates and the CI gates can
+    install different tools. `build` is the one allowed extra: it is needed by
+    `hatch run build` but is not a dependency of the published package.
+    """
+    header("Dev dependency list")
+    env = _pyproject()["tool"]["hatch"]["envs"]["default"]
+    features = env.get("features", [])
+    extras = {_dist_name(s) for s in env.get("dependencies", [])}
+    allowed = {"build"}
+
+    ok = check("hatch env uses features = ['dev']", "dev" in features, str(features))
+    ok &= check(
+        "hatch env adds nothing beyond the allowed extras",
+        extras <= allowed,
+        f"extras={sorted(extras) or 'none'} allowed={sorted(allowed)}",
+    )
+    return ok
+
+
+def check_floors_against_lock() -> bool:
+    """Report any declared dependency that pylock.toml does not carry.
+
+    CI installs with `uv pip sync pylock.toml` plus `--no-deps`, so anything
+    absent from the lock is never exercised. Reported, not failed: the openai
+    extra is a known dead declaration pending its own decision.
+    """
+    header("Declared dependencies vs lock")
+    proj = _pyproject()["project"]
+    locked = {p["name"].lower().replace("_", "-") for p in _pylock().get("packages", [])}
+
+    declared: list[tuple[str, str]] = [("runtime", s) for s in proj.get("dependencies", [])]
+    for group, specs in proj.get("optional-dependencies", {}).items():
+        declared += [(f"extra:{group}", s) for s in specs]
+
+    absent = [(g, s) for g, s in declared if _dist_name(s) not in locked]
+    for group, spec in absent:
+        print(f"      NOT IN LOCK  {group:<14} {spec}  (never exercised by ci.yml)")
+
+    return check(
+        "Declared dependencies present in pylock.toml",
+        True,
+        f"{len(declared) - len(absent)}/{len(declared)} locked"
+        + (f", {len(absent)} absent (reported, not enforced)" if absent else ""),
+    )
+
+
 def main() -> None:
     print("RagaliQ Release Verification")
     print(f"Root: {ROOT}")
 
     results: list[bool | None] = [
         check_version_consistency(),
+        check_python_atom(),
+        check_ruff_atom(),
+        check_dev_lists(),
+        check_floors_against_lock(),
         check_required_files(),
         check_no_todos(),
         check_imports(),

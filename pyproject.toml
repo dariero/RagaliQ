@@ -90,14 +90,15 @@ packages = ["src/ragaliq"]
 # and keeps pip out of the local toolchain). See CONTRIBUTING.md for the lock
 # generation workflow; CI installs from pylock.toml directly via uv.
 installer = "uv"
+# The dev tool list lives in [project.optional-dependencies].dev and is pulled
+# in by reference, not copied. A second copy here had already skewed (`build`
+# was in it and missing from the extra), which meant the local gates and the
+# CI gates could install different tools. verify_release.check_dev_lists()
+# asserts this stays a reference.
+features = ["dev"]
+# `build` is the one deliberate extra: needed by `hatch run build`, but not a
+# dependency of the published package, so it does not belong in the dev extra.
 dependencies = [
-    "pytest>=9.1",
-    "pytest-asyncio>=1.4",
-    "pytest-cov>=7.1",
-    "ruff>=0.15",
-    "mypy>=2.3",
-    "pre-commit>=4.6",
-    "types-PyYAML>=6.0",
     "build",
 ]
 
