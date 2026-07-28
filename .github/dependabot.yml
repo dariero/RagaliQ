@@ -1,0 +1,63 @@
+version: 2
+
+# Grouping is deliberate. Ungrouped, Dependabot opens one PR per dependency per
+# week; the volume trains you to merge without reading, which is worse than a
+# stale pin. Grouping trades per-dependency bisectability for a review that
+# actually happens.
+#
+# The pip groups mirror the slice discipline the manual bumps used: a ruff bump
+# rewrites formatting across the tree, and mixing that with a runtime bump makes
+# the diff unreviewable. Keeping tooling and runtime apart preserves that.
+#
+# NOT covered here:
+#   - pyproject floors. Dependabot proposes lock/pin updates; floors move only
+#     when a feature requires it or support is deliberately dropped. See the
+#     dependency policy in CLAUDE.md.
+#   - pre-commit revs. No Dependabot ecosystem reaches them — CONTRIBUTING.md
+#     carries a quarterly `pre-commit autoupdate` step instead.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "[CHORE]"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "[CHORE]"
+    groups:
+      # A ruff major produces a whole-tree lint/format diff. It must never share
+      # a PR with a runtime bump.
+      tooling:
+        patterns:
+          - ruff
+          - mypy
+          - pytest*
+          - types-*
+          - pre-commit
+      runtime:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - ruff
+          - mypy
+          - pytest*
+          - types-*
+          - pre-commit
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "[CHORE]"
