@@ -111,3 +111,6 @@ Thumbs.db
 
 # Stale root-level package artifacts (use src/ layout only)
 ragaliq/__pycache__/
+
+# Meta-eval run artefacts (the pinned baseline IS tracked; per-run latest is not)
+tests/meta/baselines/*_latest.json
