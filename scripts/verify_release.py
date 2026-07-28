@@ -14,7 +14,13 @@ Checks all acceptance criteria before publishing a release:
  10. Top-level imports work
 
 Usage:
-    python scripts/verify_release.py
+    python scripts/verify_release.py                     # all 10, before a release
+    python scripts/verify_release.py --consistency-only  # checks 1-5, in CI
+
+`--consistency-only` runs the atom checks and nothing else: no `python -m build`
+on every push, and no TODO scan turning main red on unrelated work. Those five
+are the ones that guard facts stored in more than one place, so they are worth
+running on every PR.
 """
 
 import importlib
@@ -23,6 +29,7 @@ import subprocess
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "ragaliq"
@@ -201,11 +208,11 @@ def check_imports() -> bool:
         return False
 
 
-def _pyproject() -> dict:
+def _pyproject() -> dict[str, Any]:
     return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def _pylock() -> dict:
+def _pylock() -> dict[str, Any]:
     return tomllib.loads((ROOT / "pylock.toml").read_text(encoding="utf-8"))
 
 
@@ -361,21 +368,33 @@ def check_floors_against_lock() -> bool:
 
 
 def main() -> None:
-    print("RagaliQ Release Verification")
+    # --consistency-only runs the atom checks and nothing else, so CI can gate
+    # every PR on them without paying for `python -m build` on each push and
+    # without check_no_todos turning main red on unrelated work.
+    consistency_only = "--consistency-only" in sys.argv
+
+    mode = "Consistency Checks" if consistency_only else "Release Verification"
+    print(f"RagaliQ {mode}")
     print(f"Root: {ROOT}")
 
-    results: list[bool | None] = [
+    consistency: list[bool | None] = [
         check_version_consistency(),
         check_python_atom(),
         check_ruff_atom(),
         check_dev_lists(),
         check_floors_against_lock(),
-        check_required_files(),
-        check_no_todos(),
-        check_imports(),
-        check_build(),
-        check_twine(),
     ]
+
+    results: list[bool | None] = consistency
+    if not consistency_only:
+        results = [
+            *consistency,
+            check_required_files(),
+            check_no_todos(),
+            check_imports(),
+            check_build(),
+            check_twine(),
+        ]
 
     header("RESULT")
     total = len(results)
@@ -397,7 +416,12 @@ def main() -> None:
             "Install the missing tools to fully verify before releasing."
         )
         sys.exit(0)
-    print(f"  All {total} checks passed. Ready to release!")
+    if consistency_only:
+        # Never say "ready to release" after running half the checks — that is
+        # the same skip-as-green failure this script guards against elsewhere.
+        print(f"  All {total} consistency checks passed. Release checks NOT run.")
+    else:
+        print(f"  All {total} checks passed. Ready to release!")
     sys.exit(0)
 
 
