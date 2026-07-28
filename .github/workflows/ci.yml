@@ -37,7 +37,7 @@ jobs:
           uv pip install -e . --no-deps
 
       - name: Run ruff
-        run: .venv/bin/ruff check src/ tests/
+        run: .venv/bin/ruff check src/ tests/ scripts/
 
   typecheck:
     name: Type Check
@@ -61,7 +61,23 @@ jobs:
           uv pip install -e . --no-deps
 
       - name: Run mypy
-        run: .venv/bin/mypy src/
+        run: .venv/bin/mypy src/ scripts/
+
+  # The atom checks: facts stored in more than one place (Python version, ruff
+  # version, dev list, floors vs lock). --consistency-only skips the build,
+  # twine and TODO checks, which belong to a release rather than a PR.
+  consistency:
+    name: Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Run consistency checks
+        run: python scripts/verify_release.py --consistency-only
 
   # Only unit tests run in CI; integration tests need live API keys.
   test:

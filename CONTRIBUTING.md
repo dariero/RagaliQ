@@ -36,7 +36,12 @@ hatch run check
 
 > **Dependencies are locked** in `pylock.toml` (PEP 751, cross-platform). After
 > changing dependencies in `pyproject.toml`, regenerate it with:
-> `uv pip compile pyproject.toml --extra dev --universal --python-version 3.14 --generate-hashes --upgrade -o pylock.toml`.
+> `uv pip compile pyproject.toml --extra dev --universal --python-version 3.14 --generate-hashes --upgrade-package <name> -o pylock.toml`.
+> **One package per regeneration.** `--upgrade` (no `-package`) pulls *every*
+> floor to latest, which silently drags unrelated bumps into a slice — a
+> tooling PR would ship an `anthropic` bump with it. Always diff the lock
+> before committing and confirm only the named package moved:
+> `git diff pylock.toml | grep -E '^[+-]name|^[+-]version'`.
 > A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
 > so the lock must be `--universal`. CI installs strictly from this lock via uv.
 
