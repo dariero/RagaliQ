@@ -190,9 +190,9 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
             return judge
         case "openai":
             raise NotImplementedError(
-                "The OpenAI judge is not yet available in v0.1.0. "
+                "The OpenAI judge is not implemented. "
                 "Use --ragaliq-judge claude with an ANTHROPIC_API_KEY instead. "
-                "Track OpenAI support at: https://github.com/dariero/RagaliQ/issues"
+                "Track OpenAI support at: https://github.com/dariero/RagaliQ/issues/114"
             )
         case _:
             raise ValueError(f"Unknown judge type: {judge_type}")
