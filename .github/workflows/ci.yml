@@ -104,9 +104,18 @@ jobs:
           uv pip sync pylock.toml
           uv pip install -e . --no-deps
 
+      # coverage run -m pytest, NOT pytest --cov: the pytest11 entry point loads
+      # the plugin (and everything it imports at module scope) before pytest-cov
+      # starts measuring, so those lines are miscounted as never executed. That
+      # understated the figure fed to Codecov by 22 points - 69% against a real
+      # 91%, 478 missed statements against 103. -o addopts="" drops the inherited
+      # --cov flags so the two mechanisms do not fight.
       - name: Run unit tests
-        # --cov-report=xml writes coverage.xml for the Codecov upload below.
-        run: .venv/bin/pytest tests/unit/ tests/meta/test_meta_metrics.py --cov-report=xml
+        run: |
+          .venv/bin/coverage run --source=src/ragaliq -m pytest \
+            tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q
+          .venv/bin/coverage report
+          .venv/bin/coverage xml -o coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7.0.0
