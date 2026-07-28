@@ -2,9 +2,17 @@
 #
 # Unlike claim_verdicts.yaml (which labels the judge's atomic decision), this set
 # labels the FaithfulnessEvaluator's emitted score on a full (query, context,
-# response) tuple. Because claim extraction count varies slightly run to run, the
-# human label is a BAND, not an exact value. The meta-eval asserts the score lands
-# inside the band and reports MAE against the band midpoint as a continuous signal.
+# response) tuple.
+#
+# The GATE is `expected_class`, not `expected_band`. A band encodes an assumed
+# claim count: [0.4, 0.7] holds only if the extractor decomposes the response the
+# way the fixture author did, and it does not — see issue #102, where K=3 against
+# an assumed 2 put a correct judgement at 0.333, outside the band. The three
+# classes hold for every K, since 0/K and K/K are exact for all K.
+#
+# `expected_band` is retained as a recorded diagnostic for spotting score drift.
+# It is no longer asserted on. Notes describe semantic content only, never a
+# claim count.
 
 cases:
   - id: fully_faithful
@@ -14,7 +22,8 @@ cases:
       - "The capital city of France is Paris."
     response: "The capital of France is Paris."
     expected_band: [0.9, 1.0]
-    note: "Single claim, fully grounded."
+    expected_class: FULLY_FAITHFUL
+    note: "Every claim in the response is grounded in the context."
 
   - id: one_hallucinated_of_two
     query: "Tell me about Paris."
@@ -23,7 +32,12 @@ cases:
       - "Paris sits on the Seine river."
     response: "Paris is the capital of France and was founded by Julius Caesar in 50 BC."
     expected_band: [0.4, 0.7]
-    note: "One supported claim (capital), one fabricated (founding) — roughly half."
+    expected_class: PARTIALLY_FAITHFUL
+    note: >-
+      The capital assertion is grounded; the founding attribution (agent and
+      date) is absent from the context. Deliberately says nothing about how many
+      atomic claims that decomposes into — the extractor may treat the agent and
+      the date as one claim or two, and both readings are partial.
 
   - id: fully_hallucinated
     query: "What is the boiling point of water?"
@@ -31,7 +45,8 @@ cases:
       - "Water is a chemical compound with the formula H2O."
     response: "Water boils at 350 degrees and is primarily composed of helium."
     expected_band: [0.0, 0.25]
-    note: "No claim is supported by the context."
+    expected_class: FULLY_HALLUCINATED
+    note: "No claim in the response is supported by the context."
 
   - id: faithful_multi_claim
     query: "Describe the solar system's inner planets."
@@ -41,7 +56,8 @@ cases:
       - "Earth is the third planet from the Sun."
     response: "Mercury is closest to the Sun, Venus is the hottest planet, and Earth is third from the Sun."
     expected_band: [0.9, 1.0]
-    note: "Three claims, all grounded."
+    expected_class: FULLY_FAITHFUL
+    note: "Every claim in the response is grounded in the context."
 
   - id: mostly_faithful_one_drift
     query: "What do we know about the pancreas?"
@@ -50,4 +66,7 @@ cases:
       - "It plays a role in digestion."
     response: "The pancreas sits behind the stomach, aids digestion, and is the largest organ in the body."
     expected_band: [0.55, 0.8]
-    note: "Two grounded claims, one unsupported ('largest organ')."
+    expected_class: PARTIALLY_FAITHFUL
+    note: >-
+      Location and digestive role are grounded; 'largest organ in the body' is
+      not in the context and is also false.

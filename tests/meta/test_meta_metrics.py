@@ -22,6 +22,7 @@ from ragaliq.judges.base import (
     LLMJudge,
 )
 from tests.meta.meta_metrics import (
+    FAITHFULNESS_CLASSES,
     accuracy,
     band_mae,
     build_confusion,
@@ -220,6 +221,38 @@ def test_golden_cases_bands_are_valid() -> None:
     for case in cases:
         low, high = case.expected_band
         assert 0.0 <= low <= high <= 1.0, f"{case.id} has an invalid band"
+
+
+def test_golden_cases_classes_are_valid() -> None:
+    """Every case carries a known granularity-invariant class.
+
+    `expected_class` is what the live tier-0 test gates on, so an unrecognised
+    value must fail here — cheaply, offline — rather than during a paid run.
+    """
+    cases = load_golden_cases()
+    for case in cases:
+        assert case.expected_class in FAITHFULNESS_CLASSES, (
+            f"{case.id} has unknown expected_class {case.expected_class!r}; "
+            f"expected one of {sorted(FAITHFULNESS_CLASSES)}"
+        )
+
+
+def test_golden_cases_bands_agree_with_classes() -> None:
+    """The recorded band must not contradict the class it accompanies.
+
+    The band is a diagnostic, not a gate, but a band that disagrees with its
+    class means one of the two is wrong and the fixture is lying either way.
+    """
+    for case in load_golden_cases():
+        low, high = case.expected_band
+        if case.expected_class == "FULLY_FAITHFUL":
+            assert high == 1.0, f"{case.id}: FULLY_FAITHFUL band must reach 1.0"
+        elif case.expected_class == "FULLY_HALLUCINATED":
+            assert low == 0.0, f"{case.id}: FULLY_HALLUCINATED band must reach 0.0"
+        else:
+            assert low > 0.0 and high < 1.0, (
+                f"{case.id}: PARTIALLY_FAITHFUL band must exclude both extremes"
+            )
 
 
 # ---------------------------------------------------------------------------

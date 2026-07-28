@@ -50,15 +50,31 @@ class GoldenClaim:
     note: str = ""
 
 
+# Granularity-invariant labels for a case-level faithfulness outcome.
+#
+# A score band silently encodes an assumed claim count: [0.4, 0.7] only holds
+# if the extractor splits the response the way the fixture author did. It does
+# not (see issue #102 — K=3 where the fixture assumed 2). These three classes
+# hold for every K, because 0/K and K/K are exact for all K and anything
+# strictly between them is partial by definition.
+FAITHFULNESS_CLASSES = frozenset({"FULLY_FAITHFUL", "PARTIALLY_FAITHFUL", "FULLY_HALLUCINATED"})
+
+
 @dataclass(frozen=True)
 class GoldenCase:
-    """A human-labelled full RAG case with an expected faithfulness score band."""
+    """A human-labelled full RAG case.
+
+    `expected_class` is the gate: it survives a change in claim granularity.
+    `expected_band` is retained as a recorded diagnostic — useful for spotting
+    drift in the score, but no longer asserted on.
+    """
 
     id: str
     query: str
     context: list[str]
     response: str
     expected_band: tuple[float, float]
+    expected_class: str
     note: str = ""
 
 
@@ -157,6 +173,7 @@ def load_golden_cases(path: Path | None = None) -> list[GoldenCase]:
             context=list(item["context"]),
             response=item["response"],
             expected_band=(float(item["expected_band"][0]), float(item["expected_band"][1])),
+            expected_class=item["expected_class"],
             note=item.get("note", ""),
         )
         for item in raw["cases"]
