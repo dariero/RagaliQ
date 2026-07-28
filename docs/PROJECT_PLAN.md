@@ -289,7 +289,7 @@ What is worth describing here is the shape the dependencies serve.
 
 Provider access is isolated behind one structural type, so swapping or adding
 a provider does not touch judging logic. See
-[`ADR-000-judge-transport-protocol.md`](../.decisions/ADR-000-judge-transport-protocol.md).
+[`ADR-000-judge-transport-protocol.md`](https://github.com/dariero/RagaliQ/blob/main/.decisions/ADR-000-judge-transport-protocol.md).
 
 - **`JudgeTransport`** (`judges/transport.py`) is a `Protocol`, not a base
   class. Anything with a matching `send()` satisfies it — no registration, no
