@@ -55,7 +55,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=2.45"]
 docs = [
     "mkdocs-material>=9.7",
 ]
