@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write  # the failure reporter opens/comments on a tracking issue
 
 jobs:
   meta-eval:
@@ -51,6 +52,32 @@ jobs:
           RAGALIQ_RUN_META: "1"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: .venv/bin/pytest tests/meta/ -m meta --no-cov -v -s
+
+      # A weekly job that fails on nobody's PR notifies nobody by default:
+      # GitHub emails only this file's last committer, which is easy to filter
+      # away. Deduplicated on purpose — a fresh issue every week is noise, and
+      # noise is how a red gate starts reading as green.
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          existing=$(gh issue list --label meta-eval-failure --state open \
+            --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Failed again: $RUN_URL"
+          else
+            gh issue create \
+              --title "[FIX] Scheduled meta-eval failed" \
+              --label bug,testing,meta-eval-failure \
+              --body "Run: $RUN_URL
+
+          The weekly judge-agreement gate failed. Check the drift delta against the
+          baseline pinned in #89 before assuming a judge regression - #102 was a
+          fixture defect, not the judge. An auth failure looks the same from here:
+          confirm ANTHROPIC_API_KEY is valid before investigating scores."
+          fi
 
       # Runs on failure too — a regression is exactly when the numbers matter.
       - name: Write agreement numbers to step summary
