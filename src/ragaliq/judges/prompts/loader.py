@@ -105,7 +105,7 @@ def _load_template_file(name: str) -> dict[str, Any]:
         raise FileNotFoundError(f"Prompt template not found: {name}")
 
     try:
-        with file_path.open() as f:
+        with file_path.open(encoding="utf-8") as f:
             content = yaml.safe_load(f)
     except yaml.YAMLError as e:
         raise yaml.YAMLError(f"Failed to parse prompt template '{name}': {e}") from e
