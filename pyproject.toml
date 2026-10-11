@@ -125,7 +125,7 @@ clean = [
 target-version = "py314"
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = ["*.md"]
+extend-exclude = [".decisions/ADR-011-evaluator-registry.md"]
 
 [tool.ruff.lint]
 select = [
