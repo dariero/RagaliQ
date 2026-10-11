@@ -600,7 +600,7 @@ class TestClaudeJudgeApiCallParameters:
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
         assert call_kwargs["model"] == "claude-opus-4-8"
-        assert call_kwargs["temperature"] == 0.5
+        assert call_kwargs["extra_body"] == {"temperature": 0.5}
         assert call_kwargs["max_tokens"] == 2048
 
 

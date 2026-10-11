@@ -85,6 +85,10 @@ class ClaudeTransport:
                 exc.status_code == 429 or exc.status_code >= 500
             )
 
+        # anthropic 1.x dropped `temperature` from messages.create, so it goes
+        # into the request body directly.
+        extra_body = {"temperature": temperature} if temperature is not None else None
+
         @retry(
             retry=(
                 retry_if_exception_type(APIConnectionError)
@@ -99,9 +103,9 @@ class ClaudeTransport:
             return await self._client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 messages=[{"role": "user", "content": user_prompt}],
                 system=system_prompt,
+                extra_body=extra_body,
             )
 
         try:
