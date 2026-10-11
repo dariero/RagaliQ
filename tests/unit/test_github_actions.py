@@ -121,7 +121,9 @@ class TestSetOutput:
 
     def test_writes_name_value_pair(self) -> None:
         """Writes name=value line to the GITHUB_OUTPUT file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".txt", delete=False
+        ) as f:
             path = f.name
         try:
             with patch.dict(os.environ, {"GITHUB_OUTPUT": path}):
@@ -133,7 +135,9 @@ class TestSetOutput:
 
     def test_appends_multiple_outputs(self) -> None:
         """Multiple calls append to the same file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".txt", delete=False
+        ) as f:
             path = f.name
         try:
             with patch.dict(os.environ, {"GITHUB_OUTPUT": path}):
@@ -161,7 +165,9 @@ class TestWriteStepSummary:
 
     def test_writes_markdown_content(self) -> None:
         """Writes markdown to the GITHUB_STEP_SUMMARY file."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".md", delete=False
+        ) as f:
             path = f.name
         try:
             with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": path}):
@@ -174,7 +180,9 @@ class TestWriteStepSummary:
 
     def test_appends_trailing_newline(self) -> None:
         """Ensures content ends with a newline."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".md", delete=False
+        ) as f:
             path = f.name
         try:
             with patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": path}):
@@ -305,9 +313,13 @@ class TestEmitCISummary:
 
     def test_writes_summary_and_outputs(self) -> None:
         """Writes step summary + GITHUB_OUTPUT values."""
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as sf:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".md", delete=False
+        ) as sf:
             summary_path = sf.name
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as of:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".txt", delete=False
+        ) as of:
             output_path = of.name
         try:
             env = {

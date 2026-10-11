@@ -234,7 +234,7 @@ class TestCLIGenerateCommand:
 
         # Create a real .txt file so _load_documents succeeds
         doc_file = tmp_path / "doc.txt"
-        doc_file.write_text("Python is a programming language.")
+        doc_file.write_text("Python is a programming language.", encoding="utf-8")
 
         output_file = tmp_path / "out.json"
         real_tc = self._real_test_case()
@@ -272,7 +272,7 @@ class TestCLIGenerateCommand:
         from ragaliq.cli.main import app
 
         empty_file = tmp_path / "empty.txt"
-        empty_file.write_text("")
+        empty_file.write_text("", encoding="utf-8")
 
         runner = CliRunner()
         result = runner.invoke(
@@ -295,7 +295,7 @@ class TestLoadDocuments:
         from ragaliq.cli.main import _load_documents
 
         doc = tmp_path / "doc.txt"
-        doc.write_text("Hello world")
+        doc.write_text("Hello world", encoding="utf-8")
         result = _load_documents(doc)
         assert result == ["Hello world"]
 
@@ -303,23 +303,23 @@ class TestLoadDocuments:
         from ragaliq.cli.main import _load_documents
 
         doc = tmp_path / "empty.txt"
-        doc.write_text("   ")
+        doc.write_text("   ", encoding="utf-8")
         result = _load_documents(doc)
         assert result == []
 
     def test_directory_loads_all_txt_files(self, tmp_path: Path) -> None:
         from ragaliq.cli.main import _load_documents
 
-        (tmp_path / "a.txt").write_text("Doc A")
-        (tmp_path / "b.txt").write_text("Doc B")
+        (tmp_path / "a.txt").write_text("Doc A", encoding="utf-8")
+        (tmp_path / "b.txt").write_text("Doc B", encoding="utf-8")
         result = _load_documents(tmp_path)
         assert sorted(result) == ["Doc A", "Doc B"]
 
     def test_directory_ignores_non_txt_files(self, tmp_path: Path) -> None:
         from ragaliq.cli.main import _load_documents
 
-        (tmp_path / "a.txt").write_text("Doc A")
-        (tmp_path / "notes.md").write_text("Markdown note")
+        (tmp_path / "a.txt").write_text("Doc A", encoding="utf-8")
+        (tmp_path / "notes.md").write_text("Markdown note", encoding="utf-8")
         result = _load_documents(tmp_path)
         assert result == ["Doc A"]
 
@@ -329,7 +329,7 @@ class TestLoadDocuments:
         from ragaliq.cli.main import _load_documents
 
         doc = tmp_path / "docs.json"
-        doc.write_text(json.dumps(["Doc One", "Doc Two"]))
+        doc.write_text(json.dumps(["Doc One", "Doc Two"]), encoding="utf-8")
         result = _load_documents(doc)
         assert result == ["Doc One", "Doc Two"]
 
@@ -337,7 +337,7 @@ class TestLoadDocuments:
         from ragaliq.cli.main import _load_documents
 
         doc = tmp_path / "docs.yaml"
-        doc.write_text("- Doc One\n- Doc Two\n")
+        doc.write_text("- Doc One\n- Doc Two\n", encoding="utf-8")
         result = _load_documents(doc)
         assert result == ["Doc One", "Doc Two"]
 
@@ -351,6 +351,6 @@ class TestLoadDocuments:
         from ragaliq.cli.main import _load_documents
 
         doc = tmp_path / "docs.csv"
-        doc.write_text("a,b,c")
+        doc.write_text("a,b,c", encoding="utf-8")
         result = _load_documents(doc)
         assert result == []
