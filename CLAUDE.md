@@ -33,6 +33,8 @@ Regenerate one package at a time and diff the lock before committing; see
 CONTRIBUTING.md. `scripts/verify_release.py --consistency-only` asserts the
 floors, the pins and the lock still agree.
 
+**2026-10-11 override:** the owner's instruction for the `deps-latest-2026-10-11` run, approved at its Checkpoint 1, overrides the one-package-at-a-time rule and the no-adding-or-removing-dependencies rule for that branch only: `pylock.toml` was regenerated with a bare `--upgrade`, which adds and removes transitive packages, and `[project.dependencies]` floors were left unchanged.
+
 ## Design Decisions (MUST follow in all new code)
 
 1. **Evaluator Pattern**: Each metric MUST be a separate Evaluator class with `evaluate()` method. DO NOT refactor to alternative patterns without explicit approval.
