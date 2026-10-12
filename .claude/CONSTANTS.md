@@ -75,6 +75,21 @@ Inferred from title prefix — used by `/start-work` to set Priority and Size on
 
 ## Quality Gates
 
-```bash
-hatch run lint && hatch run typecheck && hatch run test
-```
+Agents on the owner's machine do not run hatch (the 2026-10-12 override in `CLAUDE.md`). The gates run from the repo's `.venv`:
+
+1. If `.venv/bin/python` does not exist: report it and **STOP**. Do not create the environment.
+2. Sync `.venv` to this branch's `pylock.toml`. Hatch synced its environment on every run; without this step the gates test whichever lock was synced last. `--python` is the install target here, so it is always `.venv/bin/python`, never a system or Homebrew interpreter. If the command fails: report it and **STOP**; do not run the gates.
+   ```bash
+   uv pip sync --no-python-downloads --python .venv/bin/python pylock.toml \
+     && uv pip install --no-python-downloads --python .venv/bin/python --no-deps -e .
+   ```
+3. Run the gates with `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` and `RAGALIQ_RUN_META` unset, so no test can call a paid API. These are two commands, and both must exit 0:
+   ```bash
+   env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/ruff check src/ tests/ scripts/ \
+     && env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/mypy src/ scripts/ \
+     && env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/pytest
+   env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q \
+     && env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/coverage report
+   ```
+
+If lint fails: run the `format` script of `[tool.hatch.envs.default.scripts]` in `pyproject.toml` from `.venv` (`.venv/bin/ruff format src/ tests/ scripts/`, then `.venv/bin/ruff check --fix src/ tests/ scripts/`), commit the files it changed as in `/ship` step 2, then re-run the gates. If typecheck or test fails: report which failed and **STOP**.
