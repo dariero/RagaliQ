@@ -1,13 +1,15 @@
 """ClaudeJudge: an LLM-as-Judge backed by Anthropic's Claude API."""
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from ragaliq.judges.base import JudgeConfig
 from ragaliq.judges.base_judge import BaseJudge
 from ragaliq.judges.transport import ClaudeTransport
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from ragaliq.judges.trace import TraceCollector
 
 
@@ -39,9 +41,31 @@ class ClaudeJudge(BaseJudge):
                 "or set ANTHROPIC_API_KEY environment variable."
             )
 
+        transport = ClaudeTransport(api_key=resolved_key)
+        # Kept apart from BaseJudge's transport, which wrap_transport() may replace
+        # with a send-only wrapper; the judge closes only the client it created.
+        self._owned_transport = transport
+
         super().__init__(
-            transport=ClaudeTransport(api_key=resolved_key),
+            transport=transport,
             config=config,
             trace_collector=trace_collector,
             max_concurrency=max_concurrency,
         )
+
+    async def aclose(self) -> None:
+        """Close the HTTP client this judge created. The judge cannot call the API after this."""
+        await self._owned_transport.aclose()
+
+    async def __aenter__(self) -> Self:
+        """Return the judge."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close the HTTP client when leaving an `async with` block."""
+        await self.aclose()

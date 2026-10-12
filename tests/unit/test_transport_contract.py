@@ -4,7 +4,8 @@ The other transport tests mock `messages.create`, so they accept any keyword.
 This test reads the real signature of the installed SDK's
 `AsyncMessages.create` and fails if the transport passes a keyword the SDK
 does not declare (anthropic 1.x removed `temperature`, for example). No
-network: the client is mocked, only the signature is real.
+network: the signature test mocks the client; the close test builds a real
+client and sends nothing.
 """
 
 import inspect
@@ -34,3 +35,16 @@ async def test_send_passes_only_keywords_the_installed_sdk_declares() -> None:
     passed = set(client.messages.create.call_args.kwargs)
     undeclared = sorted(passed - declared)
     assert not undeclared, f"messages.create does not declare: {undeclared}"
+
+
+@pytest.mark.asyncio
+async def test_aclose_closes_the_sdk_client() -> None:
+    # A real client this time; no request is sent. is_closed is a method on the
+    # SDK client, so the first assert also fails if the parentheses go missing.
+    transport = ClaudeTransport(api_key="test")
+    assert not transport._client.is_closed()
+
+    await transport.aclose()
+    assert transport._client.is_closed()
+
+    await transport.aclose()  # closing twice is safe
