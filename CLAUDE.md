@@ -2,6 +2,7 @@
 
 <constraints>
 - ALWAYS run `hatch run lint && hatch run typecheck && hatch run test` before committing
+- **2026-10-12 override:** the owner's decision at Checkpoint 1 of the pre-PR-B run, until revoked: agents on the owner's machine do not run hatch (its environments live under `~/Library`, outside their scope). For them the gate above is the same commands run from the repo's `.venv` (synced from `pylock.toml`): `.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest`, plus CI's test form `.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report`.
 - NEVER commit files matching: .env*, *.pem, *credentials*, *secret*, .DS_Store
 - NEVER push directly to main; all work ships through `/ship`
 - NEVER add or remove dependencies without explicit user approval
