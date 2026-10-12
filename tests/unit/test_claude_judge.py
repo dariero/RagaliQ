@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -12,6 +12,7 @@ from ragaliq.judges import (
     ClaimsResult,
     ClaimVerdict,
     ClaudeJudge,
+    ClaudeTransport,
     JudgeAPIError,
     JudgeConfig,
     JudgeResponseError,
@@ -20,6 +21,8 @@ from ragaliq.judges import (
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+    from ragaliq.judges import TransportResponse
 
 
 @pytest.fixture
@@ -600,7 +603,7 @@ class TestClaudeJudgeApiCallParameters:
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
         assert call_kwargs["model"] == "claude-opus-4-8"
-        assert call_kwargs["temperature"] == 0.5
+        assert call_kwargs["extra_body"] == {"temperature": 0.5}
         assert call_kwargs["max_tokens"] == 2048
 
 
@@ -839,3 +842,31 @@ class TestClaudeJudgeVerifyClaim:
         )
 
         assert result.verdict == "SUPPORTED"
+
+
+class _SendOnly:
+    """A wrapper with only send(), like the plugin's LatencyInjectionTransport."""
+
+    def __init__(self, inner: ClaudeTransport) -> None:
+        self._inner = inner
+
+    async def send(self, *args: Any, **kwargs: Any) -> TransportResponse:
+        return await self._inner.send(*args, **kwargs)
+
+
+class TestClaudeJudgeClose:
+    """ClaudeJudge closes the client it created. A real client; no request is sent."""
+
+    @pytest.mark.asyncio
+    async def test_async_with_closes_owned_client_even_after_wrap_transport(self) -> None:
+        """Test that leaving `async with` closes the client behind a send-only wrapper."""
+        judge = ClaudeJudge(api_key="test-key")
+        owned = judge.transport
+        assert isinstance(owned, ClaudeTransport)
+        assert not owned._client.is_closed()
+
+        judge.wrap_transport(_SendOnly(owned))
+        async with judge:
+            pass
+
+        assert owned._client.is_closed()

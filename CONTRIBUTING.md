@@ -45,6 +45,10 @@ hatch run check
 > A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
 > so the lock must be `--universal`. CI installs strictly from this lock via uv.
 
+**2026-10-11 override:** the owner's instruction for the `deps-latest-2026-10-11` run, approved at its Checkpoint 1, overrides the one-package-per-regeneration rule above for that branch only: `pylock.toml` was regenerated with a bare `--upgrade` (every package to latest, majors included) and `[project.dependencies]` floors were left unchanged.
+
+**Amended 2026-10-12:** `faec8d7` raised the `anthropic` floor in `[project.dependencies]` from `>=0.120` to `>=1.13`, and its mirrors-mypy copy in `.pre-commit-config.yaml` with it, because CI tests only the locked 1.13 and 0.x support was untested. The other `[project.dependencies]` floors are unchanged.
+
 ## Keeping pre-commit revs current
 
 Dependabot has no ecosystem that reaches `.pre-commit-config.yaml`. Run

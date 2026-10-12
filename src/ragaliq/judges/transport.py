@@ -4,7 +4,8 @@ A transport owns only provider HTTP calls, retries, and token counting. Prompt
 building, response parsing, and score clamping all live in `BaseJudge`.
 """
 
-from typing import Protocol
+from types import TracebackType
+from typing import Protocol, Self
 
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
@@ -85,6 +86,10 @@ class ClaudeTransport:
                 exc.status_code == 429 or exc.status_code >= 500
             )
 
+        # anthropic 1.x dropped `temperature` from messages.create, so it goes
+        # into the request body directly.
+        extra_body = {"temperature": temperature} if temperature is not None else None
+
         @retry(
             retry=(
                 retry_if_exception_type(APIConnectionError)
@@ -99,9 +104,9 @@ class ClaudeTransport:
             return await self._client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
-                temperature=temperature,
                 messages=[{"role": "user", "content": user_prompt}],
                 system=system_prompt,
+                extra_body=extra_body,
             )
 
         try:
@@ -137,3 +142,22 @@ class ClaudeTransport:
         except APIConnectionError as e:
             # Exhausted retries on connection errors
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
+
+    async def aclose(self) -> None:
+        """Close the HTTP client. The transport cannot send after this; closing twice is safe."""
+        # The SDK names it close(). A client left open is closed by its finalizer on
+        # whatever loop runs at GC time, which fails once its own loop has closed.
+        await self._client.close()
+
+    async def __aenter__(self) -> Self:
+        """Return the transport; the HTTP client connects lazily on the first send."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        """Close the HTTP client when leaving an `async with` block."""
+        await self.aclose()

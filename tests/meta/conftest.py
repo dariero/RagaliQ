@@ -24,6 +24,8 @@ from tests.meta.meta_metrics import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from ragaliq.judges.base import LLMJudge
 
 
@@ -40,12 +42,16 @@ def golden_cases() -> list[GoldenCase]:
 
 
 @pytest.fixture
-def live_judge() -> LLMJudge:
-    """A real ClaudeJudge.
+async def live_judge() -> AsyncIterator[LLMJudge]:
+    """A real ClaudeJudge, closed at teardown.
 
     Skips when the paid tier was not requested. Fails — deliberately, not
     skips — when it *was* requested but cannot run, so that "the gate could
     not return a verdict" is never reported as success.
+
+    The fixture is async so the HTTP client is closed on the test's own event
+    loop. A client left to the garbage collector is closed on a later loop and
+    logs "Task exception was never retrieved ... Event loop is closed".
     """
     if os.getenv("RAGALIQ_RUN_META") != "1":
         pytest.skip("set RAGALIQ_RUN_META=1 to enable paid meta-evaluation")
@@ -57,4 +63,5 @@ def live_judge() -> LLMJudge:
         )
     from ragaliq.judges.claude import ClaudeJudge
 
-    return ClaudeJudge()
+    async with ClaudeJudge() as judge:
+        yield judge

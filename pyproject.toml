@@ -45,7 +45,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "anthropic>=0.120",
+    "anthropic>=1.13",
     "pydantic>=2.13",
     "typer>=0.27",
     "rich>=15",
@@ -62,7 +62,7 @@ dev = [
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
     "pytest-cov>=7.1",
-    "ruff>=0.16",
+    "ruff>=0.17",
     "mypy>=2.3",
     "pre-commit>=4.6",
     "types-PyYAML>=6.0",
@@ -125,6 +125,7 @@ clean = [
 target-version = "py314"
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = [".decisions/ADR-011-evaluator-registry.md"]
 
 [tool.ruff.lint]
 select = [

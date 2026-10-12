@@ -32,7 +32,7 @@ test_case = RAGTestCase(
     name="Capital Question",
     query="What is the capital of France?",
     context=["Paris is the capital city of France. It is known for the Eiffel Tower."],
-    response="The capital of France is Paris."
+    response="The capital of France is Paris.",
 )
 ```
 
@@ -41,12 +41,10 @@ test_case = RAGTestCase(
 ```python
 import asyncio
 
+
 async def main():
     # Initialize RagaliQ
-    tester = RagaliQ(
-        evaluators=["faithfulness", "relevance"],
-        default_threshold=0.7
-    )
+    tester = RagaliQ(evaluators=["faithfulness", "relevance"], default_threshold=0.7)
 
     # Evaluate
     result = await tester.evaluate_async(test_case)
@@ -55,6 +53,7 @@ async def main():
     print(f"Status: {result.status}")
     for metric, score in result.scores.items():
         print(f"  {metric}: {score:.2f}")
+
 
 asyncio.run(main())
 ```
@@ -105,6 +104,7 @@ import pytest
 from ragaliq import RAGTestCase
 from ragaliq.integrations.pytest_plugin import assert_rag_quality
 
+
 @pytest.mark.rag_test
 def test_factual_response(ragaliq_judge):
     test_case = RAGTestCase(
@@ -112,7 +112,7 @@ def test_factual_response(ragaliq_judge):
         name="Test",
         query="What is Python?",
         context=["Python is a programming language created in 1991."],
-        response="Python is a programming language."
+        response="Python is a programming language.",
     )
     assert_rag_quality(test_case, judge=ragaliq_judge)
 ```

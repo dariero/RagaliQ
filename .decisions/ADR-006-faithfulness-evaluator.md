@@ -70,6 +70,7 @@ class ClaimsResult(BaseModel):
     claims: list[str]
     tokens_used: int
 
+
 class ClaimVerdict(BaseModel):
     verdict: Literal["SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"]
     evidence: str

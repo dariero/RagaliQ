@@ -84,17 +84,17 @@ print(f"Passed:       {result.passed}")
 `RAGTestResult` carries everything you need for reporting and debugging:
 
 ```python
-result.status          # EvalStatus.PASSED | FAILED | ERROR | SKIPPED
-result.passed          # bool — True when status == PASSED
-result.scores          # {"faithfulness": 0.92, "relevance": 0.88}
-result.execution_time_ms   # wall-clock time in ms
-result.judge_tokens_used   # total tokens consumed across all evaluators
+result.status  # EvalStatus.PASSED | FAILED | ERROR | SKIPPED
+result.passed  # bool — True when status == PASSED
+result.scores  # {"faithfulness": 0.92, "relevance": 0.88}
+result.execution_time_ms  # wall-clock time in ms
+result.judge_tokens_used  # total tokens consumed across all evaluators
 
 # Per-evaluator details (reasoning, raw judge response, errors)
 faith_detail = result.details["faithfulness"]
-print(faith_detail["reasoning"])   # Human-readable explanation
-print(faith_detail["passed"])      # bool
-print(faith_detail["raw"])         # Raw judge response dict for debugging
+print(faith_detail["reasoning"])  # Human-readable explanation
+print(faith_detail["passed"])  # bool
+print(faith_detail["raw"])  # Raw judge response dict for debugging
 ```
 
 **Error handling:** If an evaluator fails (network error, bad API response, etc.), the result carries `status=ERROR` and the error is recorded in `details["evaluator_name"]["error"]`. The other evaluators in the batch still run — errors are isolated, not fatal.
@@ -113,7 +113,7 @@ tester = RagaliQ(
     judge="claude",
     evaluators=["faithfulness", "relevance", "hallucination"],
     default_threshold=0.75,
-    max_concurrency=5,        # Up to 5 test cases run in parallel
+    max_concurrency=5,  # Up to 5 test cases run in parallel
 )
 
 test_cases = [
@@ -155,8 +155,13 @@ tester = RagaliQ(
 # All five built-in evaluators
 tester = RagaliQ(
     judge="claude",
-    evaluators=["faithfulness", "relevance", "hallucination",
-                "context_precision", "context_recall"],
+    evaluators=[
+        "faithfulness",
+        "relevance",
+        "hallucination",
+        "context_precision",
+        "context_recall",
+    ],
 )
 ```
 
@@ -264,9 +269,7 @@ docs = [
     "Python is a high-level programming language created in 1991.",
     "Python supports multiple programming paradigms including OOP and functional.",
 ]
-test_cases = asyncio.run(
-    generator.generate_from_documents(documents=docs, n=5, judge=judge)
-)
+test_cases = asyncio.run(generator.generate_from_documents(documents=docs, n=5, judge=judge))
 
 # Or via CLI (reads .txt files from a directory)
 # ragaliq generate ./docs/ --num 50 --output dataset.json
@@ -552,6 +555,7 @@ class ConcisenessEvaluator(Evaluator):
 
 # Now available anywhere
 from ragaliq import RagaliQ
+
 tester = RagaliQ(judge="claude", evaluators=["faithfulness", "conciseness"])
 ```
 
@@ -574,9 +578,9 @@ from ragaliq.judges import ClaudeJudge, JudgeConfig
 
 # Via JudgeConfig
 config = JudgeConfig(
-    model="claude-sonnet-4-6",   # default
-    temperature=0.0,                     # deterministic scoring
-    max_tokens=1024,                     # response length cap
+    model="claude-sonnet-4-6",  # default
+    temperature=0.0,  # deterministic scoring
+    max_tokens=1024,  # response length cap
 )
 tester = RagaliQ(judge="claude", judge_config=config)
 
@@ -585,6 +589,7 @@ gold_config = JudgeConfig(model="claude-opus-4-8", temperature=0.0)
 
 # Via pre-configured ClaudeJudge (gives access to trace_collector)
 from ragaliq.judges.trace import TraceCollector
+
 collector = TraceCollector()
 judge = ClaudeJudge(config=config, trace_collector=collector)
 tester = RagaliQ(judge=judge)
@@ -608,6 +613,7 @@ collector = TraceCollector()
 judge = ClaudeJudge(trace_collector=collector)
 
 from ragaliq import RagaliQ
+
 tester = RagaliQ(judge=judge, evaluators=["faithfulness", "hallucination"])
 results = tester.evaluate_batch(test_cases)
 

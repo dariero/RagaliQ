@@ -22,10 +22,10 @@ RagaliQ (RAG + Quality) - a Python library that brings software testing discipli
 class RAGTestCase(BaseModel):
     id: str
     name: str
-    query: str                    # User question
-    context: list[str]            # Retrieved documents
-    response: str                 # LLM response to evaluate
-    expected_answer: str | None   # Optional ground truth
+    query: str  # User question
+    context: list[str]  # Retrieved documents
+    response: str  # LLM response to evaluate
+    expected_answer: str | None  # Optional ground truth
     expected_facts: list[str] | None
     tags: list[str]
 ```

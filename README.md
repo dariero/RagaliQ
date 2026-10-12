@@ -216,6 +216,7 @@ ragaliq generate ./docs/ --num 50 --output dataset.json
 
 ```python
 from ragaliq.reports import ConsoleReporter
+
 ConsoleReporter(threshold=0.7).report(results)
 ```
 
@@ -223,6 +224,7 @@ ConsoleReporter(threshold=0.7).report(results)
 
 ```python
 from ragaliq.reports import JSONReporter
+
 json_str = JSONReporter(threshold=0.7).export(results)
 ```
 
@@ -230,6 +232,7 @@ json_str = JSONReporter(threshold=0.7).export(results)
 
 ```python
 from ragaliq.reports import HTMLReporter
+
 html_str = HTMLReporter(threshold=0.7).export(results)
 ```
 
@@ -288,9 +291,9 @@ from ragaliq.integrations.pytest_plugin import assert_rag_quality
 
 assert_rag_quality(
     test_case,
-    judge=ragaliq_judge,        # optional — creates default ClaudeJudge if omitted
-    evaluators=["faithfulness"], # optional — defaults to ["faithfulness", "relevance"]
-    threshold=0.8,               # optional — defaults to 0.7
+    judge=ragaliq_judge,  # optional — creates default ClaudeJudge if omitted
+    evaluators=["faithfulness"],  # optional — defaults to ["faithfulness", "relevance"]
+    threshold=0.8,  # optional — defaults to 0.7
 )
 ```
 
