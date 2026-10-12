@@ -116,7 +116,7 @@ class TestDatasetLoaderJSON:
     def test_load_invalid_json(self, tmp_path: Path):
         """Test loading invalid JSON file."""
         invalid_json = tmp_path / "invalid.json"
-        invalid_json.write_text("{invalid json}")
+        invalid_json.write_text("{invalid json}", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="Failed to parse .json file"):
             DatasetLoader.load(invalid_json)
 
@@ -135,7 +135,7 @@ class TestDatasetLoaderJSON:
             ],
         }
         invalid_json = tmp_path / "invalid_schema.json"
-        invalid_json.write_text(json.dumps(invalid_data))
+        invalid_json.write_text(json.dumps(invalid_data), encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="validation failed"):
             DatasetLoader.load(invalid_json)
 
@@ -166,14 +166,14 @@ class TestDatasetLoaderYAML:
                 }
             ],
         }
-        yml_file.write_text(yaml.dump(data))
+        yml_file.write_text(yaml.dump(data), encoding="utf-8")
         dataset = DatasetLoader.load(yml_file)
         assert len(dataset.test_cases) == 1
 
     def test_load_invalid_yaml(self, tmp_path: Path):
         """Test loading invalid YAML file."""
         invalid_yaml = tmp_path / "invalid.yaml"
-        invalid_yaml.write_text("invalid: yaml: content:")
+        invalid_yaml.write_text("invalid: yaml: content:", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="Failed to parse .yaml file"):
             DatasetLoader.load(invalid_yaml)
 
@@ -207,21 +207,21 @@ class TestDatasetLoaderCSV:
     def test_load_csv_missing_header(self, tmp_path: Path):
         """Test CSV file with no header row."""
         no_header_csv = tmp_path / "no_header.csv"
-        no_header_csv.write_text("")
+        no_header_csv.write_text("", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="has no header row"):
             DatasetLoader.load(no_header_csv)
 
     def test_load_csv_missing_required_column(self, tmp_path: Path):
         """Test CSV file missing required columns."""
         invalid_csv = tmp_path / "missing_column.csv"
-        invalid_csv.write_text("id,name,query\ntest_1,Test,Query?")
+        invalid_csv.write_text("id,name,query\ntest_1,Test,Query?", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="missing required columns:"):
             DatasetLoader.load(invalid_csv)
 
     def test_load_csv_empty_after_header(self, tmp_path: Path):
         """Test CSV file with only header, no data rows."""
         empty_csv = tmp_path / "empty.csv"
-        empty_csv.write_text("id,name,query,context,response\n")
+        empty_csv.write_text("id,name,query,context,response\n", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="contains no test cases"):
             DatasetLoader.load(empty_csv)
 
@@ -231,7 +231,7 @@ class TestDatasetLoaderCSV:
 test_1,Test,Query?,"[""Context 1"", ""Context 2""]",Response,"[""tag1"", ""tag2""]"
 """
         json_csv = tmp_path / "json_format.csv"
-        json_csv.write_text(csv_content)
+        json_csv.write_text(csv_content, encoding="utf-8")
         dataset = DatasetLoader.load(json_csv)
         assert len(dataset.test_cases[0].context) == 2
         assert dataset.test_cases[0].tags == ["tag1", "tag2"]
@@ -240,7 +240,8 @@ test_1,Test,Query?,"[""Context 1"", ""Context 2""]",Response,"[""tag1"", ""tag2"
         """Test CSV with invalid JSON in a field."""
         invalid_csv = tmp_path / "parse_error.csv"
         invalid_csv.write_text(
-            'id,name,query,context,response\ntest_1,Test,Query?,"[invalid json]",Response'
+            'id,name,query,context,response\ntest_1,Test,Query?,"[invalid json]",Response',
+            encoding="utf-8",
         )
         with pytest.raises(DatasetLoadError, match="CSV row 2 parse error"):
             DatasetLoader.load(invalid_csv)
@@ -264,7 +265,7 @@ class TestDatasetLoaderErrors:
     def test_unsupported_file_format(self, tmp_path: Path):
         """Test loading file with unsupported extension."""
         unsupported = tmp_path / "data.txt"
-        unsupported.write_text("some data")
+        unsupported.write_text("some data", encoding="utf-8")
         with pytest.raises(DatasetLoadError, match="Unsupported file format: .txt"):
             DatasetLoader.load(unsupported)
 
@@ -284,7 +285,7 @@ class TestDatasetLoaderErrors:
             ],
         }
         invalid_json = tmp_path / "validation_error.json"
-        invalid_json.write_text(json.dumps(invalid_data))
+        invalid_json.write_text(json.dumps(invalid_data), encoding="utf-8")
         with pytest.raises(DatasetLoadError) as exc_info:
             DatasetLoader.load(invalid_json)
         # Check that error message is formatted with bullet points

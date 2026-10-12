@@ -331,7 +331,7 @@ class TestRunCommand:
 
             assert result.exit_code == 0
             assert output_path.exists()
-            doc = json.loads(output_path.read_text())
+            doc = json.loads(output_path.read_text(encoding="utf-8"))
             assert "results" in doc
             assert "summary" in doc
 
@@ -359,7 +359,7 @@ class TestRunCommand:
 
             assert result.exit_code == 0
             assert output_path.exists()
-            content = output_path.read_text()
+            content = output_path.read_text(encoding="utf-8")
             assert "<!DOCTYPE html>" in content
 
     def test_output_json_shows_file_path_in_output(self):
