@@ -20,6 +20,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "16:00"
+      timezone: "Australia/Melbourne"
     open-pull-requests-limit: 3
     commit-message:
       prefix: "[CHORE]"
@@ -32,6 +35,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "16:00"
+      timezone: "Australia/Melbourne"
     open-pull-requests-limit: 5
     commit-message:
       prefix: "[CHORE]"
@@ -59,5 +65,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+      time: "16:00"
+      timezone: "Australia/Melbourne"
     commit-message:
       prefix: "[CHORE]"
