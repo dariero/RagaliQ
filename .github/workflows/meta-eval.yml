@@ -9,8 +9,9 @@ name: Meta Evaluation
 # means judge quality moved, not that the build broke.
 on:
   schedule:
-    # 06:00 UTC every Monday.
-    - cron: "0 6 * * 1"
+    # Mondays 06:30 Melbourne time: with the 6 to 9 hour start delays seen, runs still land before 17:00.
+    - cron: "30 6 * * 1"
+      timezone: "Australia/Melbourne"
   workflow_dispatch:
 
 # Never run two paid evaluations at once.
