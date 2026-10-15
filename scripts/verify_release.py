@@ -3,7 +3,7 @@
 
 Checks all acceptance criteria before publishing a release:
   1. Version consistency across pyproject.toml and __init__.py
-  2. Python version agrees across every site that declares it
+  2. Python minimum, classifiers and CI test matrix agree
   3. ruff floor, pre-commit rev and lock pin agree on major.minor
   4. The hatch default env references the dev extra rather than copying it
   5. Every declared dependency appears in pylock.toml (reported, not enforced)
@@ -226,27 +226,46 @@ def _dist_name(spec: str) -> str:
     return re.split(r"[<>=!~\[;\s]", spec, maxsplit=1)[0].strip().lower().replace("_", "-")
 
 
-def check_python_atom() -> bool:
-    """Every declaration of the Python version agrees.
+def _floor(spec: str) -> str | None:
+    """Pull the `major.minor` of a `>=` lower bound out of a version specifier."""
+    m = re.search(r">=\s*(\d+\.\d+)", spec)
+    return m.group(1) if m else None
 
-    The same fact is stored in pyproject (x4), the Dockerfile (x2), the
-    workflows and pylock.toml. ci.yml's `${{ matrix.python-version }}` is
-    derived from the matrix list, so it is not an independent site.
+
+def _version_key(version: str) -> tuple[int, int]:
+    """Order `major.minor` strings numerically, so 3.9 sorts before 3.10."""
+    major, minor = version.split(".")
+    return int(major), int(minor)
+
+
+def check_python_atom() -> bool:
+    """The supported Python range is declared the same way at every site.
+
+    The minimum is the `>=` floor of requires-python. ruff's target-version,
+    mypy's python_version, the Dockerfile (x2), every single-version
+    `python-version:` in the workflows and pylock.toml's requires-python
+    equal it. The maximum is the highest `Programming Language :: Python ::
+    X.Y` classifier. The classifiers run from the minimum to the maximum with
+    no gap, and the CI test matrix (a `python-version: [...]` list) holds
+    exactly the classified versions, each written as a plain X.Y. ci.yml's
+    `${{ matrix.python-version }}` is derived from the matrix list, so it is
+    not an independent site.
     """
     header("Python version atom")
     data = _pyproject()
     proj = data["project"]
     tool = data.get("tool", {})
     sites: list[tuple[str, str | None]] = []
+    matrices: list[tuple[str, list[str]]] = []
 
-    sites.append(("pyproject requires-python", _two_part(proj.get("requires-python", ""))))
+    minimum = _floor(proj.get("requires-python", ""))
+    sites.append(("pyproject requires-python", minimum))
 
-    versioned = [
-        c
-        for c in proj.get("classifiers", [])
-        if re.fullmatch(r"Programming Language :: Python :: \d+\.\d+", c)
-    ]
-    sites.append(("pyproject classifier", _two_part(versioned[0]) if len(versioned) == 1 else None))
+    classified: list[str] = []
+    for c in proj.get("classifiers", []):
+        if cm := re.fullmatch(r"Programming Language :: Python :: (\d+\.\d+)", c):
+            classified.append(cm.group(1))
+    classified.sort(key=_version_key)
 
     target = str(tool.get("ruff", {}).get("target-version", ""))
     m = re.fullmatch(r"py(\d)(\d+)", target)
@@ -264,20 +283,58 @@ def check_python_atom() -> bool:
         for i, line in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
             if "python-version" not in line or "${{" in line:
                 continue
-            if (ver := _two_part(line)) is not None:
+            # A list is a test matrix. Read it whole: _two_part would return
+            # only its first version and pass a matrix that lacks the maximum.
+            # A list left open continues on lines this scan does not read, so
+            # it counts as empty rather than as its first line.
+            if mx := re.search(r"python-version:\s*\[([^\]]*)(\]?)", line):
+                items = [s.strip().strip("\"'") for s in mx.group(1).split(",") if s.strip()]
+                if mx.group(2):
+                    matrices.append((f"{wf.name}:{i}", items))
+                else:
+                    matrices.append((f"{wf.name}:{i} (list not closed on its line)", []))
+            elif (ver := _two_part(line)) is not None:
                 sites.append((f"{wf.name}:{i}", ver))
 
-    sites.append(("pylock requires-python", _two_part(str(_pylock().get("requires-python", "")))))
+    sites.append(("pylock requires-python", _floor(str(_pylock().get("requires-python", "")))))
 
-    values = {v for _, v in sites}
-    ok = len(values) == 1 and None not in values
     for label, value in sites:
         print(f"      {label}: {value if value is not None else 'UNPARSEABLE'}")
-    return check(
-        f"Python atom agrees across {len(sites)} sites",
-        ok,
-        f"{values.pop() if ok else sorted(str(v) for v in values)}",
+    print(f"      classifiers: {', '.join(classified) or 'none'}")
+    for label, versions in matrices:
+        print(f"      {label} matrix: {', '.join(versions) or 'none'}")
+
+    values = {v for _, v in sites}
+    ok = check(
+        f"Python minimum agrees across {len(sites)} sites",
+        len(values) == 1 and None not in values,
+        f"{minimum if len(values) == 1 else sorted(str(v) for v in values)}",
     )
+
+    expected: list[str] = []
+    if minimum is not None and classified:
+        major, low = _version_key(minimum)
+        top_major, high = _version_key(classified[-1])
+        if top_major == major:
+            expected = [f"{major}.{n}" for n in range(low, high + 1)]
+    in_range = bool(classified) and classified == expected
+    ok &= check(
+        "Python classifiers run from the minimum with no gap",
+        in_range,
+        f"{classified[0]} to {classified[-1]}"
+        if in_range
+        else f"classifiers={classified} expected={expected}",
+    )
+
+    mismatched = [label for label, versions in matrices if sorted(versions) != sorted(classified)]
+    ok &= check(
+        "CI test matrix equals the classifiers",
+        bool(matrices) and not mismatched,
+        f"mismatched: {mismatched}"
+        if mismatched
+        else ", ".join(label for label, _ in matrices) or "no python-version list found",
+    )
+    return ok
 
 
 def check_ruff_atom() -> bool:
