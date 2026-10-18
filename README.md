@@ -342,11 +342,12 @@ src/ragaliq/
 git clone https://github.com/dariero/RagaliQ.git
 cd RagaliQ
 
-pip install hatch
-hatch run test          # pytest + coverage
-hatch run lint          # ruff check
-hatch run format        # ruff format + auto-fix
-hatch run typecheck     # mypy
+uv venv --python 3.14
+uv pip sync pylock.toml
+uv pip install -e . --no-deps
+
+.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest
+.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report
 ```
 
 ---

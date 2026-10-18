@@ -90,7 +90,7 @@ class {Name}Evaluator(Evaluator):
 - [ ] Empty input handled
 - [ ] Export added to `evaluators/__init__.py`
 - [ ] Unit tests mock the judge
-- [ ] `hatch run test && hatch run typecheck` passes
+- [ ] the quality gate in AGENTS.md passes
 
 **Design rationale:** Scores use 0.0-1.0 floats (not integer 1-5 scales) because normalized floats enable flexible thresholds, mathematical aggregation across evaluators, and cross-metric comparison.
 
@@ -149,7 +149,7 @@ class {Provider}Judge(LLMJudge):
 - [ ] Missing API key raises clear error
 - [ ] All `LLMJudge` abstract methods implemented
 - [ ] Export added to `judges/__init__.py`
-- [ ] `hatch run test && hatch run typecheck` passes
+- [ ] the quality gate in AGENTS.md passes
 
 **Design rationale:** Class-based (not function-based) because judges carry state: token counters, configuration, and client instances. Async + retry handles the three realities of LLM APIs: high latency, rate limits, and transient failures.
 

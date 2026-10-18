@@ -11,7 +11,7 @@ PRIORITY_FIELD: PVTSSF_lAHODR8J4s4BNe_Yzg8dwQc
 SIZE_FIELD:     PVTSSF_lAHODR8J4s4BNe_Yzg8dwQg
 
 Board statuses:
-  Todo:   98236657
+  Todo:   f75ad846
   Doing:  47fc9ee4
   Done:   caff0873
 
@@ -67,6 +67,7 @@ Inferred from title prefix — used by `/start-work` to set Priority and Size on
 | `[FEAT]`     | Medium   | `da944a9c`  | M    | `7515a9f1` |
 | `[REFACTOR]` | Low      | `56c1c445`  | M    | `7515a9f1` |
 | `[DOCS]`     | Low      | `56c1c445`  | S    | `f784b110` |
+| `[CHORE]`    | Medium   | `da944a9c`  | M    | `7515a9f1` |
 | (none)       | Medium   | `da944a9c`  | M    | `7515a9f1` |
 
 ## Commit Format
@@ -75,7 +76,7 @@ Inferred from title prefix — used by `/start-work` to set Priority and Size on
 
 ## Quality Gates
 
-Agents on the owner's machine do not run hatch (the 2026-10-12 override in `CLAUDE.md`). The gates run from the repo's `.venv`:
+These are the quality gate in `AGENTS.md`. The gates run from the repo's `.venv`:
 
 1. If `.venv/bin/python` does not exist: report it and **STOP**. Do not create the environment.
 2. Sync `.venv` to this branch's `pylock.toml`. Hatch synced its environment on every run; without this step the gates test whichever lock was synced last. `--python` is the install target here, so it is always `.venv/bin/python`, never a system or Homebrew interpreter. If the command fails: report it and **STOP**; do not run the gates.

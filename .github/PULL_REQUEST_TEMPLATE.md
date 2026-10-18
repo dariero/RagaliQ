@@ -19,14 +19,13 @@ Closes #
 All three must pass before merging:
 
 ```bash
-hatch run lint       # ruff — style and imports
-hatch run typecheck  # mypy strict
-hatch run test       # pytest + coverage
+.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest
+.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report
 ```
 
-- [ ] `hatch run lint` passes
-- [ ] `hatch run typecheck` passes
-- [ ] `hatch run test` passes (no regressions)
+- [ ] `ruff check` passes
+- [ ] `mypy` passes
+- [ ] `pytest` passes (no regressions), on its own and in CI's test form under `coverage`
 
 ## Checklist
 
