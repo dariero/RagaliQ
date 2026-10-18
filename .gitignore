@@ -94,7 +94,7 @@ Thumbs.db
 /reports/
 .secrets/
 
-# Secrets and credentials (per CLAUDE.md constraints)
+# Secrets and credentials (per AGENTS.md constraints)
 *.pem
 *credentials*
 *secret*

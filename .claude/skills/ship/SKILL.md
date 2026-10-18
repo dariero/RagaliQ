@@ -1,3 +1,6 @@
+---
+description: Ship the current branch to main through commit, quality gate, PR, CI, squash merge, board Done and cleanup. Use when the user asks for /ship.
+---
 # ship
 
 Ship current work: commit, check, PR, review, merge, cleanup -- all in one command.
@@ -54,6 +57,8 @@ fi
 
 ### 2. Commit (if needed)
 
+If `git status --porcelain` is empty, run `git log main..$BRANCH --oneline`. If that is empty too, report "Nothing to ship. Working tree is clean and no commits ahead of main." and **STOP**.
+
 If `git status --porcelain` shows changes:
 
 1. Review changed files:
@@ -64,16 +69,14 @@ If `git status --porcelain` shows changes:
 
 2. Stage files explicitly. NEVER use `git add -A`. Exclude: `.env*`, `*.pem`, `*credentials*`, `*secret*`, `.DS_Store`, `__pycache__/`, build artifacts.
 
-3. Commit:
+3. Commit, with no attribution line:
    ```bash
-   git commit -m "[TYPE #$ISSUE_NUMBER] message
-
-   Co-Authored-By: Claude <noreply@anthropic.com>"
+   git commit -m "[TYPE #$ISSUE_NUMBER] message"
    ```
 
 ### 3. Quality Gates
 
-Agents on the owner's machine do not run hatch (the 2026-10-12 override in `CLAUDE.md`). The gates run from the repo's `.venv`:
+These are the quality gate in `AGENTS.md`. The gates run from the repo's `.venv`:
 
 1. If `.venv/bin/python` does not exist: report it and **STOP**. Do not create the environment.
 2. Sync `.venv` to this branch's `pylock.toml`. Hatch synced its environment on every run; without this step the gates test whichever lock was synced last. `--python` is the install target here, so it is always `.venv/bin/python`, never a system or Homebrew interpreter. If the command fails: report it and **STOP**; do not run the gates.
@@ -103,6 +106,14 @@ gh pr create \
 
 Include: change list from `git log main..$BRANCH --oneline`, checks passed confirmation.
 
+Then wait for CI on the PR, where `<PR>` is the number at the end of the URL that `gh pr create` printed:
+
+```bash
+gh pr checks <PR> --watch
+```
+
+Every check must be passed or skipped. If any check fails or is cancelled: report it and **STOP**. DO NOT merge.
+
 ### 5. Self-Review
 
 Run `gh pr diff` and execute the MANDATORY Pre-Merge Checklist at the top of this document.
@@ -111,14 +122,50 @@ If issues found: report them and **STOP**. DO NOT merge.
 
 ### 6. Merge and Cleanup
 
+Right before the merge, run `gh pr checks <PR>` again. Every check must still be passed or skipped; if not, report it and **STOP**.
+
 ```bash
 gh pr merge --squash --delete-branch
 ```
 
-Update board to "Done" via GraphQL (see `.claude/CONSTANTS.md` for IDs).
+Update the board to Done. All IDs (PROJECT_ID, STATUS_FIELD, the Done option ID) come from `.claude/CONSTANTS.md`. First, retrieve the project item ID for this issue:
 
 ```bash
-git checkout main && git pull origin main
+gh api graphql -f query='
+  query {
+    repository(owner: "dariero", name: "RagaliQ") {
+      issue(number: '$ISSUE_NUMBER') {
+        projectItems(first: 10) {
+          nodes { id }
+        }
+      }
+    }
+  }
+'
+```
+
+Then set Status to Done:
+
+```bash
+gh api graphql \
+  -f projectId="<PROJECT_ID>" \
+  -f itemId="<ITEM_ID>" \
+  -f statusField="<STATUS_FIELD>" \
+  -f statusValue="<DONE_ID>" \
+  -f query='
+    mutation($projectId: ID!, $itemId: ID!, $statusField: ID!, $statusValue: String!) {
+      setStatus: updateProjectV2ItemFieldValue(input: {
+        projectId: $projectId, itemId: $itemId, fieldId: $statusField
+        value: { singleSelectOptionId: $statusValue }
+      }) { projectV2Item { id } }
+    }
+  '
+```
+
+Validate that `projectV2Item.id` in the response is non-null. If it is null, report the failure.
+
+```bash
+git checkout main && git pull --ff-only origin main
 git branch -D $BRANCH && git fetch --prune
 ```
 
@@ -133,6 +180,6 @@ If `$ARGUMENTS` is "draft": create PR but skip steps 6-7. Useful for discussion 
 ## Error Handling
 
 - **On main:** "Cannot ship from main. Use /start-work first."
-- **No changes:** "Nothing to ship. Working tree is clean."
+- **No changes and no commits ahead of main:** "Nothing to ship. Working tree is clean and no commits ahead of main."
 - **PR exists:** Show options: push updates, merge existing, or close and recreate.
-- **Merge conflicts:** Rebase onto origin/main: `git rebase origin/main`, then `/ship` again.
+- **Merge conflicts:** "Cannot merge: conflicts with main." Report the conflict and **STOP**. Do not rebase.

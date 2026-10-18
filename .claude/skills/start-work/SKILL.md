@@ -1,3 +1,7 @@
+---
+description: Begin work on a GitHub issue by creating its branch from main, adding it to the board as Doing with priority and size, assigning you and adding its label. Use when the user asks for /start-work.
+argument-hint: <issue-number>
+---
 # start-work
 
 Begin work on a GitHub issue. Creates branch, updates board, assigns you.
@@ -16,12 +20,12 @@ gh issue view $ARGUMENTS --json title,body,number,state
 
 Validate issue state: if `state` is `closed`, warn the user and ask whether to reopen or abort. DO NOT proceed on a closed issue without explicit confirmation.
 
-Parse type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[DOCS]`
+Parse type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[DOCS]`, `[CHORE]`
 
 ### 2. Sync and Branch
 
 ```bash
-git checkout main && git pull origin main
+git checkout main && git pull --ff-only origin main
 git checkout -b <prefix>/$ARGUMENTS-<short-description>
 ```
 
@@ -37,7 +41,13 @@ All IDs (PROJECT_ID, STATUS_FIELD, PRIORITY_FIELD, SIZE_FIELD, option IDs) come 
 
 Infer Priority and Size from the issue title prefix using the **Issue Type Defaults** table in `.claude/CONSTANTS.md`.
 
-First, retrieve the project item ID for this issue:
+First, add the issue to the board:
+
+```bash
+gh project item-add <PROJECT_NUM> --owner <OWNER> --url https://github.com/dariero/RagaliQ/issues/$ARGUMENTS --format json
+```
+
+Then retrieve the project item ID for this issue:
 
 ```bash
 gh api graphql -f query='
@@ -105,6 +115,7 @@ Infer label from title prefix:
 | `[FEAT]`     | `feat`    |
 | `[REFACTOR]` | `refactor`|
 | `[DOCS]`     | `docs`    |
+| `[CHORE]`    | `chore`   |
 | (none)       | `feat`    |
 
 ### 5. Show Context

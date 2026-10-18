@@ -1,3 +1,6 @@
+---
+description: Commit changes on a feature branch with explicit staging and a secrets check, never on main. Use when the user asks for /commit.
+---
 # Commit Skill
 1. Run `git branch --show-current` — if on `main`, STOP and tell the user to run /start-work first.
 2. Run `git status` to check for staged/unstaged changes.

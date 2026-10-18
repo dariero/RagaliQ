@@ -9,13 +9,14 @@ Thank you for your interest in contributing! RagaliQ is an open-source LLM/RAG e
 
 ## Development Setup
 
-**Requirements:** Python 3.14+, [Hatch](https://hatch.pypa.io/)
+**Requirements:** Python 3.14+, uv
 
 ```bash
 git clone https://github.com/dariero/RagaliQ.git
 cd RagaliQ
-pip install hatch
-hatch shell         # creates and activates a virtual environment
+uv venv --python 3.14
+uv pip sync pylock.toml
+uv pip install -e . --no-deps
 ```
 
 ## Quality Gates
@@ -23,15 +24,17 @@ hatch shell         # creates and activates a virtual environment
 All contributions must pass these checks before merging:
 
 ```bash
-hatch run lint       # ruff check (style and imports)
-hatch run typecheck  # mypy strict mode
-hatch run test       # pytest with coverage
+.venv/bin/ruff check src/ tests/ scripts/   # style and imports
+.venv/bin/mypy src/ scripts/                # strict mode
+.venv/bin/pytest                            # with coverage
+.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report   # CI's test form
 ```
 
 Run them together:
 
 ```bash
-hatch run check
+.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest
+.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report
 ```
 
 > **Dependencies are locked** in `pylock.toml` (PEP 751, cross-platform). After

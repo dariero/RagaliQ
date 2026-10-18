@@ -1,8 +1,8 @@
 # RagaliQ - Project Instructions
+Claude Code reads this file only while no CLAUDE.md, .claude/CLAUDE.md or CLAUDE.local.md exists in this folder or above it, so do not create one (https://code.claude.com/docs/en/memory#agents-md).
 
 <constraints>
-- ALWAYS run `hatch run lint && hatch run typecheck && hatch run test` before committing
-- **2026-10-12 override:** the owner's decision at Checkpoint 1 of the pre-PR-B run, until revoked: agents on the owner's machine do not run hatch (its environments live under `~/Library`, outside their scope). For them the gate above is the same commands run from the repo's `.venv` (synced from `pylock.toml`): `.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest`, plus CI's test form `.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report`.
+- ALWAYS run the quality gate before committing (the 2026-10-12 override for agents, made the gate for everyone on 2026-10-18), from the repo's `.venv` (synced from `pylock.toml`): `.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest`, plus CI's test form `.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report`.
 - NEVER commit files matching: .env*, *.pem, *credentials*, *secret*, .DS_Store
 - NEVER push directly to main; all work ships through `/ship`
 - NEVER add or remove dependencies without explicit user approval
@@ -83,11 +83,21 @@ src/ragaliq/
 
 ## Commands
 
+Environment setup, as CI installs it (`.github/workflows/ci.yml:35-37`):
+
 ```bash
-hatch run lint       # ruff check
-hatch run format     # ruff format (auto-fix)
-hatch run typecheck  # mypy
-hatch run test       # pytest
+uv venv --python 3.14
+uv pip sync pylock.toml
+uv pip install -e . --no-deps
+```
+
+Agents on the owner's machine create environments only from `/opt/homebrew/opt/python@3.14/bin/python3.14`, with `--no-python-downloads`.
+
+The quality gate (`AGENTS.md:5`):
+
+```bash
+.venv/bin/ruff check src/ tests/ scripts/ && .venv/bin/mypy src/ scripts/ && .venv/bin/pytest
+.venv/bin/coverage run --source=src/ragaliq -m pytest tests/unit/ tests/meta/test_meta_metrics.py -o addopts="" -q && .venv/bin/coverage report
 ```
 
 ## Architecture Decision Records (ADRs)
@@ -106,7 +116,7 @@ Document significant architectural decisions in `.decisions/` directory followin
 
 ## Automation
 
-Two slash commands for the dev workflow:
+Two skills for the dev workflow, in `.claude/skills/start-work/` and `.claude/skills/ship/`:
 - `/start-work <issue>` - Begin work (branch + board update)
 - `/ship` - Ship to main (commit + check + PR + merge + cleanup)
 
