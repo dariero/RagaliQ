@@ -24,7 +24,7 @@ class JudgeTrace(BaseModel):
     operation: str = Field(..., description="Judge method name (e.g., 'evaluate_faithfulness')")
     model: str = Field(..., description="LLM model identifier")
     input_tokens: int = Field(..., ge=0, description="Prompt token count")
-    output_tokens: int = Field(..., ge=0, description="Response token count")
+    output_tokens: int = Field(..., ge=0, description="Output token count: thinking plus text")
     latency_ms: int = Field(..., ge=0, description="Call latency in milliseconds")
     success: bool = Field(..., description="Whether call succeeded")
     error: str | None = Field(default=None, description="Error message if failed")
@@ -33,10 +33,12 @@ class JudgeTrace(BaseModel):
 
 
 # Per-model pricing: (input_cost_per_million, output_cost_per_million) in USD.
-# Source: Anthropic pricing page. Override via TraceCollector(model_pricing=...).
+# Source: Anthropic pricing page (read 2026-10-19). Override via TraceCollector(model_pricing=...).
 _DEFAULT_MODEL_PRICING: dict[str, tuple[float, float]] = {
-    DEFAULT_JUDGE_MODEL: (3.0, 15.0),
-    GOLD_STANDARD_JUDGE_MODEL: (5.0, 25.0),
+    DEFAULT_JUDGE_MODEL: (2.0, 10.0),
+    GOLD_STANDARD_JUDGE_MODEL: (4.0, 20.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-8": (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 
@@ -86,7 +88,7 @@ class TraceCollector:
 
     @property
     def total_output_tokens(self) -> int:
-        """Total output (response) tokens across all calls."""
+        """Total output tokens (thinking plus text) across all calls."""
         return sum(t.output_tokens for t in self.traces)
 
     @property

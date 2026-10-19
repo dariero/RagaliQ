@@ -578,14 +578,13 @@ from ragaliq.judges import ClaudeJudge, JudgeConfig
 
 # Via JudgeConfig
 config = JudgeConfig(
-    model="claude-sonnet-4-6",  # default
-    temperature=0.0,  # deterministic scoring
-    max_tokens=1024,  # response length cap
+    model="claude-sonnet-5-5",  # default
+    max_tokens=16000,  # default; caps thinking plus response text
 )
 tester = RagaliQ(judge="claude", judge_config=config)
 
 # For complex multi-step or gold-standard judging
-gold_config = JudgeConfig(model="claude-opus-4-8", temperature=0.0)
+gold_config = JudgeConfig(model="claude-opus-5-5")
 
 # Via pre-configured ClaudeJudge (gives access to trace_collector)
 from ragaliq.judges.trace import TraceCollector

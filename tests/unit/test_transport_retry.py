@@ -13,6 +13,7 @@ import pytest
 from anthropic import APIConnectionError, APIStatusError
 
 from ragaliq.judges.base import JudgeAPIError
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL
 from ragaliq.judges.transport import ClaudeTransport
 
 
@@ -279,3 +280,72 @@ class TestTransportResponseMapping:
 
         result = await transport.send("sys", "usr")
         assert result.text == '{"score": 1.0, "reasoning": "ok"}'
+
+    @pytest.mark.asyncio
+    async def test_max_tokens_stop_raises_naming_model_and_limit(self, mock_client):
+        response = _make_success_response()
+        response.stop_reason = "max_tokens"
+        mock_client.messages.create = AsyncMock(return_value=response)
+        transport = ClaudeTransport(api_key="test")
+
+        from ragaliq.judges.base import JudgeResponseError
+
+        with pytest.raises(JudgeResponseError, match="test-model stopped at max_tokens=2048"):
+            await transport.send("sys", "usr", model="test-model", max_tokens=2048)
+        assert mock_client.messages.create.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_max_tokens_stop_with_only_thinking_names_the_limit(self, mock_client):
+        response = MagicMock()
+        response.content = [MagicMock(type="thinking")]
+        response.stop_reason = "max_tokens"
+        mock_client.messages.create = AsyncMock(return_value=response)
+        transport = ClaudeTransport(api_key="test")
+
+        from ragaliq.judges.base import JudgeResponseError
+
+        with pytest.raises(JudgeResponseError) as exc_info:
+            await transport.send("sys", "usr", model=GOLD_STANDARD_JUDGE_MODEL)
+        assert "claude-opus-5-5 stopped at max_tokens=16000" in str(exc_info.value)
+        assert "Expected text response" not in str(exc_info.value)
+
+
+class TestTransportRequestSettings:
+    """Verify which sampling and thinking settings reach messages.create."""
+
+    @pytest.mark.asyncio
+    async def test_no_temperature_sends_no_extra_body(self, mock_client):
+        mock_client.messages.create = AsyncMock(return_value=_make_success_response())
+        transport = ClaudeTransport(api_key="test")
+
+        await transport.send("sys", "usr")
+
+        assert mock_client.messages.create.call_args.kwargs["extra_body"] is None
+
+    @pytest.mark.asyncio
+    async def test_explicit_temperature_goes_into_extra_body(self, mock_client):
+        mock_client.messages.create = AsyncMock(return_value=_make_success_response())
+        transport = ClaudeTransport(api_key="test")
+
+        await transport.send("sys", "usr", temperature=0.0)
+
+        assert mock_client.messages.create.call_args.kwargs["extra_body"] == {"temperature": 0.0}
+
+    @pytest.mark.asyncio
+    async def test_default_tier_turns_thinking_off_with_between_tools(self, mock_client):
+        mock_client.messages.create = AsyncMock(return_value=_make_success_response())
+        transport = ClaudeTransport(api_key="test")
+
+        await transport.send("sys", "usr", model=DEFAULT_JUDGE_MODEL)
+
+        assert mock_client.messages.create.call_args.kwargs["thinking"] == {"type": "between_tools"}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("model", [GOLD_STANDARD_JUDGE_MODEL, "claude-sonnet-4-6"])
+    async def test_other_models_get_no_thinking_keyword(self, mock_client, model):
+        mock_client.messages.create = AsyncMock(return_value=_make_success_response())
+        transport = ClaudeTransport(api_key="test")
+
+        await transport.send("sys", "usr", model=model)
+
+        assert "thinking" not in mock_client.messages.create.call_args.kwargs

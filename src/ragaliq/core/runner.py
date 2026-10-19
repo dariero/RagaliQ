@@ -26,7 +26,7 @@ class RagaliQ:
 
         # With custom configuration
         >>> from ragaliq.judges import JudgeConfig
-        >>> config = JudgeConfig(model="claude-sonnet-4-6", temperature=0.0)
+        >>> config = JudgeConfig(model="claude-sonnet-5-5")
         >>> tester = RagaliQ(judge_config=config, api_key="sk-ant-...")
 
         # With pre-configured judge

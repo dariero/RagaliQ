@@ -175,8 +175,8 @@ def ragaliq_judge(request: Any, ragaliq_trace_collector: TraceCollector) -> LLMJ
                         system_prompt: str,
                         user_prompt: str,
                         model: str = DEFAULT_JUDGE_MODEL,
-                        temperature: float = 0.0,
-                        max_tokens: int = 1024,
+                        temperature: float | None = None,
+                        max_tokens: int = 16000,
                     ) -> TransportResponse:
                         """Add delay before delegating to inner transport."""
                         await asyncio.sleep(self._delay_ms / 1000.0)

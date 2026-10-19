@@ -279,6 +279,39 @@ def band_mae(scores: list[float], bands: list[tuple[float, float]]) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Live judge tier
+# ---------------------------------------------------------------------------
+
+
+def resolve_meta_model(value: str | None) -> str | None:
+    """Check a RAGALIQ_META_MODEL value before the live judge is built.
+
+    Only the two judge tiers are accepted, so a typo can never run the default
+    tier and have it reported as the gold tier.
+
+    Args:
+        value: The variable's value, or None when it is unset.
+
+    Returns:
+        None when unset (the judge keeps its default model), else the value.
+
+    Raises:
+        ValueError: If the value is set, an empty string included, and is
+            neither tier's model id.
+    """
+    from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL
+
+    if value is None:
+        return None
+    if value in (DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL):
+        return value
+    raise ValueError(
+        f"RAGALIQ_META_MODEL={value!r} is not a judge tier; "
+        f"use {DEFAULT_JUDGE_MODEL!r} or {GOLD_STANDARD_JUDGE_MODEL!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Async agreement harness
 # ---------------------------------------------------------------------------
 

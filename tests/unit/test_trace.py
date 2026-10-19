@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from ragaliq.judges.trace import JudgeTrace, TraceCollector
+from ragaliq.judges.trace import _DEFAULT_MODEL_PRICING, JudgeTrace, TraceCollector
 
 
 class TestJudgeTrace:
@@ -277,6 +277,21 @@ class TestTraceCollector:
         # Rough estimate: $3/M input + $15/M output = $18
         cost = collector.total_cost_estimate
         assert cost == pytest.approx(18.0, abs=0.01)
+
+    @pytest.mark.parametrize(
+        ("model", "price"),
+        [
+            ("claude-sonnet-5-5", (2.0, 10.0)),
+            ("claude-opus-5-5", (4.0, 20.0)),
+            ("claude-sonnet-4-6", (3.0, 15.0)),
+            ("claude-opus-4-8", (5.0, 25.0)),
+        ],
+    )
+    def test_default_pricing_has_an_entry_per_model(
+        self, model: str, price: tuple[float, float]
+    ) -> None:
+        """Test that both tiers and the pinned 4.x models each have their own price."""
+        assert _DEFAULT_MODEL_PRICING[model] == price
 
     def test_get_by_operation(self) -> None:
         """Test filtering traces by operation."""

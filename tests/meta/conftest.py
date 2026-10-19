@@ -21,6 +21,7 @@ from tests.meta.meta_metrics import (
     GoldenClaim,
     load_golden_cases,
     load_golden_claims,
+    resolve_meta_model,
 )
 
 if TYPE_CHECKING:
@@ -52,6 +53,9 @@ async def live_judge() -> AsyncIterator[LLMJudge]:
     The fixture is async so the HTTP client is closed on the test's own event
     loop. A client left to the garbage collector is closed on a later loop and
     logs "Task exception was never retrieved ... Event loop is closed".
+
+    RAGALIQ_META_MODEL picks the judge tier: unset keeps the default model, and
+    a value that names neither tier fails rather than running the default.
     """
     if os.getenv("RAGALIQ_RUN_META") != "1":
         pytest.skip("set RAGALIQ_RUN_META=1 to enable paid meta-evaluation")
@@ -61,7 +65,14 @@ async def live_judge() -> AsyncIterator[LLMJudge]:
             "The gate cannot return a verdict, so it must not report success.",
             pytrace=False,
         )
+    from ragaliq.judges.base import JudgeConfig
     from ragaliq.judges.claude import ClaudeJudge
 
-    async with ClaudeJudge() as judge:
+    try:
+        model = resolve_meta_model(os.getenv("RAGALIQ_META_MODEL"))
+    except ValueError as exc:
+        pytest.fail(str(exc), pytrace=False)
+    config = JudgeConfig(model=model) if model is not None else None
+
+    async with ClaudeJudge(config=config) as judge:
         yield judge

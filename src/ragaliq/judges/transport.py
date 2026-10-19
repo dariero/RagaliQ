@@ -10,7 +10,7 @@ from typing import Protocol, Self
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, Field
 
-from ragaliq.judges.models import DEFAULT_JUDGE_MODEL
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, JUDGE_THINKING
 
 
 class TransportResponse(BaseModel):
@@ -18,7 +18,7 @@ class TransportResponse(BaseModel):
 
     text: str = Field(..., description="Raw text response from LLM")
     input_tokens: int = Field(..., ge=0, description="Tokens in prompt")
-    output_tokens: int = Field(..., ge=0, description="Tokens in response")
+    output_tokens: int = Field(..., ge=0, description="Output tokens: thinking plus text")
     model: str = Field(..., description="Model identifier used")
 
     model_config = {"frozen": True, "extra": "forbid"}
@@ -36,8 +36,8 @@ class JudgeTransport(Protocol):
         system_prompt: str,
         user_prompt: str,
         model: str = DEFAULT_JUDGE_MODEL,
-        temperature: float = 0.0,
-        max_tokens: int = 1024,
+        temperature: float | None = None,
+        max_tokens: int = 16000,
     ) -> TransportResponse:
         """Send the prompts to the LLM and return a normalized TransportResponse."""
         ...
@@ -59,13 +59,14 @@ class ClaudeTransport:
         system_prompt: str,
         user_prompt: str,
         model: str = DEFAULT_JUDGE_MODEL,
-        temperature: float = 0.0,
-        max_tokens: int = 1024,
+        temperature: float | None = None,
+        max_tokens: int = 16000,
     ) -> TransportResponse:
         """Call the Claude API, retrying on 429 / 5xx / connection errors.
 
         Raises:
             JudgeAPIError: If the call fails after retries are exhausted.
+            JudgeResponseError: If the response stopped at ``max_tokens`` or holds no text.
         """
         from anthropic import APIConnectionError, APIStatusError
         from anthropic.types import Message
@@ -89,6 +90,8 @@ class ClaudeTransport:
         # anthropic 1.x dropped `temperature` from messages.create, so it goes
         # into the request body directly.
         extra_body = {"temperature": temperature} if temperature is not None else None
+        # A model with no JUDGE_THINKING entry is sent no `thinking` keyword at all.
+        thinking = JUDGE_THINKING.get(model)
 
         @retry(
             retry=(
@@ -101,16 +104,32 @@ class ClaudeTransport:
         )
         async def _call_with_retry() -> Message:
             """Make the API call with retry logic."""
+            if thinking is None:
+                return await self._client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    messages=[{"role": "user", "content": user_prompt}],
+                    system=system_prompt,
+                    extra_body=extra_body,
+                )
             return await self._client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": user_prompt}],
                 system=system_prompt,
+                thinking=thinking,
                 extra_body=extra_body,
             )
 
         try:
             response: Message = await _call_with_retry()
+
+            # max_tokens covers thinking plus text, so a cut-off response may hold
+            # only thinking blocks or truncated JSON. Name the limit, not the symptom.
+            if response.stop_reason == "max_tokens":
+                raise JudgeResponseError(
+                    f"Claude response from {model} stopped at max_tokens={max_tokens}"
+                )
 
             # Extract text content. Claude may return non-text blocks (for example,
             # thinking/tool blocks) before the final text answer.
