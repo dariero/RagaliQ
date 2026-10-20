@@ -23,9 +23,10 @@ class TestJudgeConfig:
     def test_default_values(self) -> None:
         """Test that defaults are set correctly."""
         config = JudgeConfig()
-        assert config.model == "claude-sonnet-4-6"
-        assert config.temperature == 0.0
-        assert config.max_tokens == 1024
+        assert config.model == "claude-sonnet-5-5"
+        assert config.temperature is None
+        assert config.max_tokens == 16000
+        assert JudgeConfig(temperature=None).temperature is None
 
     def test_custom_values(self) -> None:
         """Test setting custom configuration values."""
@@ -57,9 +58,10 @@ class TestJudgeConfig:
         assert "max_tokens" in str(exc_info.value)
 
     def test_max_tokens_maximum(self) -> None:
-        """Test that max_tokens cannot exceed 4096."""
+        """Test that max_tokens accepts 21333 and rejects 21334."""
+        assert JudgeConfig(max_tokens=21333).max_tokens == 21333
         with pytest.raises(ValidationError) as exc_info:
-            JudgeConfig(max_tokens=5000)
+            JudgeConfig(max_tokens=21334)
         assert "max_tokens" in str(exc_info.value)
 
     def test_immutable(self) -> None:
@@ -209,8 +211,8 @@ class TestLLMJudge:
                 return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
-        assert judge.config.model == "claude-sonnet-4-6"
-        assert judge.config.temperature == 0.0
+        assert judge.config.model == "claude-sonnet-5-5"
+        assert judge.config.temperature is None
 
     def test_concrete_implementation_custom_config(self) -> None:
         """Test that concrete implementation accepts custom config."""
@@ -274,7 +276,7 @@ class TestLLMJudge:
                 return GeneratedAnswerResult(answer="")
 
         judge = MockJudge()
-        assert repr(judge) == "MockJudge(model='claude-sonnet-4-6')"
+        assert repr(judge) == "MockJudge(model='claude-sonnet-5-5')"
 
     @pytest.mark.asyncio
     async def test_evaluate_faithfulness_signature(self) -> None:

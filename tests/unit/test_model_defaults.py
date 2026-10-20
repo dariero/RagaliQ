@@ -8,7 +8,7 @@ so they could silently drift apart.
 import inspect
 
 from ragaliq.judges.base import JudgeConfig
-from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL, GOLD_STANDARD_JUDGE_MODEL, JUDGE_THINKING
 from ragaliq.judges.transport import ClaudeTransport, JudgeTransport
 
 
@@ -24,8 +24,21 @@ def test_transport_signature_defaults_match_constant() -> None:
         assert default == DEFAULT_JUDGE_MODEL
 
 
+def test_transport_signature_defaults_match_judgeconfig() -> None:
+    """Both transport send() signatures default to JudgeConfig's temperature and max_tokens."""
+    for send in (JudgeTransport.send, ClaudeTransport.send):
+        parameters = inspect.signature(send).parameters
+        for name in ("temperature", "max_tokens"):
+            assert parameters[name].default == JudgeConfig.model_fields[name].default
+
+
+def test_only_the_default_tier_has_a_thinking_setting() -> None:
+    """Only the default tier is sent a thinking setting; every other model gets none."""
+    assert JUDGE_THINKING == {DEFAULT_JUDGE_MODEL: {"type": "between_tools"}}
+
+
 def test_model_constants_have_expected_values() -> None:
     """The two tiers are distinct and pinned to known-valid model ids."""
-    assert DEFAULT_JUDGE_MODEL == "claude-sonnet-4-6"
-    assert GOLD_STANDARD_JUDGE_MODEL == "claude-opus-4-8"
+    assert DEFAULT_JUDGE_MODEL == "claude-sonnet-5-5"
+    assert GOLD_STANDARD_JUDGE_MODEL == "claude-opus-5-5"
     assert DEFAULT_JUDGE_MODEL != GOLD_STANDARD_JUDGE_MODEL

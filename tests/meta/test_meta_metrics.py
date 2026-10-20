@@ -10,6 +10,7 @@ This mirrors RagaliQ's own philosophy: test the tester before trusting it.
 from __future__ import annotations
 
 import math
+import re
 
 import pytest
 
@@ -32,6 +33,7 @@ from tests.meta.meta_metrics import (
     load_golden_cases,
     load_golden_claims,
     macro_f1,
+    resolve_meta_model,
     run_claim_agreement,
 )
 
@@ -253,6 +255,26 @@ def test_golden_cases_bands_agree_with_classes() -> None:
             assert low > 0.0 and high < 1.0, (
                 f"{case.id}: PARTIALLY_FAITHFUL band must exclude both extremes"
             )
+
+
+# ---------------------------------------------------------------------------
+# Live judge tier (RAGALIQ_META_MODEL)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["claude-sonnet-5-5", "claude-opus-5-5"])
+def test_resolve_meta_model_accepts_each_tier(value: str) -> None:
+    assert resolve_meta_model(value) == value
+
+
+def test_resolve_meta_model_unset_keeps_the_default() -> None:
+    assert resolve_meta_model(None) is None
+
+
+@pytest.mark.parametrize("value", ["claude-opus-5.5", ""], ids=["typo", "empty-string"])
+def test_resolve_meta_model_rejects_any_other_value(value: str) -> None:
+    with pytest.raises(ValueError, match=re.escape(repr(value))):
+        resolve_meta_model(value)
 
 
 # ---------------------------------------------------------------------------

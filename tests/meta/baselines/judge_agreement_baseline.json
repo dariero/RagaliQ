@@ -1,5 +1,5 @@
 {
-  "model": "claude-sonnet-4-6",
+  "model": "claude-sonnet-5-5",
   "n": 14,
   "accuracy": 1.0,
   "cohen_kappa": 1.0,

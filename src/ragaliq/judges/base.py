@@ -16,8 +16,13 @@ class JudgeConfig(BaseModel):
     """Configuration for an LLM judge: model, sampling, and token budget."""
 
     model: str = Field(default=DEFAULT_JUDGE_MODEL, description="Model identifier")
-    temperature: float = Field(default=0.0, ge=0.0, le=1.0, description="Sampling temperature")
-    max_tokens: int = Field(default=1024, ge=1, le=4096, description="Max response tokens")
+    temperature: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="Sampling temperature; None sends none"
+    )
+    # Above 21333 the anthropic SDK refuses a non-streaming request on its default timeout.
+    max_tokens: int = Field(
+        default=16000, ge=1, le=21333, description="Max output tokens: thinking plus text"
+    )
 
     model_config = {"frozen": True, "extra": "forbid"}
 

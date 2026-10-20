@@ -9,6 +9,7 @@ This directory contains Architecture Decision Records for the RagaliQ project. A
 | [ADR-006](./ADR-006-faithfulness-evaluator.md) | FaithfulnessEvaluator with Claim-Level Decomposition | Implemented | 2026-02-05 | [#6](https://github.com/dariero/RagaliQ/issues/6) |
 | [ADR-007](./ADR-007-relevance-evaluator.md) | RelevanceEvaluator as Thin Adapter over Judge | Implemented | 2026-02-06 | [#7](https://github.com/dariero/RagaliQ/issues/7) |
 | [ADR-008](./ADR-008-hallucination-evaluator.md) | HallucinationEvaluator Implementation | Implemented | 2026-02-07 | [#8](https://github.com/dariero/RagaliQ/issues/8) |
+| [ADR-149](./ADR-149-judge-request-settings-claude-5-5.md) | Judge Request Settings for Claude Sonnet 5.5 and Opus 5.5 | Accepted | 2026-10-19 | [#149](https://github.com/dariero/RagaliQ/issues/149) |
 
 ## ADR Format
 

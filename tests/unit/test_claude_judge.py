@@ -51,14 +51,14 @@ class TestClaudeJudgeInit:
     def test_init_with_api_key(self) -> None:
         """Test initialization with explicit API key."""
         judge = ClaudeJudge(api_key="test-key")
-        assert judge.config.model == "claude-sonnet-4-6"
-        assert judge.config.temperature == 0.0
+        assert judge.config.model == "claude-sonnet-5-5"
+        assert judge.config.temperature is None
 
     def test_init_with_env_var(self) -> None:
         """Test initialization with environment variable."""
         with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "env-key"}):
             judge = ClaudeJudge()
-            assert judge.config.model == "claude-sonnet-4-6"
+            assert judge.config.model == "claude-sonnet-5-5"
 
     def test_init_no_api_key_raises(self) -> None:
         """Test that missing API key raises ValueError."""
@@ -84,7 +84,7 @@ class TestClaudeJudgeInit:
     def test_repr(self) -> None:
         """Test string representation."""
         judge = ClaudeJudge(api_key="test-key")
-        assert repr(judge) == "ClaudeJudge(model='claude-sonnet-4-6')"
+        assert repr(judge) == "ClaudeJudge(model='claude-sonnet-5-5')"
 
 
 class TestClaudeJudgeFaithfulness:
@@ -605,6 +605,49 @@ class TestClaudeJudgeApiCallParameters:
         assert call_kwargs["model"] == "claude-opus-4-8"
         assert call_kwargs["extra_body"] == {"temperature": 0.5}
         assert call_kwargs["max_tokens"] == 2048
+
+    @pytest.mark.asyncio
+    async def test_default_config_sends_no_temperature_and_turns_thinking_off(
+        self,
+        mock_anthropic_client: MagicMock,
+        mock_response: MagicMock,
+    ) -> None:
+        """Test that the default config sends the default tier's request settings."""
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+
+        await judge.evaluate_faithfulness(
+            response="Test",
+            context=["Context"],
+        )
+
+        call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
+        assert call_kwargs["model"] == "claude-sonnet-5-5"
+        assert call_kwargs["extra_body"] is None
+        assert call_kwargs["thinking"] == {"type": "between_tools"}
+        assert call_kwargs["max_tokens"] == 16000
+
+    @pytest.mark.asyncio
+    async def test_explicit_temperature_reaches_api_on_default_tier(
+        self,
+        mock_anthropic_client: MagicMock,
+        mock_response: MagicMock,
+    ) -> None:
+        """Test that a temperature the caller sets is sent, even to a 5.5 model."""
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        config = JudgeConfig(temperature=0.0)
+        judge = ClaudeJudge(config=config, api_key="test-key")
+
+        await judge.evaluate_faithfulness(
+            response="Test",
+            context=["Context"],
+        )
+
+        call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
+        assert call_kwargs["model"] == "claude-sonnet-5-5"
+        assert call_kwargs["extra_body"] == {"temperature": 0.0}
 
 
 class TestClaudeJudgeExtractClaims:
