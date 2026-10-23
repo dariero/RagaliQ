@@ -45,8 +45,8 @@ Run them together:
 > tooling PR would ship an `anthropic` bump with it. Always diff the lock
 > before committing and confirm only the named package moved:
 > `git diff pylock.toml | grep -E '^[+-]name|^[+-]version'`.
-> A platform-specific lock (e.g. from `hatch dep lock` on macOS) breaks Linux CI,
-> so the lock must be `--universal`. CI installs strictly from this lock via uv.
+> A platform-specific lock breaks Linux CI, so the lock must be `--universal`.
+> CI installs strictly from this lock via uv.
 
 **2026-10-11 override:** the owner's instruction for the `deps-latest-2026-10-11` run, approved at its Checkpoint 1, overrides the one-package-per-regeneration rule above for that branch only: `pylock.toml` was regenerated with a bare `--upgrade` (every package to latest, majors included) and `[project.dependencies]` floors were left unchanged.
 
@@ -54,19 +54,21 @@ Run them together:
 
 ## Keeping pre-commit revs current
 
-Dependabot has no ecosystem that reaches `.pre-commit-config.yaml`. Run
-**`pre-commit autoupdate` quarterly** and review the diff before staging;
-`git checkout -- .pre-commit-config.yaml` reverts it.
+Dependabot's `pre-commit` ecosystem can update the `rev:` values in
+`.pre-commit-config.yaml`, but this repo does not enable it: a PR that moves
+ruff's `rev:` to a new minor on its own fails `check_ruff_atom` (below). Run
+**`.venv/bin/pre-commit autoupdate` quarterly** and review the diff before
+staging; `git checkout -- .pre-commit-config.yaml` reverts it.
 
 > **ruff lives in three places and they move together:** the `dev` extra floor
 > in `pyproject.toml`, the `rev:` in `.pre-commit-config.yaml`, and the pin in
 > `pylock.toml`. `autoupdate` moves only the second. Left split, the pre-commit
-> hook and `hatch run lint` format the same tree differently.
+> hook and `.venv/bin/ruff` format the same tree differently.
 >
-> A split does not even need `autoupdate`: the floor is a `>=`, so a fresh
-> `hatch env` resolve alone pulls a newer ruff than the pinned hook. Run
-> `python scripts/verify_release.py --consistency-only` after any of the three
-> changes — `check_ruff_atom` fails if they disagree.
+> A split does not even need `autoupdate`: the floor is a `>=`, so a lock
+> regenerated with `--upgrade-package ruff` can pull a newer ruff than the
+> pinned hook. Run `.venv/bin/python scripts/verify_release.py --consistency-only`
+> after any of the three changes — `check_ruff_atom` fails if they disagree.
 
 The `additional_dependencies` under `mirrors-mypy` are a further copy of the
 runtime floors. If they lag, mypy types against a different version than the

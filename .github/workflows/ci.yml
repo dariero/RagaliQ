@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 # CI installs from the committed PEP 751 pylock.toml via uv (deterministic,
-# cached). hatch dep sync is avoided: its locked sync exits non-zero on a fresh
-# environment, while uv consumes the same lockfile reliably.
+# cached), with the same three commands that AGENTS.md and CONTRIBUTING.md give
+# for a local .venv.
 jobs:
   lint:
     name: Lint
@@ -64,7 +64,7 @@ jobs:
         run: .venv/bin/mypy src/ scripts/
 
   # The atom checks: facts stored in more than one place (Python version, ruff
-  # version, dev list, floors vs lock). --consistency-only skips the build,
+  # version, floors vs lock). --consistency-only skips the build,
   # twine and TODO checks, which belong to a release rather than a PR.
   consistency:
     name: Consistency

@@ -99,9 +99,6 @@ Thumbs.db
 *credentials*
 *secret*
 
-# Hatch virtual environments
-.hatch/
-
 # Cursor IDE
 .cursor/
 .cursorignore

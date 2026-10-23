@@ -342,6 +342,7 @@ src/ragaliq/
 git clone https://github.com/dariero/RagaliQ.git
 cd RagaliQ
 
+# requires uv (see CONTRIBUTING.md)
 uv venv --python 3.14
 uv pip sync pylock.toml
 uv pip install -e . --no-deps
