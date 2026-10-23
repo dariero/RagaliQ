@@ -54,9 +54,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: .venv/bin/pytest tests/meta/ -m meta --no-cov -v -s
 
-      # A weekly job that fails on nobody's PR notifies nobody by default:
-      # GitHub emails only this file's last committer, which is easy to filter
-      # away. Deduplicated on purpose — a fresh issue every week is noise, and
+      # A weekly job that fails on nobody's PR reaches one person by default:
+      # GitHub notifies only the workflow's creator, or whoever last changed
+      # its cron syntax or re-enabled it, and that is easy to filter away.
+      # Deduplicated on purpose — a fresh issue every week is noise, and
       # noise is how a red gate starts reading as green.
       - name: Report failure
         if: failure()

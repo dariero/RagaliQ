@@ -24,14 +24,14 @@ Parse type from title prefix: `[FEAT]`, `[FIX]`, `[REFACTOR]`, `[DOCS]`, `[CHORE
 
 ### 2. Sync and Branch
 
+First run `git status --porcelain`. If it shows changes: STOP and ask the user whether to stash or discard. DO NOT make this decision autonomously.
+
 ```bash
 git checkout main && git pull --ff-only origin main
 git checkout -b <prefix>/$ARGUMENTS-<short-description>
 ```
 
 Branch prefix is derived from title prefix (see `.claude/CONSTANTS.md`).
-
-If uncommitted changes exist: STOP and ask the user whether to stash or discard. DO NOT make this decision autonomously.
 
 If branch already exists, switch to it.
 
@@ -106,6 +106,8 @@ Validate that all three `projectV2Item.id` fields in the response are non-null. 
 ```bash
 gh issue edit $ARGUMENTS --add-assignee @me --add-label <LABEL>
 ```
+
+Then run `gh issue view $ARGUMENTS --json assignees,labels,state` and check the assignee and label.
 
 Infer label from title prefix:
 

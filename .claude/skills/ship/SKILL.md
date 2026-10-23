@@ -41,7 +41,7 @@ Extract branch and issue number. Abort if on main.
 ```bash
 BRANCH=$(git branch --show-current)
 ISSUE_NUMBER=$(echo "$BRANCH" | sed 's|.*/||' | grep -oE '^[0-9]+')
-COMMIT_TYPE=$(echo "$BRANCH" | grep -oE '^[^/]+')  # feat, fix, refactor, docs
+COMMIT_TYPE=$(echo "$BRANCH" | grep -oE '^[^/]+')  # feat, fix, refactor, docs, chore
 ```
 
 Map COMMIT_TYPE to the uppercase form using the **Commit Type Mapping** table in `.claude/CONSTANTS.md` (e.g. `feat` → `FEAT`, `fix` → `FIX`).
@@ -54,6 +54,8 @@ if [ -z "$ISSUE_NUMBER" ]; then
   # STOP. Do not proceed.
 fi
 ```
+
+Shell variables do not persist between tool calls. Write the values of BRANCH and ISSUE_NUMBER literally in every later command.
 
 ### 2. Commit (if needed)
 
@@ -79,7 +81,7 @@ If `git status --porcelain` shows changes:
 These are the quality gate in `AGENTS.md`. The gates run from the repo's `.venv`:
 
 1. If `.venv/bin/python` does not exist: report it and **STOP**. Do not create the environment.
-2. Sync `.venv` to this branch's `pylock.toml`. Hatch synced its environment on every run; without this step the gates test whichever lock was synced last. `--python` is the install target here, so it is always `.venv/bin/python`, never a system or Homebrew interpreter. If the command fails: report it and **STOP**; do not run the gates.
+2. Sync `.venv` to this branch's `pylock.toml`. Without this step the gates test whichever lock was synced last. `--python` is the install target here, so it is always `.venv/bin/python`, never a system or Homebrew interpreter. If the command fails: report it and **STOP**; do not run the gates.
    ```bash
    uv pip sync --no-python-downloads --python .venv/bin/python pylock.toml \
      && uv pip install --no-python-downloads --python .venv/bin/python --no-deps -e .
@@ -93,16 +95,18 @@ These are the quality gate in `AGENTS.md`. The gates run from the repo's `.venv`
      && env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u RAGALIQ_RUN_META .venv/bin/coverage report
    ```
 
-If lint fails: run the `format` script of `[tool.hatch.envs.default.scripts]` in `pyproject.toml` from `.venv` (`.venv/bin/ruff format src/ tests/ scripts/`, then `.venv/bin/ruff check --fix src/ tests/ scripts/`), commit the files it changed as in `/ship` step 2, then re-run the gates. If typecheck or test fails: report which failed and **STOP**.
+If lint fails: run `.venv/bin/ruff format src/ tests/ scripts/`, then `.venv/bin/ruff check --fix src/ tests/ scripts/`, commit the files it changed as in `/ship` step 2, then re-run the gates. If typecheck or test fails: report which failed and **STOP**.
 
 ### 4. Push and Create PR
 
 ```bash
-git push -u origin $BRANCH
-gh pr create \
-  --title "[TYPE #$ISSUE_NUMBER] $(gh issue view $ISSUE_NUMBER --json title -q .title)" \
+GIT_TERMINAL_PROMPT=0 git push -u origin $BRANCH
+gh pr create --base main --head $BRANCH \
+  --title "[TYPE #$ISSUE_NUMBER] $(gh issue view $ISSUE_NUMBER --json title -q .title | sed -E 's/^\[[A-Z]+\] +//')" \
   --body "Closes #$ISSUE_NUMBER ..."
 ```
+
+The PR title is `[TYPE #N] ` plus the issue title without its leading `[TYPE] `.
 
 Include: change list from `git log main..$BRANCH --oneline`, checks passed confirmation.
 
@@ -124,8 +128,10 @@ If issues found: report them and **STOP**. DO NOT merge.
 
 Right before the merge, run `gh pr checks <PR>` again. Every check must still be passed or skipped; if not, report it and **STOP**.
 
+Then record the tip with `git rev-parse HEAD` and run `gh pr view <PR> --json state,headRefOid,mergeable,mergeStateStatus`: `state` must be `OPEN`, `headRefOid` the recorded tip, and `mergeable` `MERGEABLE`. `CONFLICTING` is a merge conflict (see Error Handling): report it and **STOP**.
+
 ```bash
-gh pr merge --squash --delete-branch
+gh pr merge <PR> --squash --delete-branch --match-head-commit <TIP>
 ```
 
 Update the board to Done. All IDs (PROJECT_ID, STATUS_FIELD, the Done option ID) come from `.claude/CONSTANTS.md`. First, retrieve the project item ID for this issue:
@@ -164,10 +170,15 @@ gh api graphql \
 
 Validate that `projectV2Item.id` in the response is non-null. If it is null, report the failure.
 
+Before `git checkout main`: `git status --porcelain` must be empty and `gh pr view <PR> --json state` must say `MERGED`; if not, report it and **STOP**.
+
 ```bash
 git checkout main && git pull --ff-only origin main
-git branch -D $BRANCH && git fetch --prune
+git branch --list $BRANCH
+git fetch --prune
 ```
+
+`gh pr merge --delete-branch` already deletes the local branch. Run `git branch -D $BRANCH` only if `git branch --list $BRANCH` still shows it.
 
 ### 7. Report
 
