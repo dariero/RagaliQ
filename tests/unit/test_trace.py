@@ -129,6 +129,73 @@ class TestTraceModelAccuracy:
         assert collector.traces[0].success is False
 
 
+class TestRejectedResponseTrace:
+    """A response the transport rejects is traced with the tokens it was billed for."""
+
+    def test_response_error_defaults_to_zero_tokens(self) -> None:
+        from ragaliq.judges.base import JudgeResponseError
+
+        error = JudgeResponseError("Failed to parse JSON response")
+        assert (error.input_tokens, error.output_tokens) == (0, 0)
+
+    @pytest.mark.asyncio
+    async def test_rejected_response_tokens_are_traced_and_costed(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from ragaliq.judges.base import JudgeConfig, JudgeResponseError
+        from ragaliq.judges.base_judge import BaseJudge
+
+        mock_transport = MagicMock()
+        mock_transport.send = AsyncMock(
+            side_effect=JudgeResponseError(
+                "Claude response from claude-sonnet-5-5 stopped at max_tokens=16000",
+                input_tokens=1200,
+                output_tokens=16000,
+            )
+        )
+        collector = TraceCollector()
+        judge = BaseJudge(
+            transport=mock_transport,
+            config=JudgeConfig(model="claude-sonnet-5-5"),
+            trace_collector=collector,
+        )
+
+        with pytest.raises(JudgeResponseError):
+            await judge._call_llm("system", "user", operation="test_op")
+
+        assert len(collector.traces) == 1
+        trace = collector.traces[0]
+        assert trace.success is False
+        assert trace.model == "claude-sonnet-5-5"
+        assert (trace.input_tokens, trace.output_tokens) == (1200, 16000)
+        assert trace.error is not None
+        assert trace.error.startswith("JudgeResponseError: ")
+        # claude-sonnet-5-5 at $2 / $10 per million: 0.0024 + 0.16
+        assert collector.total_cost_estimate == pytest.approx(0.1624)
+
+    @pytest.mark.asyncio
+    async def test_other_failures_trace_zero_tokens(self) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+
+        from ragaliq.judges.base import JudgeAPIError, JudgeConfig
+        from ragaliq.judges.base_judge import BaseJudge
+
+        mock_transport = MagicMock()
+        mock_transport.send = AsyncMock(side_effect=JudgeAPIError("boom", status_code=500))
+        collector = TraceCollector()
+        judge = BaseJudge(
+            transport=mock_transport,
+            config=JudgeConfig(model="claude-sonnet-5-5"),
+            trace_collector=collector,
+        )
+
+        with pytest.raises(JudgeAPIError):
+            await judge._call_llm("system", "user", operation="test_op")
+
+        assert (collector.traces[0].input_tokens, collector.traces[0].output_tokens) == (0, 0)
+        assert collector.total_cost_estimate == 0.0
+
+
 class TestTraceCollector:
     """Tests for TraceCollector."""
 

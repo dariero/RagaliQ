@@ -309,6 +309,33 @@ class TestTransportResponseMapping:
         assert "claude-opus-5-5 stopped at max_tokens=16000" in str(exc_info.value)
         assert "Expected text response" not in str(exc_info.value)
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("stop_reason", "content", "match"),
+        [
+            ("max_tokens", [MagicMock(type="thinking")], "stopped at max_tokens"),
+            ("end_turn", [], "Empty response"),
+            ("end_turn", [MagicMock(type="thinking")], "Expected text response"),
+        ],
+    )
+    async def test_rejected_response_carries_its_usage(
+        self, mock_client, stop_reason, content, match
+    ):
+        response = MagicMock()
+        response.content = content
+        response.stop_reason = stop_reason
+        response.usage.input_tokens = 1200
+        response.usage.output_tokens = 16000
+        mock_client.messages.create = AsyncMock(return_value=response)
+        transport = ClaudeTransport(api_key="test")
+
+        from ragaliq.judges.base import JudgeResponseError
+
+        with pytest.raises(JudgeResponseError, match=match) as exc_info:
+            await transport.send("sys", "usr")
+        assert exc_info.value.input_tokens == 1200
+        assert exc_info.value.output_tokens == 16000
+
 
 class TestTransportRequestSettings:
     """Verify which sampling and thinking settings reach messages.create."""
