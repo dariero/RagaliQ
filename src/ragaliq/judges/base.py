@@ -92,7 +92,17 @@ class JudgeAPIError(JudgeError):
 
 
 class JudgeResponseError(JudgeError):
-    """Raised when the LLM response cannot be parsed."""
+    """Raised when the LLM response cannot be parsed.
+
+    A response the transport rejects (stopped at ``max_tokens``, empty, or with no
+    text) was still billed. The transport puts its token usage here, so the judge's
+    trace counts it; errors raised while parsing a returned text keep the 0 defaults.
+    """
+
+    def __init__(self, message: str, *, input_tokens: int = 0, output_tokens: int = 0) -> None:
+        super().__init__(message)
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
 
 
 class LLMJudge(ABC):

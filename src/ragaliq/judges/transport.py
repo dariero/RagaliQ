@@ -123,26 +123,37 @@ class ClaudeTransport:
 
         try:
             response: Message = await _call_with_retry()
+            # A rejected response was still billed, so each rejection below carries
+            # its usage for the judge's trace.
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
 
             # max_tokens covers thinking plus text, so a cut-off response may hold
             # only thinking blocks or truncated JSON. Name the limit, not the symptom.
             if response.stop_reason == "max_tokens":
                 raise JudgeResponseError(
-                    f"Claude response from {model} stopped at max_tokens={max_tokens}"
+                    f"Claude response from {model} stopped at max_tokens={max_tokens}",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
                 )
 
             # Extract text content. Claude may return non-text blocks (for example,
             # thinking/tool blocks) before the final text answer.
             if not response.content:
-                raise JudgeResponseError("Empty response from Claude API")
+                raise JudgeResponseError(
+                    "Empty response from Claude API",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
 
             text_blocks = [block.text for block in response.content if block.type == "text"]
             if not text_blocks:
                 block_types = ", ".join(block.type for block in response.content)
-                raise JudgeResponseError(f"Expected text response, got {block_types}")
-
-            input_tokens = response.usage.input_tokens
-            output_tokens = response.usage.output_tokens
+                raise JudgeResponseError(
+                    f"Expected text response, got {block_types}",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
 
             return TransportResponse(
                 text="\n".join(text_blocks),

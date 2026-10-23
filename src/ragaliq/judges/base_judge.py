@@ -93,6 +93,7 @@ class BaseJudge(LLMJudge):
         start_time = time.perf_counter()
         success = False
         error_msg = None
+        rejected_tokens: tuple[int, int] | None = None
 
         estimated_tokens = (len(system_prompt) + len(user_prompt)) // _CHARS_PER_TOKEN_ESTIMATE
         if estimated_tokens > _DEFAULT_INPUT_TOKEN_WARN_THRESHOLD:
@@ -121,6 +122,9 @@ class BaseJudge(LLMJudge):
 
         except Exception as exc:
             error_msg = f"{type(exc).__name__}: {exc}"
+            if isinstance(exc, JudgeResponseError):
+                # The transport rejected a response it was billed for.
+                rejected_tokens = (exc.input_tokens, exc.output_tokens)
             raise
 
         finally:
@@ -133,6 +137,9 @@ class BaseJudge(LLMJudge):
                     input_tokens = response.input_tokens
                     output_tokens = response.output_tokens
                     actual_model = response.model
+                elif rejected_tokens is not None:
+                    input_tokens, output_tokens = rejected_tokens
+                    actual_model = self.config.model
                 else:
                     input_tokens = 0
                     output_tokens = 0
