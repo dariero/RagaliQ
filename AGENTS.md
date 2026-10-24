@@ -38,6 +38,8 @@ floors, the pins and the lock still agree.
 
 **Amended 2026-10-12:** `faec8d7` raised the `anthropic` floor in `[project.dependencies]` from `>=0.120` to `>=1.13`, and its mirrors-mypy copy in `.pre-commit-config.yaml` with it, because CI tests only the locked 1.13 and 0.x support was untested. The other `[project.dependencies]` floors are unchanged.
 
+**Amended 2026-10-24:** the `anthropic` floor in `[project.dependencies]` rose from `>=1.13` to `>=2.3`, and its mirrors-mypy copy in `.pre-commit-config.yaml` with it, when `pylock.toml` moved to anthropic 2.3.0: CI tests only the locked 2.3, and 1.x sends a different API version (`2023-06-01`, not `2026-10-21`). See ADR-149's amendment of the same date.
+
 ## Design Decisions (MUST follow in all new code)
 
 1. **Evaluator Pattern**: Each metric MUST be a separate Evaluator class with `evaluate()` method. DO NOT refactor to alternative patterns without explicit approval.

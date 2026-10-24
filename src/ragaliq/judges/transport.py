@@ -87,8 +87,8 @@ class ClaudeTransport:
                 exc.status_code == 429 or exc.status_code >= 500
             )
 
-        # anthropic 1.x dropped `temperature` from messages.create, so it goes
-        # into the request body directly.
+        # anthropic has no `temperature` keyword on messages.create; under API version
+        # 2026-10-21 (anthropic 2.x) any value returns HTTP 400 (ADR-149, amendment).
         extra_body = {"temperature": temperature} if temperature is not None else None
         # A model with no JUDGE_THINKING entry is sent no `thinking` keyword at all.
         thinking = JUDGE_THINKING.get(model)

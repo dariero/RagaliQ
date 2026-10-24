@@ -59,3 +59,14 @@ The tiers move to Claude Sonnet 5.5 and Claude Opus 5.5. These lines of the Clau
 - **D3c, remove the `temperature` field.** Not chosen: callers pinned to `claude-sonnet-4-6` or earlier would lose a setting those models accept, a breaking change to `JudgeConfig` and to every transport signature.
 - **DTb, the API's default thinking on the default tier (adaptive thinking at effort `high`).** Not chosen: adaptive thinking decides per request whether to think, and at effort `high` "Claude thinks on most requests that benefit from it" (https://platform.claude.com/docs/en/build-with-claude/thinking-steering-and-cost), so verdicts could carry thinking tokens and latency, and the default tier would move further from B0, which ran `claude-sonnet-4-6` without thinking.
 - **DGb, keep `claude-opus-4-8` as the gold tier.** Not chosen: the two tiers would sit on different model generations, and the gold tier would stay unmeasured, since the meta suite has only ever run the default tier.
+
+## Amendment (2026-10-24): anthropic 2.x and API version 2026-10-21
+
+The lock moves to anthropic 2.3.0, and the `anthropic` floor to `>=2.3`. SDK 2.x sends `anthropic-version: 2026-10-21` (`ANTHROPIC_API_VERSION` in `anthropic/_constants.py`; 1.13.0 and 1.17.0 send `2023-06-01`). Under that version, https://platform.claude.com/docs/en/api/migration-2026-10-21 (read 2026-10-24) says a request that sends `temperature`, `top_p` or `top_k` "returns a 400 error, even at the parameter's default value", and https://platform.claude.com/docs/en/api/versioning says the same holds "on every model".
+
+- The judge sends no `temperature` by default (item 2), so its default requests carry the same fields as before.
+- An explicit `JudgeConfig.temperature` now returns HTTP 400 on every model, `claude-sonnet-4-6` included. D3c's reason for keeping the field, that callers pinned to a 4.6 model keep a setting the model accepts, no longer holds. The field stays until release prep for 0.3.0, where its removal is decided.
+- The other Messages changes of 2026-10-21 (document blocks in assistant messages, citations in user messages) do not touch the judge's requests.
+- SDK 2.x sends the API key as `Authorization: Bearer`, not `X-Api-Key`.
+- `_calculate_nonstreaming_timeout` in anthropic 2.3.0 has the same threshold as in 1.13.0 (any `max_tokens` above 21,333 on the default timeout), so item 4's bound holds.
+- The scheduled meta-eval of Mon 26 Oct 2026 is the first CI run on the new API version.
