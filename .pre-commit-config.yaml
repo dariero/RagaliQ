@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.0
+    rev: v0.17.2
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -11,7 +11,7 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          - anthropic>=1.13
+          - anthropic>=2.3
           - jinja2>=3.1
           - pydantic>=2.13
           - pytest>=9.1
