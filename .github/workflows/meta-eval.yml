@@ -5,8 +5,10 @@ name: Meta Evaluation
 # every push. Weekly plus manual dispatch only.
 #
 # What it gates: the agreement floors and the pinned macro-F1 baseline in
-# tests/meta/baselines/judge_agreement_baseline.json (see issue #89). A red run
-# means judge quality moved, not that the build broke.
+# tests/meta/baselines/judge_agreement_baseline.json (see issues #89 and #90).
+# A baseline measured on another golden set is refused; a changed model, prompt
+# or anthropic version is compared and named in the summary. A red run means judge
+# quality moved or the baseline needs a re-pin, not that the build broke.
 on:
   schedule:
     # Mondays 06:30 Melbourne time: with the 6 to 9 hour start delays seen, runs still land before 17:00.
@@ -75,8 +77,8 @@ jobs:
               --label bug,testing,meta-eval-failure \
               --body "Run: $RUN_URL
 
-          The weekly judge-agreement gate failed. Check the drift delta against the
-          baseline pinned in #89 before assuming a judge regression - #102 was a
+          The weekly judge-agreement gate failed. Check the drift delta, or whether the
+          pinned baseline was refused as stale, before assuming a judge regression - #102 was a
           fixture defect, not the judge. An auth failure looks the same from here:
           confirm ANTHROPIC_API_KEY is valid before investigating scores."
           fi
@@ -98,15 +100,29 @@ jobs:
           import json
           import os
 
+          from tests.meta.meta_metrics import INCOMPARABLE_INPUTS, fingerprint_drift
+
           snap = json.load(open("tests/meta/baselines/judge_agreement_latest.json"))
           base = None
+          drift = {}
           if os.path.exists("tests/meta/baselines/judge_agreement_baseline.json"):
               base = json.load(open("tests/meta/baselines/judge_agreement_baseline.json"))
+              drift = fingerprint_drift(base, snap["model"])
 
           print("### Meta evaluation")
           print()
           print(f"Model `{snap['model']}` — n={snap['n']}")
           print()
+          if set(drift) & INCOMPARABLE_INPUTS:
+              print("Baseline refused: it was measured on another golden set, so no delta is shown.")
+              base = None
+          elif drift:
+              print("Baseline pinned on other inputs; the delta measures this change:")
+          if drift:
+              print()
+              for line in drift.values():
+                  print(f"- {line}")
+              print()
           print("| Metric | This run | Baseline | Delta |")
           print("|--------|----------|----------|-------|")
           for key, label in (

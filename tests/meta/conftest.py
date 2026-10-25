@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture
 def golden_claims() -> list[GoldenClaim]:
-    """The human-labelled claim-verdict golden set."""
+    """The claim-verdict golden set."""
     return load_golden_claims()
 
 

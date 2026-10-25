@@ -9,8 +9,10 @@ This mirrors RagaliQ's own philosophy: test the tester before trusting it.
 
 from __future__ import annotations
 
+import json
 import math
 import re
+from pathlib import Path
 
 import pytest
 
@@ -22,23 +24,33 @@ from ragaliq.judges.base import (
     JudgeResult,
     LLMJudge,
 )
+from ragaliq.judges.models import DEFAULT_JUDGE_MODEL
+from tests.meta import meta_metrics
 from tests.meta.meta_metrics import (
     FAITHFULNESS_CLASSES,
+    INCOMPARABLE_INPUTS,
+    AgreementSnapshot,
+    BaselineFingerprint,
+    GoldenClaim,
     accuracy,
     band_mae,
     build_confusion,
     class_metrics,
     cohen_kappa,
+    current_fingerprint,
+    fingerprint_drift,
     in_band,
+    load_baseline,
     load_golden_cases,
     load_golden_claims,
     macro_f1,
     resolve_meta_model,
     run_claim_agreement,
+    write_snapshot,
 )
 
 # ---------------------------------------------------------------------------
-# StubJudge: returns canned verdicts keyed by claim text. Network-free.
+# StubJudge: returns canned verdicts keyed by claim and context. Network-free.
 # ---------------------------------------------------------------------------
 
 
@@ -49,13 +61,13 @@ class StubJudge(LLMJudge):
     abstract methods are implemented as inert stubs to satisfy the interface.
     """
 
-    def __init__(self, verdict_by_claim: dict[str, str]) -> None:
+    def __init__(self, verdict_by_item: dict[tuple[str, tuple[str, ...]], str]) -> None:
         super().__init__()
-        self._verdicts = verdict_by_claim
+        self._verdicts = verdict_by_item
 
     async def verify_claim(self, claim: str, context: list[str]) -> ClaimVerdict:
-        del context
-        verdict = self._verdicts.get(claim, "NOT_ENOUGH_INFO")
+        # Keyed on claim and context together: contrast groups reuse one claim with several contexts.
+        verdict = self._verdicts.get((claim, tuple(context)), "NOT_ENOUGH_INFO")
         return ClaimVerdict(verdict=verdict, evidence="stub", tokens_used=0)
 
     async def evaluate_faithfulness(self, response: str, context: list[str]) -> JudgeResult:
@@ -77,6 +89,10 @@ class StubJudge(LLMJudge):
     async def generate_answer(self, question: str, context: list[str]) -> GeneratedAnswerResult:
         del question, context
         return GeneratedAnswerResult(answer="", tokens_used=0)
+
+
+def verdicts_of(golden: list[GoldenClaim]) -> dict[tuple[str, tuple[str, ...]], str]:
+    return {(c.claim, tuple(c.context)): c.expected for c in golden}
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +300,7 @@ def test_resolve_meta_model_rejects_any_other_value(value: str) -> None:
 
 async def test_harness_perfect_judge() -> None:
     golden = load_golden_claims()
-    perfect = StubJudge({c.claim: c.expected for c in golden})
+    perfect = StubJudge(verdicts_of(golden))
     report = await run_claim_agreement(perfect, golden)
     assert report.n == len(golden)
     assert report.accuracy == pytest.approx(1.0)
@@ -298,8 +314,8 @@ async def test_harness_records_disagreements() -> None:
     # Flip exactly one label so the judge disagrees on one item.
     target = golden[0]
     wrong = "CONTRADICTED" if target.expected != "CONTRADICTED" else "SUPPORTED"
-    lookup = {c.claim: c.expected for c in golden}
-    lookup[target.claim] = wrong
+    lookup = verdicts_of(golden)
+    lookup[(target.claim, tuple(target.context))] = wrong
 
     report = await run_claim_agreement(StubJudge(lookup), golden)
     assert len(report.disagreements) == 1
@@ -310,10 +326,118 @@ async def test_harness_records_disagreements() -> None:
     assert report.accuracy == pytest.approx((len(golden) - 1) / len(golden))
 
 
+async def test_harness_keeps_items_that_share_a_claim_apart() -> None:
+    # A contrast group can reuse one claim with different contexts and labels.
+    claim = "The press is based in Ghent."
+    golden = [
+        GoldenClaim(
+            id="ctx_ghent", claim=claim, context=["The press is in Ghent."], expected="SUPPORTED"
+        ),
+        GoldenClaim(
+            id="ctx_bruges",
+            claim=claim,
+            context=["The press is only in Bruges."],
+            expected="CONTRADICTED",
+        ),
+    ]
+    report = await run_claim_agreement(StubJudge(verdicts_of(golden)), golden)
+    assert report.accuracy == pytest.approx(1.0)
+    assert report.disagreements == []
+
+
 async def test_harness_snapshot_is_serialisable() -> None:
     golden = load_golden_claims()
-    report = await run_claim_agreement(StubJudge({c.claim: c.expected for c in golden}), golden)
+    report = await run_claim_agreement(StubJudge(verdicts_of(golden)), golden)
     snap = report.to_snapshot()
     assert snap["accuracy"] == 1.0
     assert set(snap["per_class"]) == {"SUPPORTED", "CONTRADICTED", "NOT_ENOUGH_INFO"}
     assert not math.isnan(snap["cohen_kappa"])
+
+
+# ---------------------------------------------------------------------------
+# Baseline fingerprint
+# ---------------------------------------------------------------------------
+
+
+def _snapshot_with(fingerprint: BaselineFingerprint | None) -> AgreementSnapshot:
+    snap: AgreementSnapshot = {
+        "model": DEFAULT_JUDGE_MODEL,
+        "n": 0,
+        "accuracy": 1.0,
+        "cohen_kappa": 1.0,
+        "macro_f1": 1.0,
+        "per_class": {},
+    }
+    if fingerprint is not None:
+        snap["fingerprint"] = fingerprint
+    return snap
+
+
+_GOLDEN_YAML = """\
+# header comment
+items:
+  - id: a
+    source: v1
+    claim: "The press is based in Ghent."
+    context:
+      - "The press is in Ghent."
+    expected: SUPPORTED
+    note: "Stated."
+"""
+
+
+def test_pinned_baseline_matches_current_inputs() -> None:
+    # Free in CI: changing the default model, the golden set, the verify_claim
+    # prompt or the SDK without a paid re-baseline and a re-pin fails here,
+    # not in the weekly run.
+    baseline = load_baseline()
+    if baseline is None:
+        pytest.skip("no baseline pinned")
+    assert fingerprint_drift(baseline, DEFAULT_JUDGE_MODEL) == {}
+
+
+def test_fingerprint_drift_is_empty_when_inputs_match() -> None:
+    assert fingerprint_drift(_snapshot_with(current_fingerprint()), DEFAULT_JUDGE_MODEL) == {}
+
+
+def test_fingerprint_drift_names_each_changed_input() -> None:
+    pinned = current_fingerprint()
+    pinned["golden_sha256"] = "0" * 64
+    pinned["anthropic"] = "0.0.0"
+    drift = fingerprint_drift(_snapshot_with(pinned), "claude-other")
+    assert list(drift) == ["model", "golden_sha256", "anthropic"]
+    assert set(drift) & INCOMPARABLE_INPUTS == {"golden_sha256"}
+
+
+def test_fingerprint_drift_rejects_a_baseline_without_one() -> None:
+    drift = fingerprint_drift(_snapshot_with(None), DEFAULT_JUDGE_MODEL)
+    assert drift == {"fingerprint": "fingerprint: missing (the baseline was pinned before #90)"}
+    assert set(drift) <= INCOMPARABLE_INPUTS
+
+
+def test_fingerprint_ignores_what_the_judge_never_sees(tmp_path: Path) -> None:
+    golden = tmp_path / "claim_verdicts.yaml"
+    golden.write_text(_GOLDEN_YAML, encoding="utf-8")
+    before = current_fingerprint(golden)["golden_sha256"]
+    edited = _GOLDEN_YAML.replace("# header comment", "# another comment")
+    edited = edited.replace("source: v1", "source: darie").replace('"Stated."', '"Reworded."')
+    golden.write_bytes(edited.replace("\n", "\r\n").encode("utf-8"))
+    assert current_fingerprint(golden)["golden_sha256"] == before
+
+
+def test_fingerprint_changes_with_what_the_judge_sees(tmp_path: Path) -> None:
+    golden = tmp_path / "claim_verdicts.yaml"
+    golden.write_text(_GOLDEN_YAML, encoding="utf-8")
+    before = current_fingerprint(golden)["golden_sha256"]
+    golden.write_text(_GOLDEN_YAML.replace("is in Ghent", "is in Bruges"), encoding="utf-8")
+    assert current_fingerprint(golden)["golden_sha256"] != before
+
+
+async def test_write_snapshot_records_the_fingerprint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(meta_metrics, "_BASELINE_DIR", tmp_path)
+    golden = load_golden_claims()
+    report = await run_claim_agreement(StubJudge(verdicts_of(golden)), golden)
+    written = json.loads(write_snapshot(report).read_text(encoding="utf-8"))
+    assert written["fingerprint"] == current_fingerprint()
