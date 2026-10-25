@@ -47,14 +47,15 @@ MIN_KAPPA = 0.50  # 'moderate' agreement beyond chance
 MIN_MACRO_F1 = 0.65
 
 # How much macro-F1 may drop versus a pinned baseline before it's a regression.
-# Derived, not chosen: observed_spread over the three runs was 0.000, so
-# round(max(2 * 0.000, 0.05), 2) = 0.05.
+# Derived, not chosen, by round(max(2 * observed_spread, 0.05), 2). Re-derived
+# 2026-10-25 on the 42-claim set (#90): three runs of claude-sonnet-5-5 gave
+# macro-F1 0.9277, 0.9514 and 0.9524 (39, 40 and 40 of 42 correct), so
+# observed_spread = 0.0247 and the rule gives 0.05. The pinned baseline is the
+# median run, 0.9514.
 #
-# Caveat: the spread above was measured on the 14-claim set, where one
-# misclassification moved macro-F1 by up to 0.085, more than this tolerance.
-# Since #90 the set has 42 claims (14 per class); from a perfect run, one
-# misclassification lowers macro-F1 by at most 0.024. The constant is re-derived
-# from the #90 re-baseline.
+# From a perfect run, one misclassification lowers macro-F1 by at most 0.024.
+# On the 14-claim set this replaced, one moved it by up to 0.085, more than
+# the tolerance.
 MACRO_F1_DRIFT_TOLERANCE = 0.05
 
 pytestmark = pytest.mark.meta
