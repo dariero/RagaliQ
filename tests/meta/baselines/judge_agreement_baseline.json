@@ -1,27 +1,32 @@
 {
   "model": "claude-sonnet-5-5",
-  "n": 14,
-  "accuracy": 1.0,
-  "cohen_kappa": 1.0,
-  "macro_f1": 1.0,
+  "n": 42,
+  "accuracy": 0.9524,
+  "cohen_kappa": 0.9286,
+  "macro_f1": 0.9514,
   "per_class": {
     "SUPPORTED": {
-      "precision": 1.0,
+      "precision": 0.9333333333333333,
       "recall": 1.0,
-      "f1": 1.0,
-      "support": 6
+      "f1": 0.9655172413793104,
+      "support": 14
     },
     "CONTRADICTED": {
-      "precision": 1.0,
+      "precision": 0.9333333333333333,
       "recall": 1.0,
-      "f1": 1.0,
-      "support": 4
+      "f1": 0.9655172413793104,
+      "support": 14
     },
     "NOT_ENOUGH_INFO": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0,
-      "support": 4
+      "recall": 0.8571428571428571,
+      "f1": 0.923076923076923,
+      "support": 14
     }
+  },
+  "fingerprint": {
+    "golden_sha256": "d56b31c2a0332079b56ceb4e9455204e281f7ebedce67b160e333e0e7f4fccca",
+    "prompt_sha256": "416739c53d9a399b78f3a1fc2fc0c562aeac0690816a080cdb8d2fcd02eb5e28",
+    "anthropic": "2.3.0"
   }
 }

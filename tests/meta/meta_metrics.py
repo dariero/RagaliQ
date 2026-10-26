@@ -4,10 +4,11 @@ Meta-evaluation metrics and harness for RagaliQ.
 This module answers the question the rest of the test suite does not:
 *is the judge itself any good?* Everything in tests/unit and tests/integration
 assumes the judge's verdict is ground truth. Here we compare the live judge's
-verdicts against a human-labelled golden set and quantify agreement.
+verdicts against a labelled golden set and quantify agreement. Who labelled each
+item is recorded in its `source` field in golden/claim_verdicts.yaml.
 
-The module is deliberately dependency-light (stdlib + pyyaml, both already
-required) and split into two halves:
+The module is deliberately dependency-light (stdlib, pyyaml and ragaliq's own
+prompt loader, all already required) and split into two halves:
 
 1. PURE FUNCTIONS — confusion matrix, precision/recall/F1, accuracy, Cohen's
    kappa, score-band checks. No I/O, no judge, fully unit-testable.
@@ -18,12 +19,16 @@ required) and split into two halves:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
+from importlib.metadata import version
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 import yaml
+
+from ragaliq.judges.prompts import get_prompt
 
 if TYPE_CHECKING:
     from ragaliq.judges.base import LLMJudge
@@ -41,7 +46,7 @@ _BASELINE_DIR = Path(__file__).parent / "baselines"
 
 @dataclass(frozen=True)
 class GoldenClaim:
-    """A single human-labelled (claim, context) -> verdict triple."""
+    """A single labelled (claim, context) -> verdict triple."""
 
     id: str
     claim: str
@@ -97,6 +102,18 @@ class ClassMetricsSnapshot(TypedDict):
     support: int
 
 
+class BaselineFingerprint(TypedDict):
+    """The inputs besides the model that a pinned baseline is valid for.
+
+    Hashes are sha256 of the parsed content (see current_fingerprint), so they
+    do not equal a `shasum` of the files.
+    """
+
+    golden_sha256: str
+    prompt_sha256: str
+    anthropic: str
+
+
 class AgreementSnapshot(TypedDict):
     """JSON-safe subset of an agreement report used for drift checks."""
 
@@ -106,6 +123,8 @@ class AgreementSnapshot(TypedDict):
     cohen_kappa: float
     macro_f1: float
     per_class: dict[str, ClassMetricsSnapshot]
+    # Absent in baselines pinned before #90.
+    fingerprint: NotRequired[BaselineFingerprint]
 
 
 @dataclass
@@ -147,7 +166,7 @@ class AgreementReport:
 
 
 def load_golden_claims(path: Path | None = None) -> list[GoldenClaim]:
-    """Load the human-labelled claim-verdict golden set."""
+    """Load the claim-verdict golden set."""
     p = path or (_GOLDEN_DIR / "claim_verdicts.yaml")
     raw = yaml.safe_load(p.read_text(encoding="utf-8"))
     return [
@@ -205,7 +224,7 @@ def build_confusion(expected: list[str], predicted: list[str]) -> dict[str, dict
 
 
 def accuracy(expected: list[str], predicted: list[str]) -> float:
-    """Fraction of items where judge agrees with the human label."""
+    """Fraction of items where judge agrees with the golden label."""
     if not expected:
         return 0.0
     correct = sum(1 for e, p in zip(expected, predicted, strict=True) if e == p)
@@ -359,11 +378,56 @@ async def run_claim_agreement(judge: LLMJudge, golden: list[GoldenClaim]) -> Agr
 # ---------------------------------------------------------------------------
 
 
+def _sha256_json(value: object) -> str:
+    text = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def current_fingerprint(golden_path: Path | None = None) -> BaselineFingerprint:
+    """Fingerprint what the judge is shown, and the SDK that sends it, as they are now.
+
+    Hashes parsed content, not file bytes, so comments, notes, provenance fields
+    and line endings leave it unchanged. Only verify_claim is covered because
+    run_claim_agreement calls no other template. Judge code and request settings
+    are not covered.
+    """
+    items = [[c.id, c.claim, c.context, c.expected] for c in load_golden_claims(golden_path)]
+    template = get_prompt("verify_claim")
+    return {
+        "golden_sha256": _sha256_json(items),
+        "prompt_sha256": _sha256_json([template.build_system_prompt(), template.user_template]),
+        "anthropic": version("anthropic"),
+    }
+
+
+# A baseline measured on another golden set, or of unknown inputs, is a different
+# exam: no delta against it means anything. A changed model, prompt or SDK is
+# what the drift check exists to measure, so those are compared and reported.
+INCOMPARABLE_INPUTS = frozenset({"fingerprint", "golden_sha256"})
+
+
+def fingerprint_drift(baseline: AgreementSnapshot, model: str) -> dict[str, str]:
+    """Map each input that differs between the baseline and now to a message; empty when none."""
+    drift = {}
+    if baseline["model"] != model:
+        drift["model"] = f"model: baseline {baseline['model']} != current {model}"
+    pinned = baseline.get("fingerprint")
+    if pinned is None:
+        drift["fingerprint"] = "fingerprint: missing (the baseline was pinned before #90)"
+        return drift
+    for key, value in current_fingerprint().items():
+        if pinned.get(key) != value:
+            drift[key] = f"{key}: baseline {pinned.get(key)} != current {value}"
+    return drift
+
+
 def write_snapshot(report: AgreementReport, name: str = "judge_agreement_latest") -> Path:
     """Persist a report snapshot under baselines/ for inspection and drift checks."""
     _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
     path = _BASELINE_DIR / f"{name}.json"
-    path.write_text(json.dumps(report.to_snapshot(), indent=2), encoding="utf-8")
+    snapshot = report.to_snapshot()
+    snapshot["fingerprint"] = current_fingerprint()
+    path.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
     return path
 
 
