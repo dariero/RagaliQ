@@ -66,7 +66,8 @@ class ClaudeTransport:
 
         Raises:
             JudgeAPIError: If the call fails after retries are exhausted.
-            JudgeResponseError: If the response stopped at ``max_tokens`` or holds no text.
+            JudgeResponseError: If the response stopped at ``max_tokens``, was a refusal,
+                hit the model's context window, or holds no text.
         """
         from anthropic import APIConnectionError, APIStatusError
         from anthropic.types import Message
@@ -133,6 +134,21 @@ class ClaudeTransport:
             if response.stop_reason == "max_tokens":
                 raise JudgeResponseError(
                     f"Claude response from {model} stopped at max_tokens={max_tokens}",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+            # These two stops also leave no usable verdict. Without them the error
+            # names a symptom: missing text, or text that does not parse as JSON.
+            if response.stop_reason == "refusal":
+                raise JudgeResponseError(
+                    f"Claude response from {model} was a refusal (stop_reason=refusal)",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                )
+            if response.stop_reason == "model_context_window_exceeded":
+                raise JudgeResponseError(
+                    f"Claude response from {model} stopped at the model's context window "
+                    "(stop_reason=model_context_window_exceeded)",
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                 )

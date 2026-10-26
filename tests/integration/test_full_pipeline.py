@@ -53,8 +53,8 @@ class FullPipelineTransport:
         system_prompt: str,
         user_prompt: str,
         model: str = "fake-model",
-        temperature: float = 0.0,  # noqa: ARG002
-        max_tokens: int = 1024,  # noqa: ARG002
+        temperature: float | None = None,  # noqa: ARG002
+        max_tokens: int = 16000,  # noqa: ARG002
     ) -> TransportResponse:
         self.call_count += 1
         self.calls.append({"system_prompt": system_prompt, "user_prompt": user_prompt})

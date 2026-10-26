@@ -311,9 +311,33 @@ class TestTransportResponseMapping:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
+        ("stop_reason", "match"),
+        [
+            ("refusal", "test-model was a refusal"),
+            ("model_context_window_exceeded", "test-model stopped at the model's context window"),
+        ],
+    )
+    async def test_failing_stop_reason_is_named_even_with_text(
+        self, mock_client, stop_reason, match
+    ):
+        response = _make_success_response()
+        response.stop_reason = stop_reason
+        mock_client.messages.create = AsyncMock(return_value=response)
+        transport = ClaudeTransport(api_key="test")
+
+        from ragaliq.judges.base import JudgeResponseError
+
+        with pytest.raises(JudgeResponseError, match=match):
+            await transport.send("sys", "usr", model="test-model")
+        assert mock_client.messages.create.call_count == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
         ("stop_reason", "content", "match"),
         [
             ("max_tokens", [MagicMock(type="thinking")], "stopped at max_tokens"),
+            ("refusal", [MagicMock(type="text", text="No.")], "was a refusal"),
+            ("model_context_window_exceeded", [], "context window"),
             ("end_turn", [], "Empty response"),
             ("end_turn", [MagicMock(type="thinking")], "Expected text response"),
         ],

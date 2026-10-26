@@ -110,8 +110,9 @@ class TraceCollector:
     def total_cost_estimate(self) -> float:
         """Rough USD cost estimate from per-model token pricing.
 
-        Unknown models fall back to Sonnet pricing. Ignores pricing tiers,
-        caching discounts, and batch API usage, so treat it as approximate.
+        Unknown models fall back to Sonnet 4 pricing, $3/$15 per million tokens.
+        Ignores pricing tiers, caching discounts, and batch API usage, so treat it
+        as approximate.
         """
         total = 0.0
         for trace in self.traces:
