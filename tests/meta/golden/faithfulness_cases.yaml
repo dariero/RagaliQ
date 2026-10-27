@@ -13,6 +13,11 @@
 # `expected_band` is retained as a recorded diagnostic for spotting score drift.
 # It is no longer asserted on. Notes describe semantic content only, never a
 # claim count.
+#
+# `recorded_k` is the claim count K the extractor produced for the case: 1, 3, 2,
+# 3, 3 in run 30332350603 (2026-07) and in all three claude-sonnet-5-5 runs of
+# 2026-10-25. It is a reported diagnostic too (#108): a run whose K differs prints
+# the difference and stays green.
 
 cases:
   - id: fully_faithful
@@ -23,6 +28,7 @@ cases:
     response: "The capital of France is Paris."
     expected_band: [0.9, 1.0]
     expected_class: FULLY_FAITHFUL
+    recorded_k: 1
     note: "Every claim in the response is grounded in the context."
 
   - id: one_hallucinated_of_two
@@ -33,6 +39,7 @@ cases:
     response: "Paris is the capital of France and was founded by Julius Caesar in 50 BC."
     expected_band: [0.4, 0.7]
     expected_class: PARTIALLY_FAITHFUL
+    recorded_k: 3
     note: >-
       The capital assertion is grounded; the founding attribution (agent and
       date) is absent from the context. Deliberately says nothing about how many
@@ -46,6 +53,7 @@ cases:
     response: "Water boils at 350 degrees and is primarily composed of helium."
     expected_band: [0.0, 0.25]
     expected_class: FULLY_HALLUCINATED
+    recorded_k: 2
     note: "No claim in the response is supported by the context."
 
   - id: faithful_multi_claim
@@ -57,6 +65,7 @@ cases:
     response: "Mercury is closest to the Sun, Venus is the hottest planet, and Earth is third from the Sun."
     expected_band: [0.9, 1.0]
     expected_class: FULLY_FAITHFUL
+    recorded_k: 3
     note: "Every claim in the response is grounded in the context."
 
   - id: mostly_faithful_one_drift
@@ -67,6 +76,7 @@ cases:
     response: "The pancreas sits behind the stomach, aids digestion, and is the largest organ in the body."
     expected_band: [0.55, 0.8]
     expected_class: PARTIALLY_FAITHFUL
+    recorded_k: 3
     note: >-
       Location and digestive role are grounded; 'largest organ in the body' is
       not in the context and is also false.

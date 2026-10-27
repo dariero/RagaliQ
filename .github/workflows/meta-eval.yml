@@ -8,7 +8,9 @@ name: Meta Evaluation
 # tests/meta/baselines/judge_agreement_baseline.json (see issues #89 and #90).
 # A baseline measured on another golden set is refused; a changed model, prompt
 # or anthropic version is compared and named in the summary. A red run means judge
-# quality moved or the baseline needs a re-pin, not that the build broke.
+# quality moved or the baseline needs a re-pin, not that the build broke. The
+# summary also lists the golden cases' claim counts (K) against the recorded ones
+# (#108); that table never fails the run.
 on:
   schedule:
     # Mondays 06:30 Melbourne time: with the 6 to 9 hour start delays seen, runs still land before 17:00.
@@ -146,3 +148,27 @@ jobs:
                   f"| {m['f1']:.2f} | {m['support']} |"
               )
           PY
+
+          CASES=tests/meta/baselines/golden_cases_latest.json
+          if [ -f "$CASES" ]; then
+            .venv/bin/python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+
+          rows = json.load(open("tests/meta/baselines/golden_cases_latest.json"))
+          print()
+          print("#### Claim counts (K) of the golden cases")
+          print()
+          print("Reported, not gated (#108): a K that differs from the recorded one does not fail the run.")
+          print()
+          print("| Case | K | Recorded K | Delta |")
+          print("|------|---|------------|-------|")
+          for row in rows:
+              k, recorded, delta = row.get("k"), row.get("recorded_k"), row.get("k_delta")
+              shown = "n/a" if delta is None else f"{delta:+d}"
+              k_shown = "n/a" if k is None else k
+              recorded_shown = "n/a" if recorded is None else recorded
+              print(f"| {row['id']} | {k_shown} | {recorded_shown} | {shown} |")
+          PY
+          else
+            printf '\n%s\n' "No golden-case snapshot, so no claim counts (K) to report." >> "$GITHUB_STEP_SUMMARY"
+          fi
