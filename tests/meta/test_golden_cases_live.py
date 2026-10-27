@@ -10,7 +10,8 @@ The gate is `expected_class`, not `expected_band`. A band assumes a claim
 count: issue #102 saw K=3 where the fixture assumed 2, putting a correct
 judgement at 0.333 and outside [0.40, 0.70]. The class assertions hold for
 every K, because 0/K and K/K are exact for all K. The band is still recorded
-in the snapshot as a drift diagnostic.
+in the snapshot as a drift diagnostic, and so is K against the case's
+`recorded_k` (#108): a different K is printed, never asserted.
 
 Gated behind `meta` and `RAGALIQ_RUN_META=1`; fails (does not skip) if the key
 is missing, per the `live_judge` fixture.
@@ -26,6 +27,7 @@ import pytest
 
 from ragaliq.core.runner import RagaliQ
 from ragaliq.core.test_case import EvalStatus, RAGTestCase
+from tests.meta.meta_metrics import claim_count_delta
 
 if TYPE_CHECKING:
     from ragaliq.judges.base import LLMJudge
@@ -73,6 +75,7 @@ async def test_golden_cases_match_expected_class(
     assert len(results) == len(golden_cases)
 
     failures: list[str] = []
+    k_drift: list[str] = []
     snapshot: list[dict[str, Any]] = []
 
     for case, result in zip(golden_cases, results, strict=True):
@@ -88,6 +91,9 @@ async def test_golden_cases_match_expected_class(
 
         k, supported = _claim_stats(result.details)
         low, high = case.expected_band
+        k_delta = claim_count_delta(k, case.recorded_k)
+        if k_delta != 0:
+            k_drift.append(f"{case.id}: K={k}, recorded {case.recorded_k}")
 
         snapshot.append(
             {
@@ -95,6 +101,8 @@ async def test_golden_cases_match_expected_class(
                 "expected_class": case.expected_class,
                 "score": round(score, 4),
                 "k": k,
+                "recorded_k": case.recorded_k,
+                "k_delta": k_delta,
                 "supported": supported,
                 "recorded_band": [low, high],
                 "in_recorded_band": low <= score <= high,
@@ -102,7 +110,8 @@ async def test_golden_cases_match_expected_class(
         )
 
         print(
-            f"  {case.id:<28} score={score:.3f} K={k} supported={supported} "
+            f"  {case.id:<28} score={score:.3f} K={k} (recorded {case.recorded_k}) "
+            f"supported={supported} "
             f"class={case.expected_class} band=[{low:.2f}, {high:.2f}]"
         )
 
@@ -121,6 +130,10 @@ async def test_golden_cases_match_expected_class(
                 f"(K={k}, supported={supported}, recorded band=[{low:.2f}, {high:.2f}]) — "
                 f"{result.details.get('faithfulness', {}).get('reasoning', '')}"
             )
+
+    # Reported, never asserted (#108): the class checks above hold for every K,
+    # so a K change is granularity drift to look at, not a failure.
+    print("  K drift: " + ("; ".join(k_drift) if k_drift else "none"))
 
     _SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
     _SNAPSHOT.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")

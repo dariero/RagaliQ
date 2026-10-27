@@ -35,6 +35,7 @@ from tests.meta.meta_metrics import (
     accuracy,
     band_mae,
     build_confusion,
+    claim_count_delta,
     class_metrics,
     cohen_kappa,
     current_fingerprint,
@@ -271,6 +272,39 @@ def test_golden_cases_bands_agree_with_classes() -> None:
             assert low > 0.0 and high < 1.0, (
                 f"{case.id}: PARTIALLY_FAITHFUL band must exclude both extremes"
             )
+
+
+def test_golden_cases_record_a_claim_count() -> None:
+    """Every case records the K it was observed with, so a live run can report drift (#108)."""
+    for case in load_golden_cases():
+        assert type(case.recorded_k) is int and case.recorded_k >= 1, (
+            f"{case.id}: recorded_k must be a positive int, got {case.recorded_k!r}"
+        )
+
+
+def test_golden_case_without_recorded_k_does_not_load(tmp_path: Path) -> None:
+    """A missing recorded_k fails the load; a default would switch the K report off unseen."""
+    path = tmp_path / "cases.yaml"
+    path.write_text(
+        "cases:\n"
+        "  - id: no_k\n"
+        "    query: q\n"
+        "    context: [c]\n"
+        "    response: r\n"
+        "    expected_band: [0.9, 1.0]\n"
+        "    expected_class: FULLY_FAITHFUL\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(KeyError, match="recorded_k"):
+        load_golden_cases(path)
+
+
+@pytest.mark.parametrize(
+    ("k", "recorded_k", "delta"),
+    [(3, 3, 0), (4, 3, 1), (2, 3, -1), (None, 3, None)],
+)
+def test_claim_count_delta(k: int | None, recorded_k: int, delta: int | None) -> None:
+    assert claim_count_delta(k, recorded_k) == delta
 
 
 # ---------------------------------------------------------------------------

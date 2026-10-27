@@ -71,7 +71,8 @@ class GoldenCase:
 
     `expected_class` is the gate: it survives a change in claim granularity.
     `expected_band` is retained as a recorded diagnostic — useful for spotting
-    drift in the score, but no longer asserted on.
+    drift in the score, but no longer asserted on. `recorded_k` is the claim
+    count the case was observed with, reported against each run's K (#108).
     """
 
     id: str
@@ -80,6 +81,7 @@ class GoldenCase:
     response: str
     expected_band: tuple[float, float]
     expected_class: str
+    recorded_k: int
     note: str = ""
 
 
@@ -193,6 +195,7 @@ def load_golden_cases(path: Path | None = None) -> list[GoldenCase]:
             response=item["response"],
             expected_band=(float(item["expected_band"][0]), float(item["expected_band"][1])),
             expected_class=item["expected_class"],
+            recorded_k=item["recorded_k"],
             note=item.get("note", ""),
         )
         for item in raw["cases"]
@@ -295,6 +298,17 @@ def band_mae(scores: list[float], bands: list[tuple[float, float]]) -> float:
         midpoint = (low + high) / 2
         total += abs(score - midpoint)
     return total / len(scores)
+
+
+def claim_count_delta(k: int | None, recorded_k: int) -> int | None:
+    """Observed minus recorded claim count; None when the run reported no K.
+
+    A reported diagnostic, never a gate (#108): the class assertions hold for
+    every K (#104), so a K change is printed and the run stays green.
+    """
+    if k is None:
+        return None
+    return k - recorded_k
 
 
 # ---------------------------------------------------------------------------
