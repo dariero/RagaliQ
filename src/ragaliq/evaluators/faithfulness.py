@@ -5,6 +5,13 @@ Algorithm:
     2. Verify each claim against the context (SUPPORTED/CONTRADICTED/NOT_ENOUGH_INFO).
     3. Score = supported_claims / total_claims.
     4. Empty context or no claims = 0.0 (cannot assess faithfulness).
+
+Pass/fail policy (#103): at the default threshold of 0.7, a response with K
+extracted claims passes when at most floor(0.3 * K) of them are unsupported.
+K is decided by the judge's claim extraction and can change with the judge
+model or prompt (the meta-eval reports it, #108). So one unsupported claim in
+three fails (2/3 = 0.667) while one in four passes (3/4 = 0.75), for the same
+response. For zero tolerance, use threshold=1.0.
 """
 
 from typing import TYPE_CHECKING
