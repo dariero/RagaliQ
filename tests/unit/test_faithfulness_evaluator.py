@@ -9,6 +9,7 @@ Tests follow the acceptance criteria from Issue #6:
 
 from __future__ import annotations
 
+import math
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -495,6 +496,49 @@ class TestFaithfulnessEvaluatorEdgeCases:
 
         assert result_strict.score == 0.7
         assert result_strict.passed is False  # 0.7 < 0.8
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("total", "supported", "threshold", "passed"),
+        [
+            (3, 2, None, False),
+            (4, 3, None, True),
+            (10, 7, None, True),
+            (10, 6, None, False),
+            (1, 1, None, True),
+            (2, 1, None, False),
+            (4, 3, 1.0, False),
+            (4, 4, 1.0, True),
+        ],
+    )
+    async def test_threshold_tolerates_floor_of_30_percent_unsupported(
+        self,
+        mock_judge: MagicMock,
+        faithful_test_case: RAGTestCase,
+        total: int,
+        supported: int,
+        threshold: float | None,
+        passed: bool,
+    ) -> None:
+        """The documented policy (#103): 0.7 passes up to floor(0.3 * K) unsupported claims.
+
+        The K=3 and K=4 rows are the same response split two ways, as in the
+        golden case mostly_faithful_one_drift; threshold=1.0 tolerates none.
+        """
+        mock_judge.extract_claims.return_value = ClaimsResult(
+            claims=[f"Claim {i}" for i in range(total)]
+        )
+        mock_judge.verify_claim.side_effect = [
+            ClaimVerdict(verdict="SUPPORTED", evidence="") for _ in range(supported)
+        ] + [ClaimVerdict(verdict="NOT_ENOUGH_INFO", evidence="") for _ in range(total - supported)]
+
+        evaluator = FaithfulnessEvaluator(threshold=threshold)
+        result = await evaluator.evaluate(faithful_test_case, mock_judge)
+
+        assert result.passed is passed
+        if threshold is None:
+            # The formula the docs state, checked against the evaluator's verdict.
+            assert (total - supported <= math.floor(0.3 * total)) is passed
 
 
 # =============================================================================

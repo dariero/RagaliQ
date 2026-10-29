@@ -167,7 +167,7 @@ tester = RagaliQ(
 
 ### Evaluator Reference
 
-**`faithfulness`** — Decomposes the response into atomic claims, verifies each claim against the context. Score = supported claims / total claims. Use when you need to ensure the response doesn't add facts beyond what the context contains.
+**`faithfulness`** — Decomposes the response into atomic claims, verifies each claim against the context. Score = supported claims / total claims. Use when you need to ensure the response doesn't add facts beyond what the context contains. At the default 0.7, a response with K claims passes with up to floor(0.3 × K) unsupported ones, and K depends on the judge's extraction: one unsupported claim in three fails, one in four passes. For zero tolerance, use `FaithfulnessEvaluator(threshold=1.0)`.
 
 **`relevance`** — Single judge call asking: "Does this response answer the query?" Score 0–1. Use when you need to ensure the response is on-topic.
 

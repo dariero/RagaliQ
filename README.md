@@ -147,6 +147,8 @@ RagaliQ ships with five built-in evaluators for comprehensive RAG pipeline testi
 | `context_precision` | Retrieved documents are relevant to the query | 0.7 |
 | `context_recall` | Context covers all expected facts (requires `expected_facts`) | 0.7 |
 
+`faithfulness` scores supported claims / total claims. At 0.7, a response with K claims passes when at most floor(0.3 × K) of them are unsupported. K comes from the judge's claim extraction and can change with the judge model or prompt, so one unsupported claim in three fails (0.67) while one in four passes (0.75). For zero tolerance, use `FaithfulnessEvaluator(threshold=1.0)`; the runner and the CLI apply one threshold to every evaluator.
+
 ### Custom Evaluators
 
 Extend RagaliQ with your own evaluation metrics using the evaluator registry:
