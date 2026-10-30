@@ -4,7 +4,7 @@ import asyncio
 import logging
 import threading
 import time
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from ragaliq.core.evaluator import EvaluationResult, Evaluator
 from ragaliq.core.test_case import EvalStatus, RAGTestCase, RAGTestResult
@@ -240,39 +240,66 @@ class RagaliQ:
         """
         Evaluate multiple test cases asynchronously.
 
+        At most max_concurrency evaluations run at once, on at most that many
+        worker tasks: the batch does not create one task per test case (#133).
+        With fail_fast=True, the first exception cancels the other workers and is
+        raised; no further evaluation starts.
+
         Args:
             test_cases: List of test cases to evaluate.
             max_concurrency: Optional override for maximum concurrent evaluations.
 
         Returns:
             List of RAGTestResults in the same order.
+
+        Raises:
+            ValueError: If the concurrency is less than 1.
         """
         concurrency = max_concurrency if max_concurrency is not None else self.max_concurrency
-        semaphore = asyncio.Semaphore(concurrency)
+        if concurrency < 1:
+            raise ValueError(f"max_concurrency must be at least 1, got {concurrency}")
 
-        async def bounded_evaluate(tc: RAGTestCase) -> RAGTestResult:
-            async with semaphore:
-                try:
-                    return await self.evaluate_async(tc)
-                except Exception as exc:
-                    if self.fail_fast:
-                        logger.error(
-                            "Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id
-                        )
-                        raise
+        results: list[RAGTestResult | None] = [None] * len(test_cases)
+        # One shared iterator: each worker takes the next case when it is free, so
+        # the number of worker tasks is the pool size, not the batch size.
+        pending = iter(enumerate(test_cases))
 
-                    logger.exception("Batch evaluation failed for test case '%s'", tc.id)
-                    return RAGTestResult(
-                        test_case=tc,
-                        status=EvalStatus.ERROR,
-                        scores={},
-                        details={"error": f"{type(exc).__name__}: {exc}"},
-                        execution_time_ms=0,
-                        judge_tokens_used=0,
+        async def evaluate_one(tc: RAGTestCase) -> RAGTestResult:
+            try:
+                return await self.evaluate_async(tc)
+            except Exception as exc:
+                if self.fail_fast:
+                    logger.error(
+                        "Batch evaluation failed for test case '%s' (fail_fast=True)", tc.id
                     )
+                    raise
 
-        tasks = [bounded_evaluate(tc) for tc in test_cases]
-        return await asyncio.gather(*tasks)
+                logger.exception("Batch evaluation failed for test case '%s'", tc.id)
+                return RAGTestResult(
+                    test_case=tc,
+                    status=EvalStatus.ERROR,
+                    scores={},
+                    details={"error": f"{type(exc).__name__}: {exc}"},
+                    execution_time_ms=0,
+                    judge_tokens_used=0,
+                )
+
+        async def worker() -> None:
+            for index, tc in pending:
+                results[index] = await evaluate_one(tc)
+
+        workers = [asyncio.create_task(worker()) for _ in range(min(concurrency, len(test_cases)))]
+        try:
+            await asyncio.gather(*workers)
+        except BaseException:
+            # gather leaves the other workers running; they would keep calling the judge.
+            for task in workers:
+                task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            raise
+
+        # The workers exhausted the shared iterator without error, so every slot is set.
+        return cast(list[RAGTestResult], results)
 
     def evaluate_batch(self, test_cases: list[RAGTestCase]) -> list[RAGTestResult]:
         """
