@@ -171,7 +171,7 @@ tester = RagaliQ(
 
 **`relevance`** — Single judge call asking: "Does this response answer the query?" Score 0–1. Use when you need to ensure the response is on-topic.
 
-**`hallucination`** — Same claim pipeline as faithfulness, but scored as 1 − (hallucinated / total). Threshold defaults to 0.8 (stricter). Use when the cost of made-up information is high.
+**`hallucination`** — Same claim pipeline as faithfulness, but scored as 1 − (hallucinated / total). Its class default is 0.8, which applies when you build `HallucinationEvaluator` yourself; `RagaliQ`, `ragaliq run` and `assert_rag_quality` judge it at their one threshold, 0.7 unless you set it. Use when the cost of made-up information is high.
 
 **`context_precision`** — Evaluates whether the *retrieved context* is relevant to the query. Uses weighted rank-order precision (top-ranked docs contribute more). Measures retrieval quality, not response quality.
 

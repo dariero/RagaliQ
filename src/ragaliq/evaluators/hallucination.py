@@ -7,8 +7,9 @@ Algorithm:
     4. Score = 1.0 - hallucinated / total.
     5. Empty context or no claims = 0.0 (cannot assess).
 
-Stricter than FaithfulnessEvaluator: default threshold 0.8, and the metadata
-lists the specific hallucinated claims.
+Class default threshold 0.8. The runner, the CLI and assert_rag_quality judge
+every evaluator at one threshold instead (#165). The metadata lists the
+specific hallucinated claims.
 """
 
 from typing import TYPE_CHECKING
@@ -27,7 +28,8 @@ class HallucinationEvaluator(Evaluator):
     """Detects claims in the response that are not grounded in the context.
 
     Uses claim-level decomposition to flag exactly which statements were
-    fabricated. Stricter than faithfulness (default threshold 0.8).
+    fabricated. Class default threshold 0.8; the runner applies its own
+    threshold to every evaluator.
     """
 
     name: str = "hallucination"

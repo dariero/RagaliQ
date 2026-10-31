@@ -53,7 +53,8 @@ class RagaliQ:
             judge: Which LLM to use as judge ("claude" or "openai"), or
                 a pre-configured LLMJudge instance.
             evaluators: List of evaluator names to use. Defaults to all.
-            default_threshold: Default passing threshold for evaluators.
+            default_threshold: Passing threshold applied to every evaluator,
+                in place of each evaluator class's own default.
             judge_config: Optional configuration for the judge (model, temperature, etc.).
             api_key: Optional API key for the judge. Falls back to environment variable.
             max_concurrency: Maximum number of concurrent test case evaluations in batch mode.

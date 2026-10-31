@@ -17,7 +17,13 @@ class JudgeConfig(BaseModel):
 
     model: str = Field(default=DEFAULT_JUDGE_MODEL, description="Model identifier")
     temperature: float | None = Field(
-        default=None, ge=0.0, le=1.0, description="Sampling temperature; None sends none"
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Sampling temperature; None sends none. Under API version 2026-10-21"
+            " (anthropic 2.x) any value returns HTTP 400 on every model."
+        ),
     )
     # Above 21333 the anthropic SDK refuses a non-streaming request on its default timeout.
     max_tokens: int = Field(

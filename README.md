@@ -149,6 +149,8 @@ RagaliQ ships with five built-in evaluators for comprehensive RAG pipeline testi
 
 `faithfulness` scores supported claims / total claims. At 0.7, a response with K claims passes when at most floor(0.3 × K) of them are unsupported. K comes from the judge's claim extraction and can change with the judge model or prompt, so one unsupported claim in three fails (0.67) while one in four passes (0.75). For zero tolerance, use `FaithfulnessEvaluator(threshold=1.0)`; the runner and the CLI apply one threshold to every evaluator.
 
+The Default Threshold column gives each evaluator class's own default, which applies when you build the evaluator yourself, for example `HallucinationEvaluator()`. `RagaliQ`, `ragaliq run` and `assert_rag_quality` judge every evaluator at one threshold: 0.7 unless you set `default_threshold`, `--threshold` or `threshold`. Through them, `hallucination` is judged at that threshold, not at 0.8.
+
 ### Custom Evaluators
 
 Extend RagaliQ with your own evaluation metrics using the evaluator registry:

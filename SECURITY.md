@@ -6,8 +6,8 @@ Security patches are applied to the latest release only.
 
 | Version | Supported |
 |---|---|
-| 0.1.x (latest) | ✅ |
-| < 0.1.0 | ❌ |
+| 0.3.x (latest) | ✅ |
+| < 0.3.0 | ❌ |
 
 ## Reporting a Vulnerability
 

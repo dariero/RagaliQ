@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10-19
 **Issue:** #149 — [FEAT] Judge models to Claude Sonnet 5.5 and Opus 5.5
+**Implemented:** 0.3.0 (2026-11-01)
 
 ## Context
 
@@ -46,7 +47,9 @@ The tiers move to Claude Sonnet 5.5 and Claude Opus 5.5. These lines of the Clau
 - Custom transports implementing `JudgeTransport` see the new temperature type: `BaseJudge` now passes `temperature=None` by default, and `max_tokens=16000`.
 - Thinking tokens are billed as output tokens, and Opus 5.5 cannot turn thinking off. Gold-tier calls can therefore produce more output tokens per request than their text alone.
 - Before this change the gold tier sent `temperature=0.0` to `claude-opus-4-8`, a "4.7 and later" model. This is INFERRED to fail with HTTP 400 (the docs give no numeric default for temperature) and stays unconfirmed until the probe that runs with the paid re-baseline: one `claude-opus-4-8` request with `temperature=0.0`. The meta suite never exercised the gold tier.
+  - Note (2026-11-01): confirmed on 2026-10-19 by that probe: `claude-opus-4-8` with `temperature=0.0` returned HTTP 400 `invalid_request_error`. Fixed by #150.
 - A response that the transport rejects (stopped at `max_tokens`, empty, or holding no text) is recorded in the trace with 0 input and 0 output tokens, although its tokens are billed, so `TraceCollector.total_cost_estimate` and `--ragaliq-cost-limit` leave them out. Before this change a response cut off at `max_tokens` that still held text was traced with its real tokens and failed later as unparseable JSON.
+  - Note (2026-11-01): resolved. Since #155, a response the transport rejects carries its usage and `BaseJudge` traces its tokens; since #163 that covers all five rejected stops (`max_tokens`, refusal, context window, empty, no text).
 
 ## Principles Applied
 
@@ -66,6 +69,7 @@ The lock moves to anthropic 2.3.0, and the `anthropic` floor to `>=2.3`. SDK 2.x
 
 - The judge sends no `temperature` by default (item 2), so its default requests carry the same fields as before.
 - An explicit `JudgeConfig.temperature` now returns HTTP 400 on every model, `claude-sonnet-4-6` included. D3c's reason for keeping the field, that callers pinned to a 4.6 model keep a setting the model accepts, no longer holds. The field stays until release prep for 0.3.0, where its removal is decided.
+  - Note (2026-11-01): decided on 2026-10-31: the field stays in 0.3.0, and its description says that any value returns HTTP 400 under API version 2026-10-21.
 - The other Messages changes of 2026-10-21 (document blocks in assistant messages, citations in user messages) do not touch the judge's requests.
 - SDK 2.x sends the API key as `Authorization: Bearer`, not `X-Api-Key`.
 - `_calculate_nonstreaming_timeout` in anthropic 2.3.0 has the same threshold as in 1.13.0 (any `max_tokens` above 21,333 on the default timeout), so item 4's bound holds.
