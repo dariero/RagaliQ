@@ -20,13 +20,20 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
-          cache: "pip"
 
-      - name: Install dev dependencies
-        run: pip install -e ".[dev]"
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          cache-dependency-glob: "pylock.toml"
+
+      - name: Install locked dependencies + project
+        run: |
+          uv venv --python 3.14
+          uv pip sync pylock.toml
+          uv pip install -e . --no-deps
 
       - name: Run unit tests
-        run: pytest tests/unit/ tests/meta/test_meta_metrics.py
+        run: .venv/bin/pytest tests/unit/ tests/meta/test_meta_metrics.py
 
       - name: Verify version tag matches pyproject.toml
         # Strips the leading 'v' from the tag (v0.2.0 → 0.2.0) and compares
