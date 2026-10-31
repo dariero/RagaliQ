@@ -1,12 +1,13 @@
 """Unit tests for RagaliQ runner instantiation, configuration, and wiring."""
 
+import asyncio
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from ragaliq.core.runner import RagaliQ
-from ragaliq.core.test_case import EvalStatus
+from ragaliq.core.test_case import EvalStatus, RAGTestCase
 from ragaliq.judges.base import JudgeConfig, LLMJudge
 from ragaliq.judges.claude import ClaudeJudge
 
@@ -528,6 +529,102 @@ class TestErrorEnvelopes:
         # Should raise on first failure, not complete batch
         with pytest.raises(RuntimeError, match="Batch fail fast"):
             await runner.evaluate_batch_async(test_cases)
+
+
+def _cases(count: int) -> list[RAGTestCase]:
+    return [
+        RAGTestCase(id=f"tc{i}", name=f"Test {i}", query="q", context=["c"], response="r")
+        for i in range(count)
+    ]
+
+
+class TestBatchAdmission:
+    """evaluate_batch_async bounds tasks, not only running evaluations (#133)."""
+
+    @pytest.mark.asyncio
+    async def test_batch_keeps_at_most_max_concurrency_tasks(self):
+        """40 cases at concurrency 4: 4 run at once, and only 4 worker tasks exist."""
+        active = 0
+        peak_active = 0
+        peak_tasks = 0
+
+        async def probe(tc: RAGTestCase) -> MagicMock:
+            nonlocal active, peak_active, peak_tasks
+            active += 1
+            peak_active = max(peak_active, active)
+            peak_tasks = max(peak_tasks, len(asyncio.all_tasks()))
+            await asyncio.sleep(0.001)
+            active -= 1
+            return MagicMock(test_case=tc)
+
+        runner = RagaliQ(judge=MagicMock(spec=LLMJudge), max_concurrency=4)
+        runner.evaluate_async = probe  # type: ignore[method-assign]
+
+        results = await runner.evaluate_batch_async(_cases(40))
+
+        assert len(results) == 40
+        assert peak_active == 4
+        # The 4 workers plus this test's own task; before #133 it was one task per case.
+        assert peak_tasks <= 5
+
+    @pytest.mark.asyncio
+    async def test_batch_returns_results_in_input_order(self):
+        """Later cases finish first, and the results still follow the input order."""
+
+        async def probe(tc: RAGTestCase) -> MagicMock:
+            await asyncio.sleep(0.001 * (10 - int(tc.id[2:])))
+            return MagicMock(test_case=tc)
+
+        runner = RagaliQ(judge=MagicMock(spec=LLMJudge), max_concurrency=3)
+        runner.evaluate_async = probe  # type: ignore[method-assign]
+
+        results = await runner.evaluate_batch_async(_cases(10))
+
+        assert [r.test_case.id for r in results] == [f"tc{i}" for i in range(10)]
+
+    @pytest.mark.asyncio
+    async def test_empty_batch_returns_empty_list(self):
+        runner = RagaliQ(judge=MagicMock(spec=LLMJudge))
+
+        assert await runner.evaluate_batch_async([]) == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("concurrency", [0, -1])
+    async def test_batch_rejects_concurrency_below_one(self, concurrency):
+        """0 used to hang the batch, and -1 failed inside asyncio.Semaphore."""
+        runner = RagaliQ(judge=MagicMock(spec=LLMJudge))
+
+        with pytest.raises(ValueError, match="at least 1"):
+            await runner.evaluate_batch_async(_cases(2), max_concurrency=concurrency)
+
+    @pytest.mark.asyncio
+    async def test_fail_fast_cancels_the_rest_of_the_batch(self):
+        """After the first error no evaluation starts, and none keeps running."""
+        started: list[str] = []
+        active = 0
+
+        async def probe(tc: RAGTestCase) -> MagicMock:
+            nonlocal active
+            started.append(tc.id)
+            active += 1
+            try:
+                await asyncio.sleep(0.01)
+                if tc.id == "tc2":
+                    raise RuntimeError("case 2 failed")
+                return MagicMock(test_case=tc)
+            finally:
+                active -= 1
+
+        runner = RagaliQ(judge=MagicMock(spec=LLMJudge), max_concurrency=3, fail_fast=True)
+        runner.evaluate_async = probe  # type: ignore[method-assign]
+
+        with pytest.raises(RuntimeError, match="case 2 failed"):
+            await runner.evaluate_batch_async(_cases(20))
+
+        started_at_raise = len(started)
+        await asyncio.sleep(0.05)
+        assert len(started) == started_at_raise < 20
+        assert active == 0
 
 
 class TestAsyncInitSafety:
