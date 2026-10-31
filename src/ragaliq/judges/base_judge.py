@@ -36,6 +36,30 @@ _DEFAULT_INPUT_TOKEN_WARN_THRESHOLD = 100_000
 _ERROR_PREVIEW_LENGTH = 200
 
 
+def _trailing_json_object(text: str) -> dict[str, Any] | None:
+    """Return the one JSON object in `text` when it ends the text, else None.
+
+    A closing code fence after the object is allowed. The first "{" that starts a
+    complete object decides: if that object does not end the text, the text holds
+    JSON followed by more text, such as a second answer, and None is returned.
+    """
+    body = text.rstrip()
+    if body.endswith("```"):
+        body = body[:-3].rstrip()
+    decoder = json.JSONDecoder()
+    start = body.find("{")
+    while start != -1:
+        try:
+            value, end = decoder.raw_decode(body, start)
+        except json.JSONDecodeError:
+            start = body.find("{", start + 1)
+            continue
+        if end == len(body) and isinstance(value, dict):
+            return value
+        return None
+    return None
+
+
 class BaseJudge(LLMJudge):
     """LLM judge that implements all shared logic over a pluggable transport.
 
@@ -161,6 +185,11 @@ class BaseJudge(LLMJudge):
     def _parse_json_response(self, text: str) -> dict[str, Any]:
         """Parse JSON from an LLM response, unwrapping a markdown code fence if present.
 
+        A response that is not JSON as a whole is still accepted when its only JSON
+        object ends it, after other text: the model sometimes writes its reasoning
+        before the object (#168). JSON followed by text, including a second object,
+        is still rejected.
+
         Raises:
             JudgeResponseError: If JSON parsing fails.
         """
@@ -176,9 +205,13 @@ class BaseJudge(LLMJudge):
             result: dict[str, Any] = json.loads(cleaned)
             return result
         except json.JSONDecodeError as e:
-            raise JudgeResponseError(
-                f"Failed to parse JSON response: {e}. Raw text: {text[:_ERROR_PREVIEW_LENGTH]}"
-            ) from e
+            trailing = _trailing_json_object(cleaned)
+            if trailing is None:
+                raise JudgeResponseError(
+                    f"Failed to parse JSON response: {e}. Raw text: {text[:_ERROR_PREVIEW_LENGTH]}"
+                ) from e
+            logger.warning("Judge response had text before its JSON object; parsed the object")
+            return trailing
 
     def _parse_score(self, parsed: dict[str, Any]) -> float:
         """Extract the 'score' field, coerce to float, and clamp to [0.0, 1.0].

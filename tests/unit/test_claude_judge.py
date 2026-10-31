@@ -548,6 +548,85 @@ class TestClaudeJudgeJsonParsing:
         assert result.score == 0.6
         assert result.reasoning == ""
 
+    @staticmethod
+    def _respond_with(client: MagicMock, text: str) -> None:
+        response = MagicMock()
+        response.content = [MagicMock(type="text", text=text)]
+        response.usage.input_tokens = 100
+        response.usage.output_tokens = 50
+        client.messages.create = AsyncMock(return_value=response)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "text",
+        [
+            'The context gives one figure.\n\n{"score": 0.7, "reasoning": "After text"}',
+            'Reasoning first.\n```json\n{"score": 0.7, "reasoning": "After text"}\n```',
+            'The set {a, b} and {"broken": } come first.\n{"score": 0.7, "reasoning": "After text"}',
+            'Text.\n{"score": 0.7, "reasoning": "After text", "meta": {"k": 1}}',
+        ],
+        ids=["plain", "fenced", "braces-in-text", "nested"],
+    )
+    async def test_json_object_after_text(
+        self, mock_anthropic_client: MagicMock, text: str, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A response that ends with its only JSON object, after reasoning text, is parsed (#168)."""
+        self._respond_with(mock_anthropic_client, text)
+
+        judge = ClaudeJudge(api_key="test-key")
+        with caplog.at_level("WARNING", logger="ragaliq.judges.base_judge"):
+            result = await judge.evaluate_faithfulness(response="Test", context=["Context"])
+
+        assert result.score == 0.7
+        assert result.reasoning == "After text"
+        assert "text before its JSON object" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_json_followed_by_text_is_rejected(
+        self, mock_anthropic_client: MagicMock
+    ) -> None:
+        """Only a trailing object is accepted: text after the JSON still fails."""
+        self._respond_with(
+            mock_anthropic_client, '{"score": 0.7, "reasoning": "x"}\nHope this helps.'
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
+            await judge.evaluate_faithfulness(response="Test", context=["Context"])
+
+    @pytest.mark.asyncio
+    async def test_two_json_objects_are_rejected(self, mock_anthropic_client: MagicMock) -> None:
+        """A second answer after the first one is not chosen silently: the response fails."""
+        self._respond_with(
+            mock_anthropic_client,
+            '{"score": 0.2, "reasoning": "first"}\nOn reflection:\n{"score": 0.9, "reasoning": "second"}',
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
+            await judge.evaluate_faithfulness(response="Test", context=["Context"])
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_verdict_after_reasoning(
+        self, mock_anthropic_client: MagicMock
+    ) -> None:
+        """The answer shape claude-sonnet-5-5 gave on a cross-document arithmetic claim (#168)."""
+        self._respond_with(
+            mock_anthropic_client,
+            'The canal opened in March 1824 (Document 1), and "It" in Document 2 refers to'
+            " the same canal, which closed in March 1901. That is 77 years, not 87.\n\n"
+            '{"verdict": "CONTRADICTED", "evidence": "1824 to 1901 is 77 years, not 87"}',
+        )
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.verify_claim(
+            claim="The canal was open for 87 years.",
+            context=["The canal opened in March 1824.", "It closed in March 1901."],
+        )
+
+        assert result.verdict == "CONTRADICTED"
+        assert result.evidence == "1824 to 1901 is 77 years, not 87"
+
 
 @pytest.mark.usefixtures("mock_anthropic_client")
 class TestClaudeJudgePromptBuilding:
