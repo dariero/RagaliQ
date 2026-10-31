@@ -48,10 +48,12 @@ MIN_MACRO_F1 = 0.65
 
 # How much macro-F1 may drop versus a pinned baseline before it's a regression.
 # Derived, not chosen, by round(max(2 * observed_spread, 0.05), 2). Re-derived
-# 2026-10-25 on the 42-claim set (#90): three runs of claude-sonnet-5-5 gave
-# macro-F1 0.9277, 0.9514 and 0.9524 (39, 40 and 40 of 42 correct), so
-# observed_spread = 0.0247 and the rule gives 0.05. The pinned baseline is the
-# median run, 0.9514.
+# 2026-10-31 for the verify_claim v2.0 prompt (#170): three runs of
+# claude-sonnet-5-5 gave macro-F1 1.0, 1.0 and 1.0 (42 of 42 correct each), so
+# observed_spread = 0 and the rule gives 0.05. The pinned baseline is the median
+# run, 1.0. A later run with 40 of 42 (about 0.952) stays inside the tolerance;
+# one with 39 (about 0.93) is reported as drift. The v1 prompt's runs of
+# 2026-10-25 (#90) gave 0.9277, 0.9514 and 0.9524 (39, 40 and 40 of 42).
 #
 # From a perfect run, one misclassification lowers macro-F1 by at most 0.024.
 # On the 14-claim set this replaced, one moved it by up to 0.085, more than
