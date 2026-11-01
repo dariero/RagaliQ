@@ -481,7 +481,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.14"
+          python-version: "3.15"
       - run: pip install ragaliq
       - name: Run evaluations
         env:

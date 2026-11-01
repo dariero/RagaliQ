@@ -56,7 +56,7 @@ RagaliQ (RAG + Quality) is a Python library + CLI for automated testing of RAG p
 
 ## Tech Stack
 
-- Python 3.14+
+- Python 3.15+
 - Pydantic v2 for data validation
 - Anthropic SDK (Claude as LLM-as-Judge)
 - Typer for CLI
@@ -88,12 +88,12 @@ src/ragaliq/
 Environment setup, as CI installs it (`.github/workflows/ci.yml:35-37`):
 
 ```bash
-uv venv --python 3.14
+uv venv --python 3.15
 uv pip sync pylock.toml
 uv pip install -e . --no-deps
 ```
 
-Agents on the owner's machine create environments only from `/opt/homebrew/opt/python@3.14/bin/python3.14`, with `--no-python-downloads`.
+Agents on the owner's machine create environments only from `/opt/homebrew/opt/python@3.15/bin/python3.15`, with `--no-python-downloads`.
 
 The quality gate (`AGENTS.md:5`):
 

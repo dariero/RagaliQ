@@ -1,6 +1,6 @@
 # RagaliQ: The Ultimate LLM & RAG Evaluation Testing Framework
 
-[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.15+](https://img.shields.io/badge/python-3.15+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://img.shields.io/pypi/v/ragaliq.svg)](https://pypi.org/project/ragaliq/)
 [![CI](https://github.com/dariero/RagaliQ/actions/workflows/ci.yml/badge.svg)](https://github.com/dariero/RagaliQ/actions/workflows/ci.yml)
@@ -347,7 +347,7 @@ git clone https://github.com/dariero/RagaliQ.git
 cd RagaliQ
 
 # requires uv (see CONTRIBUTING.md)
-uv venv --python 3.14
+uv venv --python 3.15
 uv pip sync pylock.toml
 uv pip install -e . --no-deps
 
