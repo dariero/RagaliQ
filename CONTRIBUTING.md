@@ -9,12 +9,12 @@ Thank you for your interest in contributing! RagaliQ is an open-source LLM/RAG e
 
 ## Development Setup
 
-**Requirements:** Python 3.14+, uv
+**Requirements:** Python 3.15+, uv
 
 ```bash
 git clone https://github.com/dariero/RagaliQ.git
 cd RagaliQ
-uv venv --python 3.14
+uv venv --python 3.15
 uv pip sync pylock.toml
 uv pip install -e . --no-deps
 ```
@@ -39,7 +39,7 @@ Run them together:
 
 > **Dependencies are locked** in `pylock.toml` (PEP 751, cross-platform). After
 > changing dependencies in `pyproject.toml`, regenerate it with:
-> `uv pip compile pyproject.toml --extra dev --universal --python-version 3.14 --generate-hashes --upgrade-package <name> -o pylock.toml`.
+> `uv pip compile pyproject.toml --extra dev --universal --python-version 3.15 --generate-hashes --upgrade-package <name> -o pylock.toml`.
 > **One package per regeneration.** `--upgrade` (no `-package`) pulls *every*
 > floor to latest, which silently drags unrelated bumps into a slice — a
 > tooling PR would ship an `anthropic` bump with it. Always diff the lock

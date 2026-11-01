@@ -8,7 +8,7 @@ version = "0.3.0"
 description = "LLM & RAG evaluation testing framework — hallucination detection, faithfulness metrics, answer relevance scoring, and retrieval pipeline testing with pytest integration"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 authors = [
     { name = "Darie Ro" }
 ]
@@ -35,7 +35,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Testing",
@@ -86,7 +85,7 @@ Changelog = "https://github.com/dariero/RagaliQ/blob/main/CHANGELOG.md"
 packages = ["src/ragaliq"]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py315"
 line-length = 100
 src = ["src", "tests"]
 extend-exclude = [".decisions/ADR-011-evaluator-registry.md"]
@@ -112,7 +111,7 @@ ignore = [
 known-first-party = ["ragaliq"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.15"
 strict = true
 warn_return_any = true
 warn_unused_configs = true

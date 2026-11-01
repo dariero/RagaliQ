@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Python 3.14 support: Python 3.15 is the minimum (`requires-python = ">=3.15"`), and CI, the Docker image and the release build run on 3.15. On Python 3.14, pip keeps installing 0.3.0. PyYAML 6.0.3 publishes no wheel for Python 3.15, so it installs from its source distribution. (#175)
+
 ## [0.3.0] - 2026-11-01
 
 ### Added
