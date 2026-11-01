@@ -12,9 +12,10 @@ pytest_plugins = ["pytester"]
 def _configure_pytester_asyncio(request: pytest.FixtureRequest) -> None:
     """Inject asyncio_default_fixture_loop_scope into inner pytester sessions.
 
-    pytester spawns isolated subprocess pytest sessions in temp directories that
-    don't inherit the project pyproject.toml. Without this, pytest-asyncio warns
-    about the unset option in every inner session (once per runpytest() call).
+    pytester runs each inner pytest session in a temp directory, which does not
+    read the project pyproject.toml; runpytest() runs it in this process. Without
+    this, pytest-asyncio warns about the unset option in every inner session (once
+    per runpytest() call).
     """
     if "pytester" not in request.fixturenames:
         return

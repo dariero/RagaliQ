@@ -96,16 +96,15 @@ class TestFixtures:
         result = pytester.runpytest("-p", "ragaliq", "-v")
         assert result.ret == 0
 
-    def test_ragaliq_runner_fixture_available(self, pytester: pytest.Pytester) -> None:
+    def test_ragaliq_runner_fixture_available(
+        self, pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that ragaliq_runner fixture can be used."""
-        # Create a test file that uses the runner fixture
+        # runpytest() runs in this process: monkeypatch restores the key afterwards.
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-for-fixture-test")
         pytester.makepyfile(
             """
-            import os
             import pytest
-
-            # Set dummy API key for test
-            os.environ["ANTHROPIC_API_KEY"] = "test-key-for-fixture-test"
 
             def test_use_runner(ragaliq_runner):
                 from ragaliq.core.runner import RagaliQ
@@ -160,15 +159,14 @@ class TestLatencyInjection:
         assert "--ragaliq-latency-ms" in output
         assert "artificial latency" in output.lower() or "latency" in output.lower()
 
-    def test_latency_actually_delays_calls(self, pytester: pytest.Pytester) -> None:
+    def test_latency_actually_delays_calls(
+        self, pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that latency injection actually adds delay to judge calls."""
-        # Create a simple test that verifies the latency wrapper is applied
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
         pytester.makepyfile(
             """
-            import os
             import pytest
-
-            os.environ["ANTHROPIC_API_KEY"] = "test-key"
 
             def test_latency_wrapper_applied(ragaliq_judge):
                 # Verify transport is wrapped with LatencyInjectionTransport
@@ -252,13 +250,13 @@ class TestMarkers:
 class TestRagTesterFixture:
     """Test the rag_tester fixture."""
 
-    def test_rag_tester_fixture_available(self, pytester: pytest.Pytester) -> None:
+    def test_rag_tester_fixture_available(
+        self, pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """rag_tester fixture should provide a configured RagaliQ instance."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-for-fixture-test")
         pytester.makepyfile(
             """
-            import os
-            os.environ["ANTHROPIC_API_KEY"] = "test-key-for-fixture-test"
-
             def test_use_rag_tester(rag_tester):
                 from ragaliq.core.runner import RagaliQ
                 assert isinstance(rag_tester, RagaliQ)
@@ -268,13 +266,13 @@ class TestRagTesterFixture:
         result = pytester.runpytest("-p", "ragaliq", "-v")
         assert result.ret == 0
 
-    def test_rag_tester_distinct_from_ragaliq_runner(self, pytester: pytest.Pytester) -> None:
+    def test_rag_tester_distinct_from_ragaliq_runner(
+        self, pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Both rag_tester and ragaliq_runner should be independently usable."""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
         pytester.makepyfile(
             """
-            import os
-            os.environ["ANTHROPIC_API_KEY"] = "test-key"
-
             def test_both_fixtures(rag_tester, ragaliq_runner):
                 from ragaliq.core.runner import RagaliQ
                 assert isinstance(rag_tester, RagaliQ)

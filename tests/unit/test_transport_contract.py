@@ -48,3 +48,19 @@ async def test_aclose_closes_the_sdk_client() -> None:
     assert transport._client.is_closed()
 
     await transport.aclose()  # closing twice is safe
+
+
+@pytest.mark.asyncio
+async def test_async_with_returns_the_transport_and_closes_its_client() -> None:
+    transport = ClaudeTransport(api_key="test")
+    async with transport as entered:
+        assert entered is transport
+        assert not transport._client.is_closed()
+    assert transport._client.is_closed()
+
+    # __aexit__ must close the client on the error path too.
+    failing = ClaudeTransport(api_key="test")
+    with pytest.raises(RuntimeError, match="boom"):
+        async with failing:
+            raise RuntimeError("boom")
+    assert failing._client.is_closed()
