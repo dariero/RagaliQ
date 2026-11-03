@@ -30,6 +30,7 @@ def mock_anthropic_client() -> Generator[MagicMock]:
     """Create a mock Anthropic client."""
     with patch("ragaliq.judges.transport.AsyncAnthropic") as mock_class:
         mock_client = MagicMock()
+        mock_client.close = AsyncMock()  # awaited when the test's event loop shuts down
         mock_class.return_value = mock_client
         yield mock_client
 
@@ -985,10 +986,11 @@ class TestClaudeJudgeClose:
         judge = ClaudeJudge(api_key="test-key")
         owned = judge.transport
         assert isinstance(owned, ClaudeTransport)
-        assert not owned._client.is_closed()
+        client = await owned._client_for_loop()
+        assert not client.is_closed()
 
         judge.wrap_transport(_SendOnly(owned))
         async with judge:
             pass
 
-        assert owned._client.is_closed()
+        assert client.is_closed()

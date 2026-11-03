@@ -8,6 +8,7 @@ pluggable transport. Concrete classes (ClaudeJudge, OpenAIJudge) supply transpor
 import asyncio
 import json
 import logging
+import threading
 import time
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -85,13 +86,37 @@ class BaseJudge(LLMJudge):
             transport: Transport layer for API calls.
             config: Judge configuration. Uses defaults if not provided.
             trace_collector: Optional trace collector for observability.
-            max_concurrency: Cap on concurrent API calls, to avoid rate-limit
-                bursts when evaluators fan out over many claims/docs.
+            max_concurrency: Cap on concurrent API calls in one event loop, to avoid
+                rate-limit bursts when evaluators fan out over many claims/docs.
         """
         super().__init__(config)
         self._transport = transport
         self._trace_collector = trace_collector
-        self._concurrency_limit = asyncio.Semaphore(max_concurrency)
+        # Each loop's semaphore is made on its first use, so the value is checked here.
+        if max_concurrency < 0:
+            raise ValueError(f"max_concurrency must be >= 0, got {max_concurrency}")
+        self._max_concurrency = max_concurrency
+        # One semaphore per event loop: an asyncio.Semaphore binds to the first loop
+        # in which a caller waits, and raises in any later loop (#179).
+        self._limits: dict[asyncio.AbstractEventLoop, asyncio.Semaphore] = {}
+        self._limits_lock = threading.Lock()
+
+    def _concurrency_limit(self) -> asyncio.Semaphore:
+        """Return the running loop's semaphore.
+
+        With one loop at a time the cap is `max_concurrency`; loops that run at once
+        in several threads get one cap each.
+        """
+        loop = asyncio.get_running_loop()
+        with self._limits_lock:
+            limit = self._limits.get(loop)
+            if limit is None:
+                # A semaphore that made a caller wait holds its loop, so drop those of
+                # closed loops here: at most one closed loop stays referenced.
+                for closed in [old for old in self._limits if old.is_closed()]:
+                    del self._limits[closed]
+                limit = self._limits[loop] = asyncio.Semaphore(self._max_concurrency)
+        return limit
 
     @property
     def transport(self) -> JudgeTransport:
@@ -132,7 +157,7 @@ class BaseJudge(LLMJudge):
 
         try:
             # Bound concurrent API calls to avoid rate-limit bursts.
-            async with self._concurrency_limit:
+            async with self._concurrency_limit():
                 response = await self._transport.send(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,

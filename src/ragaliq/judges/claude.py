@@ -54,7 +54,10 @@ class ClaudeJudge(BaseJudge):
         )
 
     async def aclose(self) -> None:
-        """Close the HTTP client this judge created. The judge cannot call the API after this."""
+        """Close the HTTP client this judge created in the running event loop.
+
+        The judge cannot call the API after this; see `ClaudeTransport.aclose()`.
+        """
         await self._owned_transport.aclose()
 
     async def __aenter__(self) -> Self:
