@@ -29,6 +29,7 @@ async def test_send_passes_only_keywords_the_installed_sdk_declares() -> None:
     with patch("ragaliq.judges.transport.AsyncAnthropic") as mock_cls:
         client = MagicMock()
         client.messages.create = AsyncMock(return_value=response)
+        client.close = AsyncMock()  # awaited when this test's event loop shuts down
         mock_cls.return_value = client
         await ClaudeTransport(api_key="test").send("system", "user", temperature=0.3)
 
@@ -42,10 +43,11 @@ async def test_aclose_closes_the_sdk_client() -> None:
     # A real client this time; no request is sent. is_closed is a method on the
     # SDK client, so the first assert also fails if the parentheses go missing.
     transport = ClaudeTransport(api_key="test")
-    assert not transport._client.is_closed()
+    client = await transport._client_for_loop()
+    assert not client.is_closed()
 
     await transport.aclose()
-    assert transport._client.is_closed()
+    assert client.is_closed()
 
     await transport.aclose()  # closing twice is safe
 
@@ -55,12 +57,14 @@ async def test_async_with_returns_the_transport_and_closes_its_client() -> None:
     transport = ClaudeTransport(api_key="test")
     async with transport as entered:
         assert entered is transport
-        assert not transport._client.is_closed()
-    assert transport._client.is_closed()
+        client = await transport._client_for_loop()
+        assert not client.is_closed()
+    assert client.is_closed()
 
     # __aexit__ must close the client on the error path too.
     failing = ClaudeTransport(api_key="test")
     with pytest.raises(RuntimeError, match="boom"):
         async with failing:
+            failing_client = await failing._client_for_loop()
             raise RuntimeError("boom")
-    assert failing._client.is_closed()
+    assert failing_client.is_closed()

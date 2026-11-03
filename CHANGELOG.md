@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Python 3.14 support: Python 3.15 is the minimum (`requires-python = ">=3.15"`), and CI, the Docker image and the release build run on 3.15. On Python 3.14, pip keeps installing 0.3.0. PyYAML 6.0.3 publishes no wheel for Python 3.15, so it installs from its source distribution. (#175)
 
+### Fixed
+
+- A judge used in more than one event loop. The sync API (`RagaliQ.evaluate()`, `evaluate_batch()`, `assert_rag_quality()`, `ragaliq run`) runs each call in a new event loop, and pytest-asyncio runs each async test in its own loop, while a judge such as the plugin's session-scoped `ragaliq_judge` outlives them. `ClaudeTransport` now creates one HTTP client per event loop and closes it when that loop shuts down. Before, every later call sent its first request twice: once on a connection left from a closed loop, and again after the SDK's retry backoff. Its sockets stayed open (`ResourceWarning`), and `aclose()` from a new loop raised `RuntimeError: Event loop is closed`. (#179)
+- A judge's concurrency limit is one semaphore per event loop. When calls had to wait for it in two separate sync calls, the second call raised `RuntimeError: ... is bound to a different event loop`, and `RagaliQ` reported those test cases as ERROR. (#179)
+- `ClaudeTransport.send()` after `aclose()` raises `RuntimeError` at once. Before, it failed with `JudgeAPIError` after its retries. (#179)
+- For code that builds on `ClaudeTransport`: each event loop's SDK client is created at that loop's first request, so `ANTHROPIC_BASE_URL` and the SDK's other environment settings are read then, not when the transport is built. A test double that replaces `AsyncAnthropic` must make `close()` awaitable (for example `AsyncMock`): it is awaited when the event loop shuts down. (#179)
+
 ## [0.3.0] - 2026-11-01
 
 ### Added

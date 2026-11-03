@@ -4,6 +4,10 @@ A transport owns only provider HTTP calls, retries, and token counting. Prompt
 building, response parsing, and score clamping all live in `BaseJudge`.
 """
 
+import asyncio
+import threading
+import weakref
+from collections.abc import AsyncGenerator
 from types import TracebackType
 from typing import Protocol, Self
 
@@ -43,16 +47,86 @@ class JudgeTransport(Protocol):
         ...
 
 
+async def _close_at_loop_shutdown(
+    client: AsyncAnthropic,
+    owner: weakref.ref[ClaudeTransport],
+    loop: asyncio.AbstractEventLoop,
+) -> AsyncGenerator[None]:
+    """Hold `client` open until its event loop shuts down, then close it there.
+
+    asyncio.run() and asyncio.Runner.close() call loop.shutdown_asyncgens() before
+    they close the loop, and it closes every async generator still suspended in that
+    loop. The finally block below then runs while the loop is still running.
+    """
+    try:
+        yield
+    finally:
+        try:
+            await client.close()
+        finally:
+            # The generator holds its loop, so the transport's entry would keep the
+            # closed loop and its client alive. A weak reference adds no cycle.
+            transport = owner()
+            if transport is not None:
+                transport._forget(loop)
+
+
 class ClaudeTransport:
     """
     Transport implementation for Anthropic's Claude API.
 
     Handles API calls with automatic retry on rate limits and server errors.
     Uses tenacity for exponential backoff (1s, 2s, 4s, max 10s).
+
+    The transport keeps one SDK client per event loop, created on the first send
+    in that loop. A pooled HTTP connection belongs to the loop that opened it, and
+    the sync API (`RagaliQ.evaluate()`, the CLI) runs every call in a new loop with
+    asyncio.run(). A client shared across loops would send each new loop's first
+    request on a dead connection and could not be closed from a later loop (#179).
+    Each loop's client is closed when that loop shuts down, or earlier by
+    `aclose()` in that loop. A loop closed without loop.shutdown_asyncgens() keeps
+    its client, and the client's sockets, until the transport is garbage-collected.
     """
 
     def __init__(self, api_key: str) -> None:
-        self._client = AsyncAnthropic(api_key=api_key)
+        self._api_key = api_key
+        # Bound now, so a patch of AsyncAnthropic that is active while the transport
+        # is built also covers the clients it creates later.
+        self._client_class = AsyncAnthropic
+        self._closed = False
+        self._clients: dict[
+            asyncio.AbstractEventLoop, tuple[AsyncAnthropic, AsyncGenerator[None]]
+        ] = {}
+        # Loops in different threads can bind at the same time.
+        self._clients_lock = threading.Lock()
+
+    async def _client_for_loop(self) -> AsyncAnthropic:
+        """Return the running loop's client, creating it on the first call in that loop.
+
+        Raises:
+            RuntimeError: If the transport was closed.
+        """
+        if self._closed:
+            raise RuntimeError("ClaudeTransport is closed")
+        loop = asyncio.get_running_loop()
+        with self._clients_lock:
+            bound = self._clients.get(loop)
+        if bound is not None:
+            return bound[0]
+        client = self._client_class(api_key=self._api_key)
+        closer = _close_at_loop_shutdown(client, weakref.ref(self), loop)
+        # The first step registers the generator with this loop and runs to its
+        # yield without suspending, so no other task of this loop can bind between
+        # the lookup above and the store below.
+        await anext(closer)
+        with self._clients_lock:
+            self._clients[loop] = (client, closer)
+        return client
+
+    def _forget(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Drop the entry of a loop whose client was closed."""
+        with self._clients_lock:
+            self._clients.pop(loop, None)
 
     async def send(
         self,
@@ -68,6 +142,7 @@ class ClaudeTransport:
             JudgeAPIError: If the call fails after retries are exhausted.
             JudgeResponseError: If the response stopped at ``max_tokens``, was a refusal,
                 hit the model's context window, or holds no text.
+            RuntimeError: If the transport was closed.
         """
         from anthropic import APIConnectionError, APIStatusError
         from anthropic.types import Message
@@ -93,6 +168,7 @@ class ClaudeTransport:
         extra_body = {"temperature": temperature} if temperature is not None else None
         # A model with no JUDGE_THINKING entry is sent no `thinking` keyword at all.
         thinking = JUDGE_THINKING.get(model)
+        client = await self._client_for_loop()
 
         @retry(
             retry=(
@@ -106,14 +182,14 @@ class ClaudeTransport:
         async def _call_with_retry() -> Message:
             """Make the API call with retry logic."""
             if thinking is None:
-                return await self._client.messages.create(
+                return await client.messages.create(
                     model=model,
                     max_tokens=max_tokens,
                     messages=[{"role": "user", "content": user_prompt}],
                     system=system_prompt,
                     extra_body=extra_body,
                 )
-            return await self._client.messages.create(
+            return await client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 messages=[{"role": "user", "content": user_prompt}],
@@ -190,13 +266,20 @@ class ClaudeTransport:
             raise JudgeAPIError(f"Connection to Claude API failed: {e}") from e
 
     async def aclose(self) -> None:
-        """Close the HTTP client. The transport cannot send after this; closing twice is safe."""
-        # The SDK names it close(). A client left open is closed by its finalizer on
-        # whatever loop runs at GC time, which fails once its own loop has closed.
-        await self._client.close()
+        """Close the running loop's client. The transport cannot send after this.
+
+        A client another event loop opened is closed when that loop shuts down: its
+        connections cannot be closed from this loop. Closing twice is safe.
+        """
+        self._closed = True
+        with self._clients_lock:
+            bound = self._clients.pop(asyncio.get_running_loop(), None)
+        if bound is not None:
+            # Closing the generator runs its finally block, which closes the client.
+            await bound[1].aclose()
 
     async def __aenter__(self) -> Self:
-        """Return the transport; the HTTP client connects lazily on the first send."""
+        """Return the transport; the HTTP client is created on the first send."""
         return self
 
     async def __aexit__(

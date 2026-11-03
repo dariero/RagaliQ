@@ -38,6 +38,7 @@ def mock_client():
     """Patch AsyncAnthropic and return the mock client instance."""
     with patch("ragaliq.judges.transport.AsyncAnthropic") as mock_cls:
         client = MagicMock()
+        client.close = AsyncMock()  # awaited when the test's event loop shuts down
         mock_cls.return_value = client
         yield client
 

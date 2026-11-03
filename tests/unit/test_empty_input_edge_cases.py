@@ -237,10 +237,6 @@ class TestEvaluateRelevanceEmptyGuard:
         judge._transport = transport
         judge._trace_collector = None
 
-        import asyncio
-
-        judge._concurrency_limit = asyncio.Semaphore(20)
-
         result = await judge.evaluate_relevance(query="", response="Some response")
 
         assert result.score == 0.0
@@ -258,10 +254,6 @@ class TestEvaluateRelevanceEmptyGuard:
         judge._transport = transport
         judge._trace_collector = None
 
-        import asyncio
-
-        judge._concurrency_limit = asyncio.Semaphore(20)
-
         result = await judge.evaluate_relevance(query="What is X?", response="")
 
         assert result.score == 0.0
@@ -277,10 +269,6 @@ class TestEvaluateRelevanceEmptyGuard:
         judge.config = MagicMock()
         judge._transport = transport
         judge._trace_collector = None
-
-        import asyncio
-
-        judge._concurrency_limit = asyncio.Semaphore(20)
 
         result = await judge.evaluate_relevance(query="  \n  ", response="Answer")
 
