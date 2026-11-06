@@ -31,8 +31,9 @@ so the floors are never resolved — the lock is the only thing exercised. Bump 
 floor without regenerating, and the PR is green and inert.
 
 Regenerate one package at a time and diff the lock before committing; see
-CONTRIBUTING.md. `scripts/verify_release.py --consistency-only` asserts the
-floors, the pins and the lock still agree.
+CONTRIBUTING.md. `scripts/verify_release.py` asserts that the version, the
+Python atom and the ruff atom agree, and reports any declared dependency the
+lock lacks.
 
 **2026-10-11 override:** the owner's instruction for the `deps-latest-2026-10-11` run, approved at its Checkpoint 1, overrides the one-package-at-a-time rule and the no-adding-or-removing-dependencies rule for that branch only: `pylock.toml` was regenerated with a bare `--upgrade`, which adds and removes transitive packages, and `[project.dependencies]` floors were left unchanged.
 
@@ -69,7 +70,7 @@ RagaliQ (RAG + Quality) is a Python library + CLI for automated testing of RAG p
 src/ragaliq/
 ├── core/           # TestCase, Evaluator base, Runner
 ├── evaluators/     # Faithfulness, Relevance, Hallucination, etc.
-├── judges/         # LLM judge implementations (Claude, OpenAI)
+├── judges/         # LLM judge implementations (Claude)
 ├── datasets/       # Test data loading and generation
 ├── reports/        # Console, HTML, JSON reporters
 ├── integrations/   # Pytest plugin, CI helpers

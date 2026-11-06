@@ -216,7 +216,7 @@ jobs:
             ## Installation
 
             ```bash
-            pip install ragaliq==${{ github.ref_name }}
+            pip install ragaliq==${{ steps.imgtag.outputs.version }}
             ```
 
             Docker image:

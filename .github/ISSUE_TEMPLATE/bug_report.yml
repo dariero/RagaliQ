@@ -14,7 +14,7 @@ body:
     id: version
     attributes:
       label: RagaliQ Version
-      placeholder: "e.g. 0.1.0  (run: pip show ragaliq)"
+      placeholder: "run: pip show ragaliq"
     validations:
       required: true
 
@@ -22,7 +22,7 @@ body:
     id: python-version
     attributes:
       label: Python Version
-      placeholder: "e.g. 3.14.0  (run: python --version)"
+      placeholder: "run: python --version"
     validations:
       required: true
 
@@ -40,7 +40,6 @@ body:
       label: Judge in Use
       options:
         - Claude (ClaudeJudge)
-        - OpenAI (OpenAIJudge)
         - N/A — not using a judge
     validations:
       required: true

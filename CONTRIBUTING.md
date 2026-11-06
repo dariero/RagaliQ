@@ -69,7 +69,7 @@ staging; `git checkout -- .pre-commit-config.yaml` reverts it.
 >
 > A split does not even need `autoupdate`: the floor is a `>=`, so a lock
 > regenerated with `--upgrade-package ruff` can pull a newer ruff than the
-> pinned hook. Run `.venv/bin/python scripts/verify_release.py --consistency-only`
+> pinned hook. Run `.venv/bin/python scripts/verify_release.py`
 > after any of the three changes — `check_ruff_atom` fails if they disagree.
 
 The `additional_dependencies` under `mirrors-mypy` are a further copy of the

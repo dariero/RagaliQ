@@ -64,8 +64,7 @@ jobs:
         run: .venv/bin/mypy src/ scripts/
 
   # The atom checks: facts stored in more than one place (Python version, ruff
-  # version, floors vs lock). --consistency-only skips the build,
-  # twine and TODO checks, which belong to a release rather than a PR.
+  # version, floors vs lock).
   consistency:
     name: Consistency
     runs-on: ubuntu-latest
@@ -77,7 +76,7 @@ jobs:
           python-version: "3.15"
 
       - name: Run consistency checks
-        run: python scripts/verify_release.py --consistency-only
+        run: python scripts/verify_release.py
 
   # Only unit tests run in CI; integration tests need live API keys.
   test:

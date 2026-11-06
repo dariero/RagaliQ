@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The GitHub Release body's install line names the version without the tag's `v` (`pip install ragaliq==0.4.0`; pip also accepted `==v0.3.0`), as its Docker line already did. (#181)
+
 ### Removed
 
 - Python 3.14 support: Python 3.15 is the minimum (`requires-python = ">=3.15"`), and CI, the Docker image and the release build run on 3.15. On Python 3.14, pip keeps installing 0.3.0. PyYAML 6.0.3 publishes no wheel for Python 3.15, so it installs from its source distribution. (#175)
+- `scripts/verify_release.py`'s release mode (required files, TODO scan, import check, build, twine check). No workflow ran it, and it could not pass in any repo environment; the release workflow builds and checks the distributions itself. The script now runs only the four consistency checks that CI runs on every PR, and takes no option. (#181)
 
 ### Fixed
 

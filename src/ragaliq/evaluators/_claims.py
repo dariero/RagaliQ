@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from ragaliq.judges.base import ClaimVerdict
-
 if TYPE_CHECKING:
     from ragaliq.judges.base import LLMJudge
 
@@ -29,7 +27,6 @@ class ClaimVerificationResult(BaseModel):
     """Aggregated result of extracting and verifying a response's claims."""
 
     claim_details: list[ClaimDetail] = Field(default_factory=list)
-    verdicts: list[ClaimVerdict] = Field(default_factory=list)
     total_tokens: int = Field(default=0, ge=0)
     claims_empty: bool = False
     context_empty: bool = False
@@ -48,7 +45,7 @@ async def verify_all_claims(
     extraction when no claims are found.
 
     Returns:
-        ClaimVerificationResult with per-claim details, verdicts, and token total.
+        ClaimVerificationResult with per-claim details and the token total.
     """
     # No context ⇒ every claim is NOT_ENOUGH_INFO; skip the extract call to save tokens.
     if not context:
@@ -72,6 +69,5 @@ async def verify_all_claims(
 
     return ClaimVerificationResult(
         claim_details=claim_details,
-        verdicts=list(verdicts),
         total_tokens=total_tokens,
     )
