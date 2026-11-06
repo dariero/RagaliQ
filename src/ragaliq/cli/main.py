@@ -285,15 +285,10 @@ def _load_documents(docs_path: Path) -> list[str]:
 @app.command("list-evaluators")
 def list_evaluators_cmd() -> None:
     """List all available evaluators."""
-    import ragaliq.evaluators  # noqa: F401 — triggers registration of built-ins
     from ragaliq.evaluators import get_evaluator, list_evaluators
 
     console = Console()
     names = list_evaluators()
-
-    if not names:
-        typer.echo("No evaluators registered.")
-        return
 
     table = Table(title="Available Evaluators", show_lines=True)
     table.add_column("Name", style="bold cyan")

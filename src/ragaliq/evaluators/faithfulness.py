@@ -87,9 +87,6 @@ class FaithfulnessEvaluator(Evaluator):
 
     def _build_reasoning(self, supported: int, total: int) -> str:
         """Summarize the supported/total claim ratio in human-readable form."""
-        if total == 0:
-            return "No claims to verify."
-
         if supported == total:
             return f"All {total} claims are supported by the context."
         if supported == 0:

@@ -16,7 +16,7 @@ When you deploy a RAG system, how do you know the answers are accurate? How do y
 
 Traditional keyword-matching approaches miss semantic errors. RagaliQ solves this with **LLM-as-Judge evaluation**: Claude assesses response quality with deep semantic understanding, scoring each response across multiple evaluation metrics. This is the same approach used in academic LLM benchmarking — now available as a developer-friendly testing framework.
 
-> **v0.1.0:** Claude is the supported judge. OpenAI judge support is planned — track it at [GitHub Issues](https://github.com/dariero/RagaliQ/issues).
+> Claude is the supported judge. OpenAI judge support is tracked in [#114](https://github.com/dariero/RagaliQ/issues/114).
 
 ---
 

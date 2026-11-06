@@ -29,7 +29,7 @@ def pytest_addoption(parser: Any) -> None:
     Add RagaliQ command-line options to pytest.
 
     Options:
-        --ragaliq-judge: LLM provider (claude, openai). Default: claude.
+        --ragaliq-judge: LLM provider. Default: claude; "openai" is reserved (#114).
         --ragaliq-model: Model override. Default: uses judge's default.
         --ragaliq-api-key: API key override. Default: uses environment variable.
         --ragaliq-cost-limit: Max USD to spend. Default: no limit.
@@ -41,7 +41,7 @@ def pytest_addoption(parser: Any) -> None:
         "--ragaliq-judge",
         action="store",
         default="claude",
-        help="LLM judge provider: claude or openai (default: claude)",
+        help="LLM judge provider (default: claude; 'openai' is reserved, #114)",
     )
     group.addoption(
         "--ragaliq-model",
@@ -75,7 +75,7 @@ def pytest_configure(config: Any) -> None:
     """
     Configure RagaliQ pytest plugin.
 
-    Registers the @pytest.mark.ragaliq marker and initializes
+    Registers the ragaliq, rag_test and rag_slow markers and initializes
     the trace collector for cost tracking.
 
     If ragaliq is not installed (e.g., running pytest without editable install),

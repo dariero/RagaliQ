@@ -2,7 +2,7 @@
 
 `BaseJudge` implements the `LLMJudge` interface — prompt building, JSON parsing,
 score clamping, and concurrency limiting — and delegates the actual API call to a
-pluggable transport. Concrete classes (ClaudeJudge, OpenAIJudge) supply transport.
+pluggable transport. A concrete class such as ClaudeJudge supplies the transport.
 """
 
 import asyncio
@@ -67,9 +67,9 @@ class BaseJudge(LLMJudge):
     Subclasses only need to supply a transport instance.
 
     Example:
-        class ClaudeJudge(BaseJudge):
-            def __init__(self, api_key, config=None):
-                super().__init__(ClaudeTransport(api_key), config)
+        class MyJudge(BaseJudge):
+            def __init__(self, config=None):
+                super().__init__(MyTransport(), config)
     """
 
     def __init__(

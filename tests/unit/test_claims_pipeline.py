@@ -67,7 +67,6 @@ class TestEmptyContextShortCircuit:
         result = await verify_all_claims("Some response", [], mock_judge)
 
         assert result.claim_details == []
-        assert result.verdicts == []
 
 
 # =============================================================================
@@ -163,18 +162,6 @@ class TestClaimDetails:
         assert result.claim_details[1].claim == "Claim Y"
         assert result.claim_details[1].verdict == "CONTRADICTED"
 
-    @pytest.mark.asyncio
-    async def test_verdicts_list_preserved(self, mock_judge: MagicMock) -> None:
-        """Raw ClaimVerdict objects should be available in verdicts list."""
-        mock_judge.extract_claims.return_value = ClaimsResult(claims=["Claim Z"], tokens_used=10)
-        verdict = ClaimVerdict(verdict="SUPPORTED", evidence="Found", tokens_used=5)
-        mock_judge.verify_claim.return_value = verdict
-
-        result = await verify_all_claims("Response", ["context"], mock_judge)
-
-        assert len(result.verdicts) == 1
-        assert result.verdicts[0].verdict == "SUPPORTED"
-
 
 # =============================================================================
 # Error Propagation
@@ -217,7 +204,6 @@ class TestClaimVerificationResultModel:
         result = ClaimVerificationResult()
 
         assert result.claim_details == []
-        assert result.verdicts == []
         assert result.total_tokens == 0
         assert result.claims_empty is False
         assert result.context_empty is False

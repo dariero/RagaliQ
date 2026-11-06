@@ -96,9 +96,6 @@ class HallucinationEvaluator(Evaluator):
 
     def _build_reasoning(self, hallucinated: int, total: int) -> str:
         """Summarize how many claims were hallucinated vs grounded."""
-        if total == 0:
-            return "No claims to verify."
-
         if hallucinated == 0:
             return f"All {total} claims are grounded in the context. No hallucinations detected."
         if hallucinated == total:

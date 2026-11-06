@@ -91,9 +91,6 @@ class ContextPrecisionEvaluator(Evaluator):
     def _build_reasoning(self, doc_scores: list[dict[str, Any]], score: float) -> str:
         """Summarize how many retrieved documents were relevant to the query."""
         total = len(doc_scores)
-        if total == 0:
-            return "No context documents to evaluate."
-
         score_pct = score * 100
         high_relevance = sum(1 for d in doc_scores if d["score"] >= self.threshold)
 

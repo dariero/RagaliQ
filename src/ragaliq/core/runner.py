@@ -50,12 +50,13 @@ class RagaliQ:
         Initialize RagaliQ.
 
         Args:
-            judge: Which LLM to use as judge ("claude" or "openai"), or
-                a pre-configured LLMJudge instance.
+            judge: "claude", or a pre-configured LLMJudge instance. "openai" is
+                reserved: evaluating with it fails with NotImplementedError
+                until #114 is done.
             evaluators: List of evaluator names to use. Defaults to all.
             default_threshold: Passing threshold applied to every evaluator,
                 in place of each evaluator class's own default.
-            judge_config: Optional configuration for the judge (model, temperature, etc.).
+            judge_config: Optional configuration for the judge (model, max_tokens, etc.).
             api_key: Optional API key for the judge. Falls back to environment variable.
             max_concurrency: Maximum number of concurrent test case evaluations in batch mode.
             max_judge_concurrency: Maximum concurrent judge API calls. Prevents rate limit
@@ -146,9 +147,6 @@ class RagaliQ:
 
         await self._ensure_initialized()
 
-        if self._judge is None:
-            raise RuntimeError("Judge must be initialized before evaluation")
-
         scores: dict[str, float] = {}
         details: dict[str, dict[str, Any]] = {}
         total_tokens = 0
@@ -156,7 +154,8 @@ class RagaliQ:
         has_error = False
 
         judge = self._judge
-        assert judge is not None  # guaranteed by _ensure_initialized()
+        if judge is None:  # _ensure_initialized() sets it or raises
+            raise RuntimeError("Judge must be initialized before evaluation")
 
         async def _run_evaluator(evaluator: Evaluator) -> tuple[str, EvaluationResult]:
             """Run a single evaluator, returning (evaluator_name, result)."""

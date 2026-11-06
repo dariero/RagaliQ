@@ -99,9 +99,6 @@ class ContextRecallEvaluator(Evaluator):
 
     def _build_reasoning(self, covered: int, total: int) -> str:
         """Summarize how many expected facts the context covered."""
-        if total == 0:
-            return "No expected facts to verify."
-
         if covered == total:
             return f"All {total} expected facts are covered by the context."
         if covered == 0:

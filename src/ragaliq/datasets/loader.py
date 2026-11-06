@@ -15,8 +15,6 @@ from ragaliq.datasets.schemas import DatasetSchema
 class DatasetLoadError(Exception):
     """Base exception for dataset loading errors."""
 
-    pass
-
 
 class DatasetLoader:
     """

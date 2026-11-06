@@ -38,7 +38,7 @@ class RAGTestCase(BaseModel):
 
     @field_validator("query", "response", mode="before")
     @classmethod
-    def _strip_whitespace(cls, v: str) -> str:
+    def _strip_whitespace(cls, v: object) -> object:
         """Strip whitespace so whitespace-only strings fail min_length."""
         if isinstance(v, str):
             return v.strip()
@@ -46,7 +46,7 @@ class RAGTestCase(BaseModel):
 
     @field_validator("context", mode="before")
     @classmethod
-    def _filter_empty_context(cls, v: list[str]) -> list[str]:
+    def _filter_empty_context(cls, v: object) -> object:
         """Strip whitespace from context entries and remove empty strings."""
         if isinstance(v, list):
             return [item.strip() for item in v if isinstance(item, str) and item.strip()]

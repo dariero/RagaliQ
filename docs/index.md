@@ -27,7 +27,7 @@ RagaliQ ships with five built-in evaluators for comprehensive RAG pipeline testi
 
 ### LLM-as-Judge
 
-RagaliQ uses Claude or OpenAI as a semantic judge to evaluate response quality. This approach captures nuanced errors that keyword-matching and embedding similarity approaches miss.
+RagaliQ uses Claude as a semantic judge to evaluate response quality. This approach captures nuanced errors that keyword-matching and embedding similarity approaches miss.
 
 ### Pytest Integration
 
@@ -55,7 +55,6 @@ pip install ragaliq
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Cross-platform",
   "programmingLanguage": "Python",
-  "softwareVersion": "0.1.0",
   "license": "https://opensource.org/licenses/MIT",
   "url": "https://github.com/dariero/RagaliQ",
   "downloadUrl": "https://pypi.org/project/ragaliq/",

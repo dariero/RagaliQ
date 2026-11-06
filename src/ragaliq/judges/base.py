@@ -1,6 +1,6 @@
 """LLM-as-Judge interface and result types for RagaliQ.
 
-Defines the `LLMJudge` ABC that every provider (Claude, OpenAI, ...) implements,
+Defines the `LLMJudge` ABC that every judge provider implements,
 plus the frozen Pydantic result models and the judge exception hierarchy.
 """
 

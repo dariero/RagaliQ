@@ -103,7 +103,6 @@ class HTMLReporter:
                 {
                     "name": result.test_case.name,
                     "status": str(result.status),
-                    "passed": result.passed,
                     "scores": score_cells,
                     "execution_time_ms": result.execution_time_ms,
                     "failing_details": failing_details,
