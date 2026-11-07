@@ -389,7 +389,6 @@ class TestRelevanceEvaluatorJudgeInteraction:
         await evaluator.evaluate(relevant_test_case, mock_judge)
 
         # Should NOT call faithfulness-related methods
-        mock_judge.evaluate_faithfulness.assert_not_called()
         mock_judge.extract_claims.assert_not_called()
         mock_judge.verify_claim.assert_not_called()
 

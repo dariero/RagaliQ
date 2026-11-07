@@ -265,13 +265,6 @@ class BaseJudge(LLMJudge):
             )
         return [str(item) for item in value if item]
 
-    def _build_faithfulness_prompt(self, response: str, context: list[str]) -> tuple[str, str]:
-        """Build (system, user) prompts for faithfulness evaluation."""
-        template = get_prompt("faithfulness")
-        formatted_context = template.format_context(context)
-        user_prompt = template.format_user_prompt(context=formatted_context, response=response)
-        return template.build_system_prompt(), user_prompt
-
     def _build_relevance_prompt(self, query: str, response: str) -> tuple[str, str]:
         """Build (system, user) prompts for relevance evaluation."""
         template = get_prompt("relevance")
@@ -291,26 +284,6 @@ class BaseJudge(LLMJudge):
         formatted_context = template.format_context(context)
         user_prompt = template.format_user_prompt(context=formatted_context, question=question)
         return template.build_system_prompt(), user_prompt
-
-    async def evaluate_faithfulness(self, response: str, context: list[str]) -> JudgeResult:
-        """Score how faithful the response is to the context (0.0 if no context)."""
-        if not context:
-            return JudgeResult(
-                score=0.0,
-                reasoning="No context provided; faithfulness cannot be assessed.",
-                tokens_used=0,
-            )
-
-        system_prompt, user_prompt = self._build_faithfulness_prompt(response, context)
-        raw_response, tokens_used = await self._call_llm(
-            system_prompt, user_prompt, operation="evaluate_faithfulness"
-        )
-        parsed = self._parse_json_response(raw_response)
-        return JudgeResult(
-            score=self._parse_score(parsed),
-            reasoning=parsed.get("reasoning", ""),
-            tokens_used=tokens_used,
-        )
 
     async def evaluate_relevance(self, query: str, response: str) -> JudgeResult:
         """Score how relevant the response is to the query (0.0 if either is empty)."""

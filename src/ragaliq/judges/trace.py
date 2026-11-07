@@ -21,7 +21,7 @@ class JudgeTrace(BaseModel):
     """
 
     timestamp: datetime = Field(..., description="Call timestamp (UTC)")
-    operation: str = Field(..., description="Judge method name (e.g., 'evaluate_faithfulness')")
+    operation: str = Field(..., description="Judge method name (e.g., 'verify_claim')")
     model: str = Field(..., description="LLM model identifier")
     input_tokens: int = Field(..., ge=0, description="Prompt token count")
     output_tokens: int = Field(..., ge=0, description="Output token count: thinking plus text")
@@ -128,11 +128,6 @@ class TraceCollector:
     def get_failures(self) -> list[JudgeTrace]:
         """Return all traces where `success` is False."""
         return [t for t in self.traces if not t.success]
-
-    def clear(self) -> None:
-        """Clear all collected traces."""
-        with self._lock:
-            self.traces.clear()
 
     def __repr__(self) -> str:
         return (

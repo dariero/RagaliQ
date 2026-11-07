@@ -32,26 +32,6 @@ class RecordingTransport:
 
 
 @pytest.mark.asyncio
-async def test_faithfulness_system_prompt_includes_examples() -> None:
-    """Faithfulness must send its template's few-shot examples to the transport."""
-    transport = RecordingTransport('{"score": 1.0, "reasoning": "ok"}')
-    judge = BaseJudge(transport=transport)
-
-    await judge.evaluate_faithfulness(
-        response="Paris is the capital of France.",
-        context=["Paris is the capital of France."],
-    )
-
-    assert transport.calls, "judge made no transport call"
-    system_prompt = transport.calls[0][0]
-    # "Examples:" is emitted only by the get_examples_text() wiring...
-    assert "Examples:" in system_prompt
-    # ..."Seine River" appears only in faithfulness.yaml's first example, so its
-    # presence proves the authored example (not just any text) was injected.
-    assert "Seine River" in system_prompt
-
-
-@pytest.mark.asyncio
 async def test_verify_claim_system_prompt_includes_examples() -> None:
     """Claim verification must also send its template's few-shot examples."""
     transport = RecordingTransport('{"verdict": "SUPPORTED", "evidence": "ok"}')
@@ -78,4 +58,9 @@ async def test_relevance_system_prompt_includes_examples() -> None:
     )
 
     assert transport.calls
-    assert "Examples:" in transport.calls[0][0]
+    system_prompt = transport.calls[0][0]
+    # "Examples:" is emitted only by the get_examples_text() wiring...
+    assert "Examples:" in system_prompt
+    # ..."best pizza in New York" appears only in relevance.yaml's third example, so its
+    # presence proves the authored example (not just any text) was injected.
+    assert "best pizza in New York" in system_prompt

@@ -16,7 +16,7 @@ class TestJudgeTrace:
         """Test creating a successful trace."""
         trace = JudgeTrace(
             timestamp=datetime.now(UTC),
-            operation="evaluate_faithfulness",
+            operation="evaluate_relevance",
             model="claude-sonnet-4-6",
             input_tokens=100,
             output_tokens=50,
@@ -24,7 +24,7 @@ class TestJudgeTrace:
             success=True,
         )
 
-        assert trace.operation == "evaluate_faithfulness"
+        assert trace.operation == "evaluate_relevance"
         assert trace.model == "claude-sonnet-4-6"
         assert trace.input_tokens == 100
         assert trace.output_tokens == 50
@@ -367,7 +367,7 @@ class TestTraceCollector:
         collector.add(
             JudgeTrace(
                 timestamp=datetime.now(UTC),
-                operation="evaluate_faithfulness",
+                operation="evaluate_relevance",
                 model="model",
                 input_tokens=100,
                 output_tokens=50,
@@ -398,10 +398,10 @@ class TestTraceCollector:
             )
         )
 
-        faithfulness_traces = collector.get_by_operation("evaluate_faithfulness")
+        relevance_traces = collector.get_by_operation("evaluate_relevance")
         verify_traces = collector.get_by_operation("verify_claim")
 
-        assert len(faithfulness_traces) == 1
+        assert len(relevance_traces) == 1
         assert len(verify_traces) == 2
         assert all(t.operation == "verify_claim" for t in verify_traces)
 
@@ -451,32 +451,6 @@ class TestTraceCollector:
         assert all(not t.success for t in failures)
         assert failures[0].error == "Error 1"
         assert failures[1].error == "Error 2"
-
-    def test_clear(self) -> None:
-        """Test clearing all traces."""
-        collector = TraceCollector()
-
-        # Add some traces
-        for _ in range(3):
-            collector.add(
-                JudgeTrace(
-                    timestamp=datetime.now(UTC),
-                    operation="op",
-                    model="model",
-                    input_tokens=50,
-                    output_tokens=25,
-                    latency_ms=1000,
-                    success=True,
-                )
-            )
-
-        assert len(collector.traces) == 3
-
-        collector.clear()
-
-        assert len(collector.traces) == 0
-        assert collector.total_tokens == 0
-        assert collector.total_latency_ms == 0
 
     def test_repr(self) -> None:
         """Test string representation."""

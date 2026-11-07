@@ -71,10 +71,6 @@ class StubJudge(LLMJudge):
         verdict = self._verdicts.get((claim, tuple(context)), "NOT_ENOUGH_INFO")
         return ClaimVerdict(verdict=verdict, evidence="stub", tokens_used=0)
 
-    async def evaluate_faithfulness(self, response: str, context: list[str]) -> JudgeResult:
-        del response, context
-        return JudgeResult(score=0.0, reasoning="stub", tokens_used=0)
-
     async def evaluate_relevance(self, query: str, response: str) -> JudgeResult:
         del query, response
         return JudgeResult(score=0.0, reasoning="stub", tokens_used=0)

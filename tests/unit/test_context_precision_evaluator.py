@@ -620,7 +620,6 @@ class TestContextPrecisionJudgeInteraction:
         evaluator = ContextPrecisionEvaluator()
         await evaluator.evaluate(multi_doc_test_case, mock_judge)
 
-        mock_judge.evaluate_faithfulness.assert_not_called()
         mock_judge.extract_claims.assert_not_called()
         mock_judge.verify_claim.assert_not_called()
 

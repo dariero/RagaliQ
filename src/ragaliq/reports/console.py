@@ -83,7 +83,6 @@ class ConsoleReporter:
             EvalStatus.PASSED: "[green]PASS[/green]",
             EvalStatus.FAILED: "[red]FAIL[/red]",
             EvalStatus.ERROR: "[yellow]ERROR[/yellow]",
-            EvalStatus.SKIPPED: "[dim]SKIP[/dim]",
         }
 
         for result in results:

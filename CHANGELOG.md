@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Python 3.14 support: Python 3.15 is the minimum (`requires-python = ">=3.15"`), and CI, the Docker image and the release build run on 3.15. On Python 3.14, pip keeps installing 0.3.0. PyYAML 6.0.3 publishes no wheel for Python 3.15, so it installs from its source distribution. (#175)
 - `scripts/verify_release.py`'s release mode (required files, TODO scan, import check, build, twine check). No workflow ran it, and it could not pass in any repo environment; the release workflow builds and checks the distributions itself. The script now runs only the four consistency checks that CI runs on every PR, and takes no option. (#181)
+- `evaluate_faithfulness()` on `LLMJudge`, `BaseJudge` and `ClaudeJudge`, and the `faithfulness` prompt template that only it used: `get_prompt("faithfulness")` now raises `FileNotFoundError`. No evaluator called it, and a judge that subclasses `LLMJudge` no longer has to implement it. For a faithfulness score, run `await FaithfulnessEvaluator().evaluate(test_case, judge)` on a `RAGTestCase`. Its score is the share of the response's claims that `verify_claim()` finds `SUPPORTED`, from one `extract_claims()` call and one `verify_claim()` call per claim; the removed method made one call and returned the model's own rating. (#183)
+- `TestCaseGenerator.generate_from_documents_sync()`. Call `asyncio.run(generator.generate_from_documents(...))` instead. (#183)
+- `EvalStatus.SKIPPED`. Nothing set it: a result's status is `PASSED`, `FAILED` or `ERROR`. (#183)
+- The pytest marker `ragaliq`. The plugin registers `rag_test` and `rag_slow`. Under `--strict-markers`, a test marked `@pytest.mark.ragaliq` now stops collection with "'ragaliq' not found in `markers` configuration option"; without the flag, pytest warns `PytestUnknownMarkWarning` and runs the test. Mark it `rag_test`, or register `ragaliq` in the suite's own configuration. (#183)
+- `ragaliq.judges.prompts.list_prompts()`. Nothing in RagaliQ called it. The shipped templates are the `.yaml` files in `importlib.resources.files("ragaliq.judges.prompts")`. (#183)
+- `TraceCollector.clear()`. A judge keeps the collector it was built with, so to start from zero, build a new judge with a new collector (`ClaudeJudge(trace_collector=TraceCollector())`). To measure part of a run on one collector, such as the plugin's `ragaliq_trace_collector`, note `len(collector.traces)` before and read `collector.traces[start:]` after. (#183)
+- The `max_examples` parameter of `PromptTemplate.get_examples_text()` and `PromptTemplate.build_system_prompt()`. Both include every example of the template, as every judge call already did. (#183)
 
 ### Fixed
 

@@ -85,10 +85,6 @@ class FullPipelineTransport:
         if "relevance" in combined or "relevant" in combined:
             return json.dumps({"score": 0.85, "reasoning": "Relevant to the query."})
 
-        # Faithfulness direct (fallback if prompt says "faithfulness")
-        if "faithfulness" in combined:
-            return json.dumps({"score": 0.9, "reasoning": "Mostly faithful."})
-
         return json.dumps({"score": 0.75, "reasoning": "Default response."})
 
 

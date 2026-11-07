@@ -84,7 +84,7 @@ print(f"Passed:       {result.passed}")
 `RAGTestResult` carries everything you need for reporting and debugging:
 
 ```python
-result.status  # EvalStatus.PASSED | FAILED | ERROR | SKIPPED
+result.status  # EvalStatus.PASSED | FAILED | ERROR
 result.passed  # bool — True when status == PASSED
 result.scores  # {"faithfulness": 0.92, "relevance": 0.88}
 result.execution_time_ms  # wall-clock time in ms
