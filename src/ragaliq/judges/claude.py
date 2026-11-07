@@ -18,7 +18,7 @@ class ClaudeJudge(BaseJudge):
 
     Example:
         judge = ClaudeJudge()
-        result = await judge.evaluate_faithfulness(response, context)
+        result = await judge.evaluate_relevance(query, response)
     """
 
     def __init__(

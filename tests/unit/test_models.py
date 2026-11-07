@@ -186,8 +186,8 @@ class TestEvalStatus:
         """Test all status values exist."""
         assert EvalStatus.PASSED.value == "passed"
         assert EvalStatus.FAILED.value == "failed"
-        assert EvalStatus.SKIPPED.value == "skipped"
         assert EvalStatus.ERROR.value == "error"
+        assert [s.value for s in EvalStatus] == ["passed", "failed", "error"]
 
     def test_status_comparison(self):
         """Test status comparison."""

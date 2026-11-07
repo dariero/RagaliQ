@@ -85,25 +85,6 @@ class TestCaseGenerator:
             )
         ]
 
-    def generate_from_documents_sync(
-        self,
-        documents: list[str],
-        n: int,
-        judge: LLMJudge,
-    ) -> list[RAGTestCase]:
-        """
-        Synchronous wrapper for generate_from_documents.
-
-        Args:
-            documents: Source documents to generate test cases from.
-            n: Number of test cases to generate.
-            judge: LLM judge instance used for generation.
-
-        Returns:
-            List of RAGTestCase objects.
-        """
-        return asyncio.run(self.generate_from_documents(documents=documents, n=n, judge=judge))
-
 
 def _derive_name(question: str, index: int) -> str:
     """

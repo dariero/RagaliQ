@@ -88,114 +88,6 @@ class TestClaudeJudgeInit:
         assert repr(judge) == "ClaudeJudge(model='claude-sonnet-5-5')"
 
 
-class TestClaudeJudgeFaithfulness:
-    """Tests for evaluate_faithfulness method."""
-
-    @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_success(
-        self,
-        mock_anthropic_client: MagicMock,
-        mock_response: MagicMock,
-    ) -> None:
-        """Test successful faithfulness evaluation."""
-        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
-
-        judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
-            response="Paris is the capital of France.",
-            context=["France is a country in Europe. Its capital is Paris."],
-        )
-
-        assert isinstance(result, JudgeResult)
-        assert result.score == 0.85
-        assert result.reasoning == "Test"
-        assert result.tokens_used == 150  # 100 + 50
-
-    @pytest.mark.asyncio
-    @pytest.mark.usefixtures("mock_anthropic_client")
-    async def test_evaluate_faithfulness_empty_context(self) -> None:
-        """Test faithfulness with empty context returns 0.0."""
-        judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
-            response="Any response",
-            context=[],
-        )
-
-        assert result.score == 0.0
-        assert "No context provided" in result.reasoning
-        assert result.tokens_used == 0
-
-    @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_multiple_context_docs(
-        self,
-        mock_anthropic_client: MagicMock,
-    ) -> None:
-        """Test faithfulness with multiple context documents."""
-        mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(type="text", text='{"score": 0.95, "reasoning": "All claims supported"}')
-        ]
-        mock_response.usage.input_tokens = 200
-        mock_response.usage.output_tokens = 60
-        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
-
-        judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
-            response="Paris is in France. It has the Eiffel Tower.",
-            context=[
-                "Paris is the capital of France.",
-                "The Eiffel Tower is located in Paris.",
-            ],
-        )
-
-        assert result.score == 0.95
-        assert result.tokens_used == 260
-
-    @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_score_clamping(
-        self,
-        mock_anthropic_client: MagicMock,
-    ) -> None:
-        """Test that out-of-range scores are clamped."""
-        mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(type="text", text='{"score": 1.5, "reasoning": "Too high"}')
-        ]
-        mock_response.usage.input_tokens = 100
-        mock_response.usage.output_tokens = 50
-        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
-
-        judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
-            response="Test",
-            context=["Test context"],
-        )
-
-        assert result.score == 1.0  # Clamped to max
-
-    @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_negative_score_clamping(
-        self,
-        mock_anthropic_client: MagicMock,
-    ) -> None:
-        """Test that negative scores are clamped to 0.0."""
-        mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(type="text", text='{"score": -0.5, "reasoning": "Negative"}')
-        ]
-        mock_response.usage.input_tokens = 100
-        mock_response.usage.output_tokens = 50
-        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
-
-        judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
-            response="Test",
-            context=["Test context"],
-        )
-
-        assert result.score == 0.0  # Clamped to min
-
-
 class TestClaudeJudgeRelevance:
     """Tests for evaluate_relevance method."""
 
@@ -251,6 +143,50 @@ class TestClaudeJudgeRelevance:
 
         assert result.score == 0.1
 
+    @pytest.mark.asyncio
+    async def test_evaluate_relevance_score_clamping(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that out-of-range scores are clamped."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(type="text", text='{"score": 1.5, "reasoning": "Too high"}')
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 50
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.evaluate_relevance(
+            query="Query",
+            response="Test",
+        )
+
+        assert result.score == 1.0  # Clamped to max
+
+    @pytest.mark.asyncio
+    async def test_evaluate_relevance_negative_score_clamping(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """Test that negative scores are clamped to 0.0."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(type="text", text='{"score": -0.5, "reasoning": "Negative"}')
+        ]
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = 50
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        result = await judge.evaluate_relevance(
+            query="Query",
+            response="Test",
+        )
+
+        assert result.score == 0.0  # Clamped to min
+
 
 class TestClaudeJudgeErrorHandling:
     """Tests for error handling in ClaudeJudge."""
@@ -273,9 +209,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeAPIError) as exc_info:
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
         assert exc_info.value.status_code == 400
@@ -295,9 +231,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeAPIError, match="Connection to Claude API failed"):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
     @pytest.mark.asyncio
@@ -321,9 +257,9 @@ class TestClaudeJudgeErrorHandling:
         )
 
         judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         assert isinstance(result, JudgeResult)
@@ -348,9 +284,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeAPIError, match="Claude API error"):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
         # Should attempt 3 times (initial + 2 retries)
@@ -374,9 +310,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeAPIError):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
         # Should retry 5xx errors
@@ -410,9 +346,9 @@ class TestClaudeJudgeErrorHandling:
         )
 
         judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         assert isinstance(result, JudgeResult)
@@ -433,9 +369,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
     @pytest.mark.asyncio
@@ -452,9 +388,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeResponseError, match="missing 'score' field"):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
     @pytest.mark.asyncio
@@ -469,9 +405,9 @@ class TestClaudeJudgeErrorHandling:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeResponseError, match="Expected text response"):
-            await judge.evaluate_faithfulness(
+            await judge.evaluate_relevance(
+                query="Query",
                 response="Test",
-                context=["Context"],
             )
 
 
@@ -496,9 +432,9 @@ class TestClaudeJudgeJsonParsing:
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
         judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         assert result.score == 0.75
@@ -521,9 +457,9 @@ class TestClaudeJudgeJsonParsing:
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
         judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         assert result.score == 0.80
@@ -541,9 +477,9 @@ class TestClaudeJudgeJsonParsing:
         mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
 
         judge = ClaudeJudge(api_key="test-key")
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         assert result.score == 0.6
@@ -576,7 +512,7 @@ class TestClaudeJudgeJsonParsing:
 
         judge = ClaudeJudge(api_key="test-key")
         with caplog.at_level("WARNING", logger="ragaliq.judges.base_judge"):
-            result = await judge.evaluate_faithfulness(response="Test", context=["Context"])
+            result = await judge.evaluate_relevance(query="Query", response="Test")
 
         assert result.score == 0.7
         assert result.reasoning == "After text"
@@ -593,7 +529,7 @@ class TestClaudeJudgeJsonParsing:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
-            await judge.evaluate_faithfulness(response="Test", context=["Context"])
+            await judge.evaluate_relevance(query="Query", response="Test")
 
     @pytest.mark.asyncio
     async def test_two_json_objects_are_rejected(self, mock_anthropic_client: MagicMock) -> None:
@@ -605,7 +541,7 @@ class TestClaudeJudgeJsonParsing:
 
         judge = ClaudeJudge(api_key="test-key")
         with pytest.raises(JudgeResponseError, match="Failed to parse JSON"):
-            await judge.evaluate_faithfulness(response="Test", context=["Context"])
+            await judge.evaluate_relevance(query="Query", response="Test")
 
     @pytest.mark.asyncio
     async def test_verify_claim_verdict_after_reasoning(
@@ -633,21 +569,6 @@ class TestClaudeJudgeJsonParsing:
 class TestClaudeJudgePromptBuilding:
     """Tests for prompt construction."""
 
-    def test_faithfulness_prompt_contains_context(self) -> None:
-        """Test that faithfulness prompt includes context documents."""
-        judge = ClaudeJudge(api_key="test-key")
-        system_prompt, user_prompt = judge._build_faithfulness_prompt(
-            response="Test response",
-            context=["Doc 1", "Doc 2"],
-        )
-
-        assert "Document 1" in user_prompt
-        assert "Doc 1" in user_prompt
-        assert "Document 2" in user_prompt
-        assert "Doc 2" in user_prompt
-        assert "Test response" in user_prompt
-        assert "faithfulness" in system_prompt.lower()
-
     def test_relevance_prompt_contains_query(self) -> None:
         """Test that relevance prompt includes query and response."""
         judge = ClaudeJudge(api_key="test-key")
@@ -659,6 +580,27 @@ class TestClaudeJudgePromptBuilding:
         assert "What is X?" in user_prompt
         assert "X is Y." in user_prompt
         assert "relevance" in system_prompt.lower()
+
+    @pytest.mark.asyncio
+    async def test_verify_claim_prompt_numbers_context_documents(
+        self,
+        mock_anthropic_client: MagicMock,
+    ) -> None:
+        """verify_claim sends each context document as a numbered `Document N:` section."""
+        mock_response = MagicMock()
+        mock_response.content = [
+            MagicMock(type="text", text='{"verdict": "SUPPORTED", "evidence": "ok"}')
+        ]
+        mock_response.usage.input_tokens = 10
+        mock_response.usage.output_tokens = 5
+        mock_anthropic_client.messages.create = AsyncMock(return_value=mock_response)
+
+        judge = ClaudeJudge(api_key="test-key")
+        await judge.verify_claim(claim="Paris is in France.", context=["Doc A", "Doc B"])
+
+        call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
+        user_prompt = call_kwargs["messages"][0]["content"]
+        assert "Document 1:\nDoc A\n\n---\n\nDocument 2:\nDoc B" in user_prompt
 
 
 class TestClaudeJudgeApiCallParameters:
@@ -676,9 +618,9 @@ class TestClaudeJudgeApiCallParameters:
         config = JudgeConfig(model="claude-opus-4-8", temperature=0.5, max_tokens=2048)
         judge = ClaudeJudge(config=config, api_key="test-key")
 
-        await judge.evaluate_faithfulness(
+        await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
@@ -697,9 +639,9 @@ class TestClaudeJudgeApiCallParameters:
 
         judge = ClaudeJudge(api_key="test-key")
 
-        await judge.evaluate_faithfulness(
+        await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs
@@ -720,9 +662,9 @@ class TestClaudeJudgeApiCallParameters:
         config = JudgeConfig(temperature=0.0)
         judge = ClaudeJudge(config=config, api_key="test-key")
 
-        await judge.evaluate_faithfulness(
+        await judge.evaluate_relevance(
+            query="Query",
             response="Test",
-            context=["Context"],
         )
 
         call_kwargs = mock_anthropic_client.messages.create.call_args.kwargs

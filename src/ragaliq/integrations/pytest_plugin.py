@@ -75,17 +75,13 @@ def pytest_configure(config: Any) -> None:
     """
     Configure RagaliQ pytest plugin.
 
-    Registers the ragaliq, rag_test and rag_slow markers and initializes
+    Registers the rag_test and rag_slow markers and initializes
     the trace collector for cost tracking.
 
     If ragaliq is not installed (e.g., running pytest without editable install),
     this hook gracefully skips initialization. Fixtures will fail with clear
     error messages if actually used.
     """
-    config.addinivalue_line(
-        "markers",
-        "ragaliq: Mark test as a RagaliQ evaluation test",
-    )
     config.addinivalue_line(
         "markers",
         "rag_test: Mark test as a RAG quality evaluation (requires LLM judge)",

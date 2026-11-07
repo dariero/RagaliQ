@@ -24,28 +24,6 @@ class TestPluginRegistration:
         # Should not crash
         assert result.ret == 0
 
-    def test_ragaliq_marker_registered(self, pytester: pytest.Pytester) -> None:
-        """Test that @pytest.mark.ragaliq is registered."""
-        # Create a test file using the marker
-        pytester.makepyfile(
-            """
-            import pytest
-
-            @pytest.mark.ragaliq
-            def test_with_marker():
-                assert True
-            """
-        )
-
-        # Run pytest - should not warn about unknown marker
-        result = pytester.runpytest("-p", "ragaliq", "-v")
-
-        # Should pass without unknown marker warnings
-        assert result.ret == 0
-        output = result.stdout.str().lower()
-        assert "unknown mark" not in output
-        assert "unregistered mark" not in output
-
 
 class TestCommandLineOptions:
     """Test command-line option registration."""
@@ -198,7 +176,7 @@ class TestMarkers:
             """
         )
 
-        result = pytester.runpytest("-p", "ragaliq", "-v")
+        result = pytester.runpytest("-p", "ragaliq", "--strict-markers", "-v")
 
         assert result.ret == 0
         output = result.stdout.str().lower()
@@ -217,12 +195,29 @@ class TestMarkers:
             """
         )
 
-        result = pytester.runpytest("-p", "ragaliq", "-v")
+        result = pytester.runpytest("-p", "ragaliq", "--strict-markers", "-v")
 
         assert result.ret == 0
         output = result.stdout.str().lower()
         assert "unknown mark" not in output
         assert "unregistered mark" not in output
+
+    def test_ragaliq_marker_not_registered(self, pytester: pytest.Pytester) -> None:
+        """@pytest.mark.ragaliq stops collection under --strict-markers (removed in 0.4.0)."""
+        pytester.makepyfile(
+            """
+            import pytest
+
+            @pytest.mark.ragaliq
+            def test_with_ragaliq_marker():
+                assert True
+            """
+        )
+
+        result = pytester.runpytest("-p", "ragaliq", "--strict-markers")
+
+        assert result.ret == pytest.ExitCode.INTERRUPTED
+        result.stdout.fnmatch_lines(["*'ragaliq' not found in `markers` configuration option*"])
 
     def test_rag_slow_marker_filterable(self, pytester: pytest.Pytester) -> None:
         """Tests marked rag_slow can be deselected with -m 'not rag_slow'."""

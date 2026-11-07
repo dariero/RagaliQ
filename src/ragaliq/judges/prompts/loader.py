@@ -55,15 +55,13 @@ class PromptTemplate(BaseModel):
         """Join context documents into one string with numbered `Document N:` separators."""
         return "\n\n---\n\n".join(f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context))
 
-    def get_examples_text(self, max_examples: int | None = None) -> str:
-        """Render up to `max_examples` few-shot examples as prompt text ("" if none)."""
-        examples = self.examples[:max_examples] if max_examples else self.examples
-
-        if not examples:
+    def get_examples_text(self) -> str:
+        """Render the few-shot examples as prompt text ("" if none)."""
+        if not self.examples:
             return ""
 
         lines = ["Examples:", ""]
-        for i, example in enumerate(examples, 1):
+        for i, example in enumerate(self.examples, 1):
             lines.append(f"Example {i}:")
             lines.append(f"Input: {example.input}")
             lines.append(f"Output: {example.output}")
@@ -71,15 +69,12 @@ class PromptTemplate(BaseModel):
 
         return "\n".join(lines)
 
-    def build_system_prompt(self, max_examples: int | None = None) -> str:
+    def build_system_prompt(self) -> str:
         """Return the system prompt with a few-shot "Examples:" section appended when present.
 
         Falls back to the bare ``system_prompt`` when the template has no examples.
-
-        Args:
-            max_examples: Cap on examples to include (all if None).
         """
-        examples_text = self.get_examples_text(max_examples)
+        examples_text = self.get_examples_text()
         if not examples_text:
             return self.system_prompt
         return f"{self.system_prompt}\n\n{examples_text}"
@@ -119,7 +114,7 @@ def _load_template_file(name: str) -> dict[str, Any]:
 
 
 def get_prompt(name: str) -> PromptTemplate:
-    """Load and validate the prompt template named `name` (e.g. 'faithfulness').
+    """Load and validate the prompt template named `name` (e.g. 'relevance').
 
     Raises:
         FileNotFoundError: If the template doesn't exist.
@@ -127,9 +122,3 @@ def get_prompt(name: str) -> PromptTemplate:
     """
     data = _load_template_file(name)
     return PromptTemplate.model_validate(data)
-
-
-def list_prompts() -> list[str]:
-    """Return the sorted names of all available prompt templates (without `.yaml`)."""
-    prompts_dir = _get_prompts_dir()
-    return sorted(f.stem for f in prompts_dir.glob("*.yaml") if f.is_file())

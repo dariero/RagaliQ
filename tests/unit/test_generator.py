@@ -184,29 +184,6 @@ class TestTestCaseGeneratorGeneration:
 
 
 # ---------------------------------------------------------------------------
-# Synchronous wrapper
-# ---------------------------------------------------------------------------
-
-
-class TestTestCaseGeneratorSync:
-    """Tests for the synchronous generate_from_documents_sync wrapper."""
-
-    def test_sync_returns_same_as_async(self) -> None:
-        judge = _make_judge(["What is X?"], ["X is Y."])
-        result = TestCaseGenerator().generate_from_documents_sync(
-            documents=["X is Y."], n=1, judge=judge
-        )
-        assert len(result) == 1
-        assert result[0].query == "What is X?"
-        assert result[0].response == "X is Y."
-
-    def test_sync_validation_propagates(self) -> None:
-        judge = MagicMock()
-        with pytest.raises(ValueError, match="documents must not be empty"):
-            TestCaseGenerator().generate_from_documents_sync(documents=[], n=1, judge=judge)
-
-
-# ---------------------------------------------------------------------------
 # CLI generate command
 # ---------------------------------------------------------------------------
 

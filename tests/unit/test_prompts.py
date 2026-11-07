@@ -1,35 +1,30 @@
 """Tests for prompt template loading and formatting."""
 
+from pathlib import Path
+
 import pytest
 
+import ragaliq.judges.prompts as prompts_pkg
 from ragaliq.judges.prompts import (
-    PromptExample,
     PromptTemplate,
     get_prompt,
-    list_prompts,
 )
 
+SHIPPED = sorted(f.stem for f in Path(prompts_pkg.__file__).parent.glob("*.yaml"))
 
-class TestListPrompts:
-    """Tests for listing available prompt templates."""
 
-    def test_list_prompts_returns_list(self) -> None:
-        """list_prompts should return a list of template names."""
-        prompts = list_prompts()
-        assert isinstance(prompts, list)
-        assert len(prompts) > 0
+class TestShippedTemplates:
+    """Tests for the set of prompt templates shipped in the package."""
 
-    def test_list_prompts_contains_expected_templates(self) -> None:
-        """list_prompts should include core template names."""
-        prompts = list_prompts()
-        expected = ["faithfulness", "relevance", "extract_claims", "verify_claim"]
-        for name in expected:
-            assert name in prompts, f"Missing expected template: {name}"
-
-    def test_list_prompts_sorted(self) -> None:
-        """list_prompts should return sorted list."""
-        prompts = list_prompts()
-        assert prompts == sorted(prompts)
+    def test_shipped_templates(self) -> None:
+        """The package ships exactly these five templates."""
+        assert SHIPPED == [
+            "extract_claims",
+            "generate_answer",
+            "generate_questions",
+            "relevance",
+            "verify_claim",
+        ]
 
 
 class TestGetPrompt:
@@ -37,7 +32,7 @@ class TestGetPrompt:
 
     def test_get_prompt_returns_template(self) -> None:
         """get_prompt should return a PromptTemplate object."""
-        template = get_prompt("faithfulness")
+        template = get_prompt("relevance")
         assert isinstance(template, PromptTemplate)
 
     def test_get_prompt_nonexistent_raises(self) -> None:
@@ -47,7 +42,7 @@ class TestGetPrompt:
 
     def test_get_prompt_has_required_fields(self) -> None:
         """Templates should have all required fields."""
-        for name in list_prompts():
+        for name in SHIPPED:
             template = get_prompt(name)
             assert template.name, f"{name}: missing name"
             assert template.system_prompt, f"{name}: missing system_prompt"
@@ -56,72 +51,11 @@ class TestGetPrompt:
     def test_get_prompt_caching(self) -> None:
         """get_prompt should cache loaded templates."""
         # Load twice - second call should use cache
-        template1 = get_prompt("faithfulness")
-        template2 = get_prompt("faithfulness")
+        template1 = get_prompt("relevance")
+        template2 = get_prompt("relevance")
         # Both should have identical content (cache hit)
         assert template1.name == template2.name
         assert template1.system_prompt == template2.system_prompt
-
-
-class TestFaithfulnessTemplate:
-    """Tests for the faithfulness prompt template."""
-
-    @pytest.fixture
-    def template(self) -> PromptTemplate:
-        """Load the faithfulness template."""
-        return get_prompt("faithfulness")
-
-    def test_name(self, template: PromptTemplate) -> None:
-        """Template should have correct name."""
-        assert template.name == "faithfulness"
-
-    def test_version(self, template: PromptTemplate) -> None:
-        """Template should have version."""
-        assert template.version == "1.0"
-
-    def test_system_prompt_content(self, template: PromptTemplate) -> None:
-        """System prompt should contain faithfulness criteria."""
-        assert "faithful" in template.system_prompt.lower()
-        assert "context" in template.system_prompt.lower()
-        assert "JSON" in template.system_prompt
-
-    def test_user_template_placeholders(self, template: PromptTemplate) -> None:
-        """User template should have required placeholders."""
-        assert "{context}" in template.user_template
-        assert "{response}" in template.user_template
-
-    def test_format_user_prompt(self, template: PromptTemplate) -> None:
-        """format_user_prompt should substitute placeholders."""
-        prompt = template.format_user_prompt(
-            context="Test context",
-            response="Test response",
-        )
-        assert "Test context" in prompt
-        assert "Test response" in prompt
-        assert "{context}" not in prompt
-        assert "{response}" not in prompt
-
-    def test_format_user_prompt_missing_var_raises(self, template: PromptTemplate) -> None:
-        """format_user_prompt should raise KeyError for missing variables."""
-        with pytest.raises(KeyError):
-            template.format_user_prompt(context="Only context")
-
-    def test_has_examples(self, template: PromptTemplate) -> None:
-        """Template should have few-shot examples."""
-        assert len(template.examples) > 0
-
-    def test_examples_structure(self, template: PromptTemplate) -> None:
-        """Examples should have input and output fields."""
-        for example in template.examples:
-            assert isinstance(example, PromptExample)
-            assert "context" in example.input or "response" in example.input
-            assert "score" in example.output
-            assert "reasoning" in example.output
-
-    def test_output_format(self, template: PromptTemplate) -> None:
-        """Template should specify output format."""
-        assert template.output_format is not None
-        assert template.output_format["type"] == "json"
 
 
 class TestRelevanceTemplate:
@@ -149,6 +83,13 @@ class TestRelevanceTemplate:
         )
         assert "What is Python?" in prompt
         assert "Python is a programming language." in prompt
+        assert "{query}" not in prompt
+        assert "{response}" not in prompt
+
+    def test_format_user_prompt_missing_var_raises(self, template: PromptTemplate) -> None:
+        """format_user_prompt should raise KeyError for a missing variable."""
+        with pytest.raises(KeyError, match="response"):
+            template.format_user_prompt(query="Only query")
 
     def test_has_examples(self, template: PromptTemplate) -> None:
         """Template should have few-shot examples."""
@@ -226,7 +167,7 @@ class TestPromptTemplateFormatContext:
     @pytest.fixture
     def template(self) -> PromptTemplate:
         """Load any template for testing."""
-        return get_prompt("faithfulness")
+        return get_prompt("verify_claim")
 
     def test_format_context_single_doc(self, template: PromptTemplate) -> None:
         """format_context should handle single document."""
@@ -260,19 +201,13 @@ class TestPromptTemplateGetExamplesText:
     @pytest.fixture
     def template(self) -> PromptTemplate:
         """Load template with examples."""
-        return get_prompt("faithfulness")
+        return get_prompt("relevance")
 
     def test_get_examples_text_includes_all(self, template: PromptTemplate) -> None:
-        """get_examples_text should include all examples by default."""
+        """get_examples_text should include every example."""
         text = template.get_examples_text()
         assert "Example 1:" in text
-        assert "Example 2:" in text
-
-    def test_get_examples_text_limit(self, template: PromptTemplate) -> None:
-        """get_examples_text should respect max_examples limit."""
-        text = template.get_examples_text(max_examples=1)
-        assert "Example 1:" in text
-        assert "Example 2:" not in text
+        assert f"Example {len(template.examples)}:" in text
 
     def test_get_examples_text_empty(self) -> None:
         """get_examples_text should return empty string for no examples."""

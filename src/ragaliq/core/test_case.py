@@ -11,7 +11,6 @@ class EvalStatus(StrEnum):
 
     PASSED = "passed"
     FAILED = "failed"
-    SKIPPED = "skipped"
     ERROR = "error"
 
 

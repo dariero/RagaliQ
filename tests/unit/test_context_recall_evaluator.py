@@ -600,7 +600,6 @@ class TestContextRecallJudgeInteraction:
         evaluator = ContextRecallEvaluator()
         await evaluator.evaluate(complete_recall_test_case, mock_judge)
 
-        mock_judge.evaluate_faithfulness.assert_not_called()
         mock_judge.evaluate_relevance.assert_not_called()
         mock_judge.extract_claims.assert_not_called()
 

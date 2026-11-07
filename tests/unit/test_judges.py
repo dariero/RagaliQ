@@ -182,15 +182,22 @@ class TestLLMJudge:
         with pytest.raises(TypeError, match="abstract"):
             LLMJudge()  # type: ignore[abstract]
 
+    def test_abstract_methods(self) -> None:
+        """A judge implements exactly these five methods."""
+        assert LLMJudge.__abstractmethods__ == frozenset(
+            {
+                "evaluate_relevance",
+                "extract_claims",
+                "verify_claim",
+                "generate_questions",
+                "generate_answer",
+            }
+        )
+
     def test_concrete_implementation_default_config(self) -> None:
         """Test that concrete implementation gets default config."""
 
         class MockJudge(LLMJudge):
-            async def evaluate_faithfulness(
-                self, _response: str, _context: list[str]
-            ) -> JudgeResult:
-                return JudgeResult(score=1.0)
-
             async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
@@ -218,11 +225,6 @@ class TestLLMJudge:
         """Test that concrete implementation accepts custom config."""
 
         class MockJudge(LLMJudge):
-            async def evaluate_faithfulness(
-                self, _response: str, _context: list[str]
-            ) -> JudgeResult:
-                return JudgeResult(score=1.0)
-
             async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
@@ -251,11 +253,6 @@ class TestLLMJudge:
         """Test string representation of judge."""
 
         class MockJudge(LLMJudge):
-            async def evaluate_faithfulness(
-                self, _response: str, _context: list[str]
-            ) -> JudgeResult:
-                return JudgeResult(score=1.0)
-
             async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                 return JudgeResult(score=1.0)
 
@@ -279,64 +276,10 @@ class TestLLMJudge:
         assert repr(judge) == "MockJudge(model='claude-sonnet-5-5')"
 
     @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_signature(self) -> None:
-        """Test that evaluate_faithfulness can be called with correct args."""
-
-        class MockJudge(LLMJudge):
-            async def evaluate_faithfulness(
-                self,
-                response: str,  # noqa: ARG002
-                context: list[str],  # noqa: ARG002
-            ) -> JudgeResult:
-                return JudgeResult(
-                    score=0.9,
-                    reasoning="Response is faithful",
-                    tokens_used=100,
-                )
-
-            async def evaluate_relevance(
-                self,
-                query: str,  # noqa: ARG002
-                response: str,  # noqa: ARG002
-            ) -> JudgeResult:
-                return JudgeResult(score=1.0)
-
-            async def extract_claims(self, _response: str) -> ClaimsResult:
-                return ClaimsResult(claims=[])
-
-            async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
-                return ClaimVerdict(verdict="SUPPORTED")
-
-            async def generate_questions(
-                self, _documents: list[str], _n: int
-            ) -> GeneratedQuestionsResult:
-                return GeneratedQuestionsResult(questions=[])
-
-            async def generate_answer(
-                self, _question: str, _context: list[str]
-            ) -> GeneratedAnswerResult:
-                return GeneratedAnswerResult(answer="")
-
-        judge = MockJudge()
-        result = await judge.evaluate_faithfulness(
-            response="The capital of France is Paris.",
-            context=["Paris is the capital city of France."],
-        )
-        assert result.score == 0.9
-        assert result.tokens_used == 100
-
-    @pytest.mark.asyncio
     async def test_evaluate_relevance_signature(self) -> None:
         """Test that evaluate_relevance can be called with correct args."""
 
         class MockJudge(LLMJudge):
-            async def evaluate_faithfulness(
-                self,
-                response: str,  # noqa: ARG002
-                context: list[str],  # noqa: ARG002
-            ) -> JudgeResult:
-                return JudgeResult(score=1.0)
-
             async def evaluate_relevance(
                 self,
                 query: str,  # noqa: ARG002
@@ -372,34 +315,12 @@ class TestLLMJudge:
         assert result.score == 0.95
         assert result.tokens_used == 80
 
-    def test_missing_abstract_method_faithfulness(self) -> None:
-        """Test that missing evaluate_faithfulness raises TypeError."""
-
-        with pytest.raises(TypeError, match="abstract"):
-
-            class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
-                async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
-                    return JudgeResult(score=1.0)
-
-                async def extract_claims(self, _response: str) -> ClaimsResult:
-                    return ClaimsResult(claims=[])
-
-                async def verify_claim(self, _claim: str, _context: list[str]) -> ClaimVerdict:
-                    return ClaimVerdict(verdict="SUPPORTED")
-
-            IncompleteJudge()
-
     def test_missing_abstract_method_relevance(self) -> None:
         """Test that missing evaluate_relevance raises TypeError."""
 
         with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
-                async def evaluate_faithfulness(
-                    self, _response: str, _context: list[str]
-                ) -> JudgeResult:
-                    return JudgeResult(score=1.0)
-
                 async def extract_claims(self, _response: str) -> ClaimsResult:
                     return ClaimsResult(claims=[])
 
@@ -414,11 +335,6 @@ class TestLLMJudge:
         with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
-                async def evaluate_faithfulness(
-                    self, _response: str, _context: list[str]
-                ) -> JudgeResult:
-                    return JudgeResult(score=1.0)
-
                 async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                     return JudgeResult(score=1.0)
 
@@ -433,11 +349,6 @@ class TestLLMJudge:
         with pytest.raises(TypeError, match="abstract"):
 
             class IncompleteJudge(LLMJudge):  # type: ignore[abstract]
-                async def evaluate_faithfulness(
-                    self, _response: str, _context: list[str]
-                ) -> JudgeResult:
-                    return JudgeResult(score=1.0)
-
                 async def evaluate_relevance(self, _query: str, _response: str) -> JudgeResult:
                     return JudgeResult(score=1.0)
 

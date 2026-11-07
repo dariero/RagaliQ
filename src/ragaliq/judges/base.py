@@ -119,37 +119,16 @@ class LLMJudge(ABC):
     supplies the actual API transport.
 
     Example:
-        class ClaudeJudge(LLMJudge):
-            async def evaluate_faithfulness(self, response, context): ...
+        class MyJudge(LLMJudge):
             async def evaluate_relevance(self, query, response): ...
+            async def extract_claims(self, response): ...
+            async def verify_claim(self, claim, context): ...
+            async def generate_questions(self, documents, n): ...
+            async def generate_answer(self, question, context): ...
     """
 
     def __init__(self, config: JudgeConfig | None = None) -> None:
         self.config = config or JudgeConfig()
-
-    @abstractmethod
-    async def evaluate_faithfulness(
-        self,
-        response: str,
-        context: list[str],
-    ) -> JudgeResult:
-        """Evaluate whether the response is faithful to the provided context.
-
-        Faithfulness measures whether the response's claims are supported by the
-        context; a faithful response adds nothing beyond what the context states.
-
-        Args:
-            response: The RAG system's generated response.
-            context: List of context documents used for generation.
-
-        Returns:
-            JudgeResult with faithfulness score and reasoning.
-
-        Raises:
-            JudgeAPIError: If the LLM API call fails.
-            JudgeResponseError: If the response cannot be parsed.
-        """
-        ...
 
     @abstractmethod
     async def evaluate_relevance(

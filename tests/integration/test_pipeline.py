@@ -81,8 +81,6 @@ class FakeTransport:
                     "evidence": "The context confirms this.",
                 }
             )
-        if "faithfulness" in combined:
-            return json.dumps({"score": 0.9, "reasoning": "Mostly faithful."})
         if "relevance" in combined or "relevant" in combined:
             return json.dumps({"score": 0.85, "reasoning": "Relevant response."})
         if "question" in combined and "generate" in combined:
@@ -139,17 +137,6 @@ class TestTransportToJudge:
     """Verify FakeTransport → BaseJudge → parsed result chain."""
 
     @pytest.mark.asyncio
-    async def test_evaluate_faithfulness_through_transport(self, fake_judge):
-        """Full chain: transport JSON → _parse_json_response → JudgeResult."""
-        result = await fake_judge.evaluate_faithfulness(
-            response="Paris is the capital.",
-            context=["The capital of France is Paris."],
-        )
-        assert result.score == 0.9
-        assert result.reasoning == "Mostly faithful."
-        assert result.tokens_used == 80  # 50 input + 30 output
-
-    @pytest.mark.asyncio
     async def test_evaluate_relevance_through_transport(self, fake_judge):
         result = await fake_judge.evaluate_relevance(
             query="What is the capital?",
@@ -177,12 +164,12 @@ class TestTransportToJudge:
     async def test_score_clamping_above_1(self):
         """Transport returns score > 1.0, BaseJudge clamps to 1.0."""
         transport = FakeTransport(
-            responses={"faithfulness": json.dumps({"score": 1.5, "reasoning": "Over"})}
+            responses={"relevance": json.dumps({"score": 1.5, "reasoning": "Over"})}
         )
         judge = BaseJudge(transport=transport)
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="test",
             response="test",
-            context=["test context"],
         )
         assert result.score == 1.0
 
@@ -190,12 +177,12 @@ class TestTransportToJudge:
     async def test_score_clamping_below_0(self):
         """Transport returns score < 0.0, BaseJudge clamps to 0.0."""
         transport = FakeTransport(
-            responses={"faithfulness": json.dumps({"score": -0.5, "reasoning": "Under"})}
+            responses={"relevance": json.dumps({"score": -0.5, "reasoning": "Under"})}
         )
         judge = BaseJudge(transport=transport)
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="test",
             response="test",
-            context=["test context"],
         )
         assert result.score == 0.0
 
@@ -203,13 +190,13 @@ class TestTransportToJudge:
     async def test_trace_collector_receives_traces(self, traced_judge):
         """Verify TraceCollector captures calls through the full chain."""
         judge, collector = traced_judge
-        await judge.evaluate_faithfulness(
+        await judge.evaluate_relevance(
+            query="test",
             response="test",
-            context=["context"],
         )
         assert len(collector.traces) == 1
         trace = collector.traces[0]
-        assert trace.operation == "evaluate_faithfulness"
+        assert trace.operation == "evaluate_relevance"
         assert trace.success is True
         assert trace.input_tokens == 50
         assert trace.output_tokens == 30
@@ -218,11 +205,11 @@ class TestTransportToJudge:
     async def test_markdown_wrapped_json(self):
         """Transport returns JSON wrapped in markdown — BaseJudge strips it."""
         wrapped = '```json\n{"score": 0.75, "reasoning": "Wrapped"}\n```'
-        transport = FakeTransport(responses={"faithfulness": wrapped})
+        transport = FakeTransport(responses={"relevance": wrapped})
         judge = BaseJudge(transport=transport)
-        result = await judge.evaluate_faithfulness(
+        result = await judge.evaluate_relevance(
+            query="test",
             response="test",
-            context=["ctx"],
         )
         assert result.score == 0.75
         assert result.reasoning == "Wrapped"
