@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The GitHub Release body's install line names the version without the tag's `v` (`pip install ragaliq==0.4.0`; pip also accepted `==v0.3.0`), as its Docker line already did. (#181)
+- The lock moves 25 of its 52 packages to their newest releases, among them anthropic 2.11.0 (from 2.3.0; it sends the same API version, `2026-10-21`), pydantic 2.14.4, typer 0.29.2, pytest 9.2.0, pytest-asyncio 1.5.0, ruff 0.17.6 and mypy 2.4.1. The `anthropic>=2.3` floor and the other floors are unchanged. The judge-agreement baseline is re-pinned on anthropic 2.11.0: three paid runs of claude-sonnet-5-5 agreed on 42 of 42 golden claims each (macro-F1 1.0), so the drift tolerance stays 0.05. Contributors: the pre-commit hooks move to ruff v0.17.6 and mypy v2.4.1. (#186)
 
 ### Removed
 

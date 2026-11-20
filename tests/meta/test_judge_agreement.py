@@ -51,7 +51,9 @@ MIN_MACRO_F1 = 0.65
 # 2026-10-31 for the verify_claim v2.0 prompt (#170): three runs of
 # claude-sonnet-5-5 gave macro-F1 1.0, 1.0 and 1.0 (42 of 42 correct each), so
 # observed_spread = 0 and the rule gives 0.05. The pinned baseline is the median
-# run, 1.0. A later run with 40 of 42 (about 0.952) stays inside the tolerance;
+# run, 1.0. Re-derived 2026-11-20 for anthropic 2.11.0 (#186): three runs gave
+# 1.0, 1.0 and 1.0 again, so the tolerance stays 0.05 and the baseline is
+# re-pinned at 1.0. A later run with 40 of 42 (about 0.952) stays inside the tolerance;
 # one with 39 (about 0.93) is reported as drift. The v1 prompt's runs of
 # 2026-10-25 (#90) gave 0.9277, 0.9514 and 0.9524 (39, 40 and 40 of 42).
 #
