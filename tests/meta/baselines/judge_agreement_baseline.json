@@ -27,6 +27,6 @@
   "fingerprint": {
     "golden_sha256": "d56b31c2a0332079b56ceb4e9455204e281f7ebedce67b160e333e0e7f4fccca",
     "prompt_sha256": "5582b9268bf2c19ef4fcc5a8e61ebac0477829b2e0bf68cea1f6c57cd7ba5116",
-    "anthropic": "2.3.0"
+    "anthropic": "2.11.0"
   }
 }
